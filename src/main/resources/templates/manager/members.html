@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{manager/layout :: header}"></head>
+  <body>
+    <div th:replace="~{manager/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-users me-2"></i>Thành viên lớp</h2>
+            <p class="text-muted mb-0" th:if="${studentClass != null}">
+              Lớp: <strong th:text="${studentClass.name}">Lớp</strong>
+            </p>
+          </div>
+          <div th:if="${studentClass != null}">
+            <div class="card bg-info text-white" style="min-width: 150px;">
+              <div class="card-body text-center py-2">
+                <h3 class="mb-0" th:text="${memberCount}">0</h3>
+                <small>Thành viên</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- No Class Alert -->
+        <div th:if="${studentClass == null}" class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Bạn chưa được gán quản lý lớp nào.
+        </div>
+
+        <!-- Search Box -->
+        <div th:if="${studentClass != null}" class="card mb-4">
+          <div class="card-body">
+            <form method="get" th:action="@{/manager/members}" class="row g-3 align-items-end">
+              <div class="col-md-8">
+                <label class="form-label">Tìm kiếm thành viên</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Nhập tên hoặc mã sinh viên..." th:value="${search}">
+              </div>
+              <div class="col-md-4">
+                <button type="submit" class="btn btn-primary me-2">
+                  <i class="fas fa-search me-1"></i>Tìm kiếm
+                </button>
+                <a th:href="@{/manager/members}" class="btn btn-outline-secondary">
+                  <i class="fas fa-times me-1"></i>Xóa lọc
+                </a>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Members Table -->
+        <div th:if="${studentClass != null}" class="card">
+          <div class="card-header">
+            <i class="fas fa-user-friends me-2"></i>Danh sách thành viên
+            <span class="badge bg-primary ms-2" th:text="${members?.size()} ?: 0">0</span>
+            <span th:if="${search}" class="badge bg-info ms-2">Tìm: "<span th:text="${search}"></span>"</span>
+          </div>
+          <div class="card-body">
+            <div th:if="${members == null || members.isEmpty()}" class="text-center text-muted py-4">
+              <i class="fas fa-users fa-3x mb-3"></i>
+              <p>Chưa có thành viên nào trong lớp</p>
+            </div>
+
+            <table th:if="${members != null && !members.isEmpty()}" class="table table-hover">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Họ tên</th>
+                  <th>Username (MSSV)</th>
+                  <th>Email</th>
+                  <th>Số điện thoại</th>
+                  <th>Vai trò</th>
+                  <th>Ngày tham gia</th>
+                  <th class="text-end">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="member, stat : ${members}">
+                  <td th:text="${stat.index + 1}">1</td>
+                  <td>
+                    <strong th:text="${member.fullName}">Nguyễn Văn A</strong>
+                  </td>
+                  <td><code th:text="${member.username}">sinhvien01</code></td>
+                  <td th:text="${member.email}">email@example.com</td>
+                  <td th:text="${member.phone} ?: 'Chưa có'">0123456789</td>
+                  <td>
+                    <span class="badge" 
+                          th:classappend="${member.role.name() == 'MANAGER'} ? 'bg-warning' : 'bg-info'"
+                          th:text="${member.role.name() == 'MANAGER'} ? 'Quản lý' : 'Sinh viên'">
+                      Sinh viên
+                    </span>
+                  </td>
+                  <td th:text="${#temporals.format(member.createdAt, 'dd/MM/yyyy')}">01/01/2024</td>
+                  <td class="text-end">
+                    <button th:if="${member.role.name() != 'MANAGER'}"
+                            class="btn btn-outline-danger btn-sm btn-remove-member" 
+                            th:data-id="${member.id}"
+                            th:data-name="${member.fullName}">
+                      <i class="fas fa-user-minus me-1"></i>Xóa khỏi lớp
+                    </button>
+                    <span th:if="${member.role.name() == 'MANAGER'}" class="text-muted">
+                      <i class="fas fa-shield-alt"></i> Quản lý
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{manager/layout :: scripts}"></div>
+    
+    <script>
+      // Event delegation for remove buttons
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-remove-member');
+        if (btn) {
+          const userId = btn.dataset.id;
+          const name = btn.dataset.name;
+          removeMember(userId, name);
+        }
+      });
+
+      async function removeMember(userId, name) {
+        if (!confirm(`Xác nhận xóa "${name}" khỏi lớp?`)) return;
+        
+        try {
+          Loading.show();
+          const response = await fetch(`/manager/api/members/${userId}`, {
+            method: 'DELETE'
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.message || 'Không thể xóa thành viên');
+          }
+          
+          Toast.success('Đã xóa khỏi lớp!');
+          setTimeout(() => location.reload(), 500);
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        } finally {
+          Loading.hide();
+        }
+      }
+    </script>
+  </body>
+</html>

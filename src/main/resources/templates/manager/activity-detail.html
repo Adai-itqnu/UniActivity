@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{manager/layout :: header}"></head>
+  <body>
+    <div th:replace="~{manager/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <a th:href="@{/manager/activities}" class="btn btn-outline-secondary btn-sm mb-2">
+              <i class="fas fa-arrow-left me-1"></i>Quay lại
+            </a>
+            <h2><i class="fas fa-calendar-check text-primary me-2"></i>Chi tiết hoạt động</h2>
+          </div>
+          <button class="btn btn-primary" onclick="showQRModal()">
+            <i class="fas fa-qrcode me-2"></i>Tạo QR Check-in
+          </button>
+        </div>
+
+        <!-- Activity Info Card -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0" th:text="${activity.name}">Tên hoạt động</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <p th:if="${activity.description}">
+                  <strong>Mô tả:</strong> <span th:text="${activity.description}">Mô tả</span>
+                </p>
+                <p th:if="${activity.location}">
+                  <strong><i class="fas fa-map-marker-alt me-1"></i>Địa điểm:</strong> 
+                  <span th:text="${activity.location}">Địa điểm</span>
+                </p>
+              </div>
+              <div class="col-md-6">
+                <p th:if="${activity.startTime}">
+                  <strong><i class="fas fa-clock me-1"></i>Thời gian:</strong> 
+                  <span th:text="${activity.startTime}">Thời gian</span>
+                </p>
+                <p>
+                  <strong>Đã đăng ký:</strong> <span class="badge bg-info" th:text="${activity.registeredCount}">0</span>
+                  <strong class="ms-3">Đã check-in:</strong> <span class="badge bg-success" th:text="${activity.checkedInCount}">0</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Registrations Table -->
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i class="fas fa-users me-2"></i>Danh sách đăng ký
+            </h5>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0" id="registrationsTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Mã SV</th>
+                    <th>Họ tên</th>
+                    <th>Check-in</th>
+                    <th>Minh chứng</th>
+                    <th>Duyệt</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="registrationsBody">
+                  <tr>
+                    <td colspan="7" class="text-center py-4">
+                      <i class="fas fa-spinner fa-spin me-2"></i>Đang tải...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div class="modal fade" id="qrModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title"><i class="fas fa-qrcode me-2"></i>Mã QR Check-in</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center py-4">
+            <img id="qrImage" th:src="@{'/manager/api/qrcode/' + ${activityId}}" alt="QR Code" 
+                 style="max-width: 300px; border: 5px solid #198754; border-radius: 10px;">
+            <div class="alert alert-success mt-3">
+              <small>Sinh viên quét mã này để check-in tham gia sự kiện</small>
+            </div>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <a id="downloadQR" class="btn btn-outline-primary" th:href="@{'/manager/api/qrcode/' + ${activityId}}" download="checkin_qr.png">
+              <i class="fas fa-download me-1"></i>Tải xuống
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evidence Preview Modal -->
+    <div class="modal fade" id="evidenceModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="fas fa-image me-2"></i>Xem minh chứng</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="evidenceImagesContainer" class="row g-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{manager/layout :: scripts}"></div>
+
+    <script th:inline="javascript">
+      const activityId = [[${activityId}]];
+
+      document.addEventListener('DOMContentLoaded', loadRegistrations);
+
+      async function loadRegistrations() {
+        try {
+          const response = await fetch(`/manager/api/activities/${activityId}/registrations`);
+          const registrations = await response.json();
+          const tbody = document.getElementById('registrationsBody');
+
+          if (registrations.length === 0) {
+            tbody.innerHTML = `
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                  <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                  Chưa có sinh viên đăng ký
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          tbody.innerHTML = registrations.map((reg, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td><code>${reg.studentCode || '-'}</code></td>
+              <td><strong>${reg.studentName}</strong></td>
+              <td>
+                ${reg.status === 'ATTENDED' 
+                  ? '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Đã check-in</span>' 
+                  : '<span class="badge bg-secondary"><i class="fas fa-clock me-1"></i>Chưa check-in</span>'}
+              </td>
+              <td>
+                ${reg.evidenceUrl 
+                  ? `<button class="btn btn-sm btn-outline-info" onclick="viewEvidence('${reg.evidenceUrl}')">
+                       <i class="fas fa-image me-1"></i>Xem
+                     </button>` 
+                  : '<span class="text-muted">Chưa nộp</span>'}
+              </td>
+              <td>
+                ${reg.isApproved === true 
+                  ? '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Đã duyệt</span>'
+                  : reg.isApproved === false
+                    ? '<span class="badge bg-danger"><i class="fas fa-times me-1"></i>Từ chối</span>'
+                    : '<span class="badge bg-warning">Chờ duyệt</span>'}
+              </td>
+              <td>
+                ${reg.status === 'ATTENDED' && reg.evidenceUrl && reg.isApproved === null
+                  ? `<button class="btn btn-sm btn-success me-1" onclick="approveReg(${reg.id})">
+                       <i class="fas fa-check me-1"></i>Duyệt
+                     </button>
+                     <button class="btn btn-sm btn-danger" onclick="rejectReg(${reg.id})">
+                       <i class="fas fa-times me-1"></i>Từ chối
+                     </button>`
+                  : '<span class="text-muted">-</span>'}
+              </td>
+            </tr>
+          `).join('');
+        } catch (error) {
+          document.getElementById('registrationsBody').innerHTML = `
+            <tr>
+              <td colspan="7" class="text-center text-danger py-4">
+                <i class="fas fa-exclamation-circle me-2"></i>Lỗi tải dữ liệu
+              </td>
+            </tr>
+          `;
+        }
+      }
+
+      function showQRModal() {
+        const modal = new bootstrap.Modal(document.getElementById('qrModal'));
+        modal.show();
+      }
+
+      function viewEvidence(urls) {
+        const container = document.getElementById('evidenceImagesContainer');
+        const urlList = urls.split(',');
+        
+        container.innerHTML = urlList.map((url, index) => `
+          <div class="col-md-${urlList.length === 1 ? '12' : (urlList.length === 2 ? '6' : '4')}">
+            <div class="card">
+              <img src="${url.trim()}" class="card-img-top" alt="Minh chứng ${index + 1}" style="max-height: 300px; object-fit: contain;">
+              <div class="card-body p-2 text-center">
+                <small class="text-muted">Ảnh ${index + 1}</small>
+              </div>
+            </div>
+          </div>
+        `).join('');
+        
+        const modal = new bootstrap.Modal(document.getElementById('evidenceModal'));
+        modal.show();
+      }
+
+      async function approveReg(registrationId) {
+        if (!confirm('Xác nhận duyệt minh chứng này?')) return;
+        
+        try {
+          const response = await fetch(`/manager/api/registrations/${registrationId}/approve`, {
+            method: 'POST'
+          });
+          const data = await response.json();
+          
+          if (response.ok) {
+            Toast.success(data.message);
+            loadRegistrations();
+          } else {
+            Toast.error(data.message);
+          }
+        } catch (error) {
+          Toast.error('Có lỗi xảy ra');
+        }
+      }
+
+      async function rejectReg(registrationId) {
+        const reason = prompt('Nhập lý do từ chối minh chứng:');
+        if (!reason || reason.trim() === '') {
+          Toast.warning('Vui lòng nhập lý do từ chối');
+          return;
+        }
+        
+        try {
+          const response = await fetch(`/manager/api/registrations/${registrationId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: reason.trim() })
+          });
+          const data = await response.json();
+          
+          if (response.ok) {
+            Toast.success(data.message);
+            loadRegistrations();
+          } else {
+            Toast.error(data.message);
+          }
+        } catch (error) {
+          Toast.error('Có lỗi xảy ra');
+        }
+      }
+    </script>
+  </body>
+</html>

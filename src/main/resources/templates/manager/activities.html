@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{manager/layout :: header}"></head>
+  <body>
+    <div th:replace="~{manager/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <h2 class="mb-4"><i class="fas fa-calendar-alt text-primary me-2"></i>Quản lý Hoạt động</h2>
+
+        <div th:if="${studentClass == null}" class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Bạn chưa được gán quản lý lớp nào.
+        </div>
+
+        <div th:if="${studentClass != null}">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Nhấn <strong>Tạo QR Check-in</strong> để tạo mã QR. Sinh viên đến sự kiện và quét mã này để xác nhận tham gia.
+          </div>
+
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-list me-2"></i>Danh sách hoạt động</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0" id="activitiesTable">
+                  <thead class="table-light">
+                    <tr>
+                      <th>#</th>
+                      <th>Tên hoạt động</th>
+                      <th>Thời gian</th>
+                      <th>Địa điểm</th>
+                      <th>Đã đăng ký</th>
+                      <th>Đã check-in</th>
+                      <th>Trạng thái</th>
+                      <th class="text-end">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="activitiesBody">
+                    <tr>
+                      <td colspan="8" class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Đang tải...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Modal for Check-in -->
+    <div class="modal fade" id="qrModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title"><i class="fas fa-qrcode me-2"></i>Mã QR Check-in</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center py-5">
+            <h4 id="qrActivityName" class="mb-4"></h4>
+            <div id="qrCodeContainer" class="mb-4" style="display: inline-block; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+              <!-- QR will be generated here -->
+            </div>
+            <div class="alert alert-success">
+              <i class="fas fa-mobile-alt me-2"></i>
+              <strong>Hướng dẫn:</strong> Sinh viên mở camera điện thoại, quét mã QR này để check-in tham gia sự kiện.
+            </div>
+            <p class="text-muted small">Mã sẽ tự động làm mới sau mỗi 60 giây để đảm bảo bảo mật</p>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <button class="btn btn-outline-primary" onclick="downloadQR()">
+              <i class="fas fa-download me-1"></i>Tải xuống
+            </button>
+            <button class="btn btn-outline-secondary" onclick="printQR()">
+              <i class="fas fa-print me-1"></i>In mã QR
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{manager/layout :: scripts}"></div>
+
+    <script>
+      let currentActivityId = null;
+      let qrRefreshInterval = null;
+
+      document.addEventListener('DOMContentLoaded', loadActivities);
+
+      async function loadActivities() {
+        try {
+          const response = await fetch('/manager/api/activities');
+          
+          if (!response.ok) {
+            throw new Error('Failed to load');
+          }
+          
+          const activities = await response.json();
+          const tbody = document.getElementById('activitiesBody');
+          
+          if (activities.length === 0) {
+            tbody.innerHTML = `
+              <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                  <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                  Chưa có hoạt động nào
+                </td>
+              </tr>
+            `;
+            return;
+          }
+
+          tbody.innerHTML = activities.map((act, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td>
+                <strong>${act.name}</strong>
+                ${act.description ? `<br><small class="text-muted">${act.description.substring(0, 50)}...</small>` : ''}
+              </td>
+              <td>${act.startTime ? new Date(act.startTime).toLocaleString('vi-VN') : '-'}</td>
+              <td>${act.location || '-'}</td>
+              <td><span class="badge bg-info">${act.registeredCount || 0}</span></td>
+              <td><span class="badge bg-success">${act.checkedInCount || 0}</span></td>
+              <td>
+                ${act.status === 'OPEN' ? '<span class="badge bg-success">Đang mở</span>' : 
+                  act.status === 'CLOSED' ? '<span class="badge bg-secondary">Đã đóng</span>' :
+                  '<span class="badge bg-warning">Nháp</span>'}
+              </td>
+              <td class="text-end">
+                <a class="btn btn-info btn-sm me-1" href="/manager/activities/${act.id}">
+                  <i class="fas fa-eye me-1"></i>Chi tiết
+                </a>
+                <button class="btn btn-primary btn-sm btn-qr" data-id="${act.id}" data-name="${escapeHtml(act.name)}">
+                  <i class="fas fa-qrcode me-1"></i>QR
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        } catch (error) {
+          document.getElementById('activitiesBody').innerHTML = `
+            <tr>
+              <td colspan="8" class="text-center text-danger py-4">
+                <i class="fas fa-exclamation-circle me-2"></i>Lỗi tải dữ liệu
+              </td>
+            </tr>
+          `;
+        }
+      }
+
+      // Helper to escape HTML in activity names
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      // Event delegation for QR buttons
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-qr');
+        if (btn) {
+          const id = btn.dataset.id;
+          const name = btn.dataset.name;
+          showQR(id, name);
+        }
+      });
+
+      function showQR(activityId, activityName) {
+        currentActivityId = activityId;
+        document.getElementById('qrActivityName').textContent = activityName;
+        
+        generateQRCode(activityId);
+        
+        // Auto refresh QR every 60 seconds for security
+        if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+        qrRefreshInterval = setInterval(() => generateQRCode(activityId), 60000);
+        
+        const modal = new bootstrap.Modal(document.getElementById('qrModal'));
+        modal.show();
+        
+        // Clear interval when modal closes
+        document.getElementById('qrModal').addEventListener('hidden.bs.modal', () => {
+          if (qrRefreshInterval) clearInterval(qrRefreshInterval);
+        }, { once: true });
+      }
+
+      function generateQRCode(activityId) {
+        const qrContainer = document.getElementById('qrCodeContainer');
+        qrContainer.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang tạo mã QR...</p>';
+        
+        // Use server-side ZXing API to generate QR code
+        const img = document.createElement('img');
+        img.id = 'qrImage';
+        img.src = `/manager/api/qrcode/${activityId}`;
+        img.alt = 'QR Code Check-in';
+        img.style.maxWidth = '300px';
+        img.style.border = '5px solid #198754';
+        img.style.borderRadius = '10px';
+        
+        img.onload = function() {
+          qrContainer.innerHTML = '';
+          qrContainer.appendChild(img);
+        };
+        
+        img.onerror = function() {
+          qrContainer.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle me-2"></i>Không thể tạo mã QR</p>';
+        };
+      }
+
+      function downloadQR() {
+        const img = document.getElementById('qrImage');
+        if (img) {
+          const link = document.createElement('a');
+          link.download = `checkin_${currentActivityId}.png`;
+          link.href = img.src;
+          link.click();
+        }
+      }
+
+      function printQR() {
+        const img = document.getElementById('qrImage');
+        if (img) {
+          const activityName = document.getElementById('qrActivityName').textContent;
+          const printWindow = window.open('', '_blank');
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>QR Check-in - ${activityName}</title>
+                <style>
+                  body { text-align: center; font-family: Arial, sans-serif; padding: 40px; }
+                  h1 { margin-bottom: 20px; }
+                  img { max-width: 400px; border: 5px solid #198754; border-radius: 10px; }
+                  p { margin-top: 20px; color: #666; }
+                </style>
+              </head>
+              <body>
+                <h1>${activityName}</h1>
+                <img src="${img.src}" />
+                <p>Quét mã QR để check-in tham gia sự kiện</p>
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+          printWindow.print();
+        }
+      }
+    </script>
+  </body>
+</html>

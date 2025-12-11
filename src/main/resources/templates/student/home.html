@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{student/layout :: header}"></head>
+  <body>
+    <div th:replace="~{student/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-home me-2"></i>Trang chủ</h2>
+            <p class="text-muted mb-0">Xin chào, <strong th:text="${user.fullName}">Sinh viên</strong></p>
+          </div>
+        </div>
+
+        <!-- No Class - Join Class Section -->
+        <div th:unless="${hasClass}">
+          <!-- Already has pending request -->
+          <div th:if="${hasPendingRequest}" class="row justify-content-center">
+            <div class="col-md-8">
+              <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                  <i class="fas fa-clock me-2"></i>Đang chờ duyệt
+                </div>
+                <div class="card-body text-center py-5">
+                  <i class="fas fa-hourglass-half fa-4x text-info mb-4"></i>
+                  <h4>Yêu cầu của bạn đang được xử lý</h4>
+                  <p class="text-muted mb-2">
+                    Bạn đã gửi yêu cầu tham gia lớp: 
+                    <strong th:text="${pendingClassName}">Lớp ABC</strong>
+                  </p>
+                  <p class="text-muted">Vui lòng chờ Manager duyệt yêu cầu của bạn.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- No pending request - show join form -->
+          <div th:unless="${hasPendingRequest}" class="row justify-content-center">
+            <div class="col-md-8">
+              <div class="card border-warning">
+                <div class="card-header bg-warning">
+                  <i class="fas fa-exclamation-triangle me-2"></i>Bạn chưa tham gia lớp nào
+                </div>
+                <div class="card-body text-center py-5">
+                  <i class="fas fa-users fa-4x text-muted mb-4"></i>
+                  <h4>Tham gia lớp học</h4>
+                  <p class="text-muted mb-4">Nhập mã tham gia hoặc quét mã QR từ Manager để gửi yêu cầu tham gia lớp</p>
+                  
+                  <form id="joinClassForm" class="row g-3 justify-content-center">
+                    <div class="col-md-6">
+                      <div class="input-group input-group-lg">
+                        <span class="input-group-text"><i class="fas fa-key"></i></span>
+                        <input type="text" id="joinCode" class="form-control" placeholder="Nhập mã tham gia..." required>
+                        <button type="submit" class="btn btn-success">
+                          <i class="fas fa-paper-plane me-1"></i>Gửi yêu cầu
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                  <div class="mt-4">
+                    <span class="text-muted">hoặc</span>
+                  </div>
+                  
+                  <button class="btn btn-outline-primary btn-lg mt-3" onclick="openQRScanner()">
+                    <i class="fas fa-camera me-2"></i>Quét mã QR bằng Camera
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Has Class - Show Class Info -->
+        <div th:if="${hasClass}">
+          <div class="row">
+            <div class="col-md-6 mb-4">
+              <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                  <i class="fas fa-check-circle me-2"></i>Lớp của bạn
+                </div>
+                <div class="card-body">
+                  <h4 th:text="${studentClass.name}">Lớp CNTT K45</h4>
+                  <table class="table table-borderless mb-0">
+                    <tr>
+                      <th width="40%"><i class="fas fa-code me-2 text-muted"></i>Mã lớp:</th>
+                      <td><span class="badge bg-primary" th:text="${studentClass.code}">CNTT-K45A</span></td>
+                    </tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="col-md-6 mb-4">
+              <div class="card">
+                <div class="card-header">
+                  <i class="fas fa-bolt me-2"></i>Thao tác nhanh
+                </div>
+                <div class="card-body">
+                  <div class="d-grid gap-2">
+                    <a th:href="@{/student/activities}" class="btn btn-outline-primary">
+                      <i class="fas fa-calendar-alt me-2"></i>Xem hoạt động
+                    </a>
+                    <a th:href="@{/student/my-scores}" class="btn btn-outline-success">
+                      <i class="fas fa-star me-2"></i>Điểm rèn luyện
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div class="modal fade" id="qrScannerModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title"><i class="fas fa-camera me-2"></i>Quét mã QR tham gia lớp</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="qr-reader" style="width: 100%;"></div>
+            <div id="qr-reader-results" class="mt-3 text-center"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{student/layout :: scripts}"></div>
+    
+    <!-- HTML5 QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <script>
+      let html5QrcodeScanner = null;
+
+      function openQRScanner() {
+        const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
+        modal.show();
+        
+        document.getElementById('qrScannerModal').addEventListener('shown.bs.modal', function () {
+          startScanner();
+        }, { once: true });
+        
+        document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function () {
+          stopScanner();
+        }, { once: true });
+      }
+
+      function startScanner() {
+        const qrReaderResults = document.getElementById('qr-reader-results');
+        qrReaderResults.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Đang khởi động camera...</p>';
+        
+        html5QrcodeScanner = new Html5Qrcode("qr-reader");
+        
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          onScanSuccess,
+          onScanFailure
+        ).then(() => {
+          qrReaderResults.innerHTML = '<p class="text-success"><i class="fas fa-camera me-2"></i>Hướng camera vào mã QR của lớp</p>';
+        }).catch((err) => {
+          qrReaderResults.innerHTML = `<div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong>Không thể mở camera!</strong><br>
+            <small>${err}</small><br>
+            <small>Vui lòng cấp quyền camera cho trang web.</small>
+          </div>`;
+        });
+      }
+
+      function stopScanner() {
+        if (html5QrcodeScanner) {
+          html5QrcodeScanner.stop().then(() => {
+            html5QrcodeScanner.clear();
+          }).catch(err => console.error(err));
+        }
+      }
+
+      function onScanSuccess(decodedText, decodedResult) {
+        console.log('QR Code scanned:', decodedText);
+        
+        // Extract class code from QR (could be a URL or just the code)
+        let classCode = decodedText;
+        
+        // If it's a URL, extract the code parameter
+        if (decodedText.includes('?')) {
+          const url = new URL(decodedText, window.location.origin);
+          classCode = url.searchParams.get('code') || decodedText;
+        }
+        
+        stopScanner();
+        bootstrap.Modal.getInstance(document.getElementById('qrScannerModal')).hide();
+        
+        // Fill the join code field and submit
+        document.getElementById('joinCode').value = classCode;
+        Toast.info('Đã quét mã: ' + classCode);
+        
+        // Auto submit after a short delay
+        setTimeout(() => {
+          document.getElementById('joinClassForm').dispatchEvent(new Event('submit'));
+        }, 500);
+      }
+
+      function onScanFailure(error) {
+        // Silently ignore scan failures
+      }
+      
+      document.getElementById('joinClassForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const joinCode = document.getElementById('joinCode').value.trim();
+        
+        if (!joinCode) {
+          Toast.error('Vui lòng nhập mã tham gia');
+          return;
+        }
+        
+        try {
+          Loading.show();
+          const response = await fetch('/student/api/join-class', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ joinCode: joinCode })
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.message || 'Không thể gửi yêu cầu');
+          }
+          
+          Toast.success('Đã gửi yêu cầu tham gia! Vui lòng chờ Manager duyệt.');
+          setTimeout(() => location.reload(), 1500);
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        } finally {
+          Loading.hide();
+        }
+      });
+    </script>
+  </body>
+</html>

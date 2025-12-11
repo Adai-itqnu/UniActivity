@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{student/layout :: header}"></head>
+  <body>
+    <div th:replace="~{student/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h2><i class="fas fa-clipboard-list text-primary me-2"></i>Lịch sử đăng ký</h2>
+          <button class="btn btn-success" onclick="openQRScanner()">
+            <i class="fas fa-qrcode me-2"></i>Check-in QR
+          </button>
+        </div>
+
+        <!-- No registrations -->
+        <div th:if="${#lists.isEmpty(registrations)}" class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          Bạn chưa đăng ký hoạt động nào.
+          <a th:href="@{/student/activities}" class="alert-link">Xem hoạt động</a>
+        </div>
+
+        <!-- Registrations Table -->
+        <div th:unless="${#lists.isEmpty(registrations)}" class="card">
+          <div class="card-header">
+            <h5 class="mb-0">
+              <i class="fas fa-list me-2"></i>Danh sách đăng ký
+              <span class="badge bg-primary ms-2" th:text="${#lists.size(registrations)}">0</span>
+            </h5>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Hoạt động</th>
+                    <th>Ngày đăng ký</th>
+                    <th>Check-in</th>
+                    <th>Minh chứng</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="reg, iter : ${registrations}">
+                    <td th:text="${iter.index + 1}">1</td>
+                    <td>
+                      <strong th:text="${reg.activity.name}">Tên hoạt động</strong>
+                      <br>
+                      <small class="text-muted" th:if="${reg.activity.location}">
+                        <i class="fas fa-map-marker-alt me-1"></i>
+                        <span th:text="${reg.activity.location}">Địa điểm</span>
+                      </small>
+                    </td>
+                    <td>
+                      <span th:text="${#temporals.format(reg.registeredAt, 'dd/MM/yyyy HH:mm')}">01/01/2024</span>
+                    </td>
+                    <!-- Check-in Status -->
+                    <td>
+                      <span th:if="${reg.status.name() == 'ATTENDED'}" class="badge bg-success">
+                        <i class="fas fa-check me-1"></i>Đã check-in
+                      </span>
+                      <span th:if="${reg.status.name() == 'REGISTERED'}" class="badge bg-warning text-dark">
+                        <i class="fas fa-clock me-1"></i>Chưa check-in
+                      </span>
+                      <span th:if="${reg.status.name() == 'CANCELLED'}" class="badge bg-secondary">
+                        <i class="fas fa-ban me-1"></i>Đã hủy
+                      </span>
+                    </td>
+                    <!-- Evidence Status -->
+                    <td>
+                      <span th:if="${reg.evidenceUrl != null && reg.evidenceUrl != ''}" class="d-block">
+                        <span th:if="${reg.isApproved == true}" class="badge bg-success">
+                          <i class="fas fa-check-circle me-1"></i>Đã duyệt
+                        </span>
+                        <span th:if="${reg.isApproved == false}" class="d-block">
+                          <span class="badge bg-danger mb-1">
+                            <i class="fas fa-times-circle me-1"></i>Từ chối
+                          </span>
+                          <br>
+                          <small class="text-danger" th:if="${reg.rejectionReason != null}">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <span th:text="${reg.rejectionReason}">Lý do</span>
+                          </small>
+                        </span>
+                        <span th:if="${reg.isApproved == null}" class="badge bg-info">
+                          <i class="fas fa-hourglass-half me-1"></i>Chờ duyệt
+                        </span>
+                      </span>
+                      <span th:if="${reg.evidenceUrl == null || reg.evidenceUrl == ''}" class="badge bg-secondary">
+                        <i class="fas fa-image me-1"></i>Chưa nộp
+                      </span>
+                    </td>
+                    <!-- Actions -->
+                    <td>
+                      <!-- Cancel button for registered but not attended -->
+                      <button th:if="${reg.status.name() == 'REGISTERED'}" 
+                              class="btn btn-sm btn-outline-danger"
+                              th:data-id="${reg.activity.id}"
+                              onclick="cancelRegistration(this.dataset.id)">
+                        <i class="fas fa-times me-1"></i>Hủy
+                      </button>
+                      
+                      <!-- Evidence upload button for attended and no evidence yet -->
+                      <button th:if="${reg.status.name() == 'ATTENDED' && (reg.evidenceUrl == null || reg.evidenceUrl == '')}" 
+                              class="btn btn-sm btn-warning"
+                              th:data-regid="${reg.id}"
+                              th:data-actid="${reg.activity.id}"
+                              th:data-actname="${reg.activity.name}"
+                              onclick="openEvidenceModal(this.dataset.regid, this.dataset.actid, this.dataset.actname)">
+                        <i class="fas fa-camera me-1"></i>Nộp minh chứng
+                      </button>
+                      
+                      <!-- View evidence if already submitted -->
+                      <button th:if="${reg.evidenceUrl != null && reg.evidenceUrl != ''}" 
+                              class="btn btn-sm btn-outline-info me-1"
+                              th:data-url="${reg.evidenceUrl}"
+                              onclick="viewEvidence(this.dataset.url)">
+                        <i class="fas fa-eye me-1"></i>Xem
+                      </button>
+                      
+                      <!-- Appeal button for rejected evidence -->
+                      <button th:if="${reg.isApproved == false}" 
+                              class="btn btn-sm btn-outline-warning"
+                              th:data-regid="${reg.id}"
+                              th:data-actid="${reg.activity.id}"
+                              th:data-actname="${reg.activity.name}"
+                              onclick="openAppealModal(this.dataset.regid, this.dataset.actid, this.dataset.actname)">
+                        <i class="fas fa-redo me-1"></i>Khiếu nại
+                      </button>
+                      
+                      <span th:if="${reg.status.name() == 'CANCELLED'}" class="text-muted">-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Scanner Modal -->
+    <div class="modal fade" id="qrScannerModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title"><i class="fas fa-camera me-2"></i>Quét QR Check-in</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div id="qr-reader" style="width: 100%;"></div>
+            <div id="qr-reader-results" class="mt-3"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evidence Upload Modal -->
+    <div class="modal fade" id="evidenceModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-warning">
+            <h5 class="modal-title"><i class="fas fa-camera me-2"></i>Nộp minh chứng hoạt động</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <h6 id="evidenceActivityName" class="mb-3">Hoạt động</h6>
+            
+            <input type="hidden" id="evidenceRegId">
+            <input type="hidden" id="evidenceActId">
+            
+            <!-- Score Option Selection -->
+            <div class="mb-3">
+              <label class="form-label"><strong>Chọn mục điểm rèn luyện:</strong></label>
+              <select class="form-select" id="scoreOptionSelect" required>
+                <option value="">-- Chọn mục điểm --</option>
+              </select>
+              <small class="text-muted">Điểm sẽ được cộng sau khi quản lý duyệt minh chứng</small>
+            </div>
+            
+            <hr>
+            
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              Tải lên tối đa <strong>3 ảnh</strong> minh chứng tham gia hoạt động
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label">Chọn ảnh minh chứng (tối đa 3 ảnh):</label>
+              <input type="file" class="form-control" id="evidenceFiles" accept="image/*" multiple>
+              <small class="text-muted">Hỗ trợ: JPG, PNG, GIF. Tối đa 5MB mỗi ảnh.</small>
+            </div>
+            
+            <div id="evidencePreview" class="row g-2" style="display: none;"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="button" class="btn btn-warning" id="submitEvidenceBtn" disabled onclick="submitEvidence()">
+              <i class="fas fa-upload me-1"></i>Gửi minh chứng
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Evidence Modal -->
+    <div class="modal fade" id="viewEvidenceModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="fas fa-image me-2"></i>Xem minh chứng</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center">
+            <div id="evidenceImagesContainer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{student/layout :: scripts}"></div>
+
+    <!-- HTML5 QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script>
+      let html5QrcodeScanner = null;
+      let selectedFiles = [];
+
+      async function cancelRegistration(activityId) {
+        if (!confirm('Bạn có chắc muốn hủy đăng ký hoạt động này?')) return;
+        
+        try {
+          const response = await fetch(`/student/api/activities/${activityId}/register`, {
+            method: 'DELETE'
+          });
+          const data = await response.json();
+          
+          if (response.ok) {
+            Toast.success(data.message);
+            setTimeout(() => location.reload(), 500);
+          } else {
+            Toast.error(data.message);
+          }
+        } catch (error) {
+          Toast.error('Có lỗi xảy ra: ' + error.message);
+        }
+      }
+
+      function openQRScanner() {
+        const modal = new bootstrap.Modal(document.getElementById('qrScannerModal'));
+        modal.show();
+        
+        document.getElementById('qrScannerModal').addEventListener('shown.bs.modal', function () {
+          startScanner();
+        }, { once: true });
+        
+        document.getElementById('qrScannerModal').addEventListener('hidden.bs.modal', function () {
+          stopScanner();
+        }, { once: true });
+      }
+
+      function startScanner() {
+        const qrReaderResults = document.getElementById('qr-reader-results');
+        qrReaderResults.innerHTML = '<p class="text-muted text-center">Đang khởi động camera...</p>';
+        
+        html5QrcodeScanner = new Html5Qrcode("qr-reader");
+        
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+          },
+          onScanSuccess,
+          onScanFailure
+        ).then(() => {
+          qrReaderResults.innerHTML = '<p class="text-center text-success"><i class="fas fa-camera me-2"></i>Camera đang hoạt động. Hướng camera vào mã QR.</p>';
+        }).catch((err) => {
+          qrReaderResults.innerHTML = `<div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            <strong>Không thể mở camera!</strong><br>
+            <small>${err}</small><br>
+            <small>Vui lòng cấp quyền camera cho trang web.</small>
+          </div>`;
+        });
+      }
+
+      function stopScanner() {
+        if (html5QrcodeScanner) {
+          html5QrcodeScanner.stop().then(() => {
+            html5QrcodeScanner.clear();
+          }).catch(err => console.error(err));
+        }
+      }
+
+      function onScanSuccess(decodedText, decodedResult) {
+        if (decodedText.includes('/student/checkin/')) {
+          stopScanner();
+          const qrReaderResults = document.getElementById('qr-reader-results');
+          qrReaderResults.innerHTML = '<p class="text-center text-info"><i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý check-in...</p>';
+          window.location.href = decodedText;
+        } else {
+          const qrReaderResults = document.getElementById('qr-reader-results');
+          qrReaderResults.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>Mã QR không hợp lệ.</div>';
+        }
+      }
+
+      function onScanFailure(error) {}
+
+      // Evidence Upload Functions
+      async function openEvidenceModal(regId, actId, actName) {
+        document.getElementById('evidenceRegId').value = regId;
+        document.getElementById('evidenceActId').value = actId;
+        document.getElementById('evidenceActivityName').textContent = actName;
+        document.getElementById('evidenceFiles').value = '';
+        document.getElementById('evidencePreview').innerHTML = '';
+        document.getElementById('evidencePreview').style.display = 'none';
+        document.getElementById('submitEvidenceBtn').disabled = true;
+        selectedFiles = [];
+        
+        // Load score options for this activity
+        const scoreSelect = document.getElementById('scoreOptionSelect');
+        scoreSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
+        
+        try {
+          const response = await fetch(`/student/api/activities/${actId}/score-options`);
+          const options = await response.json();
+          
+          scoreSelect.innerHTML = '<option value="">-- Chọn mục điểm --</option>';
+          options.forEach(opt => {
+            scoreSelect.innerHTML += `<option value="${opt.id}">${opt.name} (+${opt.scoreValue} điểm - Mục ${opt.scoreCategory})</option>`;
+          });
+        } catch (error) {
+          scoreSelect.innerHTML = '<option value="">-- Không tải được --</option>';
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('evidenceModal'));
+        modal.show();
+      }
+
+      document.getElementById('evidenceFiles')?.addEventListener('change', function() {
+        const files = Array.from(this.files).slice(0, 3); // Max 3 files
+        selectedFiles = files;
+        
+        if (files.length > 0) {
+          const previewContainer = document.getElementById('evidencePreview');
+          previewContainer.innerHTML = '';
+          previewContainer.style.display = 'flex';
+          
+          files.forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              previewContainer.innerHTML += `
+                <div class="col-4">
+                  <div class="card">
+                    <img src="${e.target.result}" class="card-img-top" alt="Preview ${index + 1}" style="height: 120px; object-fit: cover;">
+                    <div class="card-body p-2 text-center">
+                      <small class="text-muted">Ảnh ${index + 1}</small>
+                    </div>
+                  </div>
+                </div>
+              `;
+            };
+            reader.readAsDataURL(file);
+          });
+          
+          document.getElementById('submitEvidenceBtn').disabled = false;
+        } else {
+          document.getElementById('evidencePreview').style.display = 'none';
+          document.getElementById('submitEvidenceBtn').disabled = true;
+        }
+        
+        if (this.files.length > 3) {
+          Toast.warning('Chỉ được chọn tối đa 3 ảnh. Đã lấy 3 ảnh đầu tiên.');
+        }
+      });
+
+      async function submitEvidence() {
+        const activityId = document.getElementById('evidenceActId').value;
+        const scoreOptionId = document.getElementById('scoreOptionSelect').value;
+        
+        if (!scoreOptionId) {
+          Toast.error('Vui lòng chọn mục điểm rèn luyện');
+          return;
+        }
+        
+        if (selectedFiles.length === 0) {
+          Toast.error('Vui lòng chọn ít nhất 1 ảnh minh chứng');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('scoreOptionId', scoreOptionId);
+        selectedFiles.forEach((file, index) => {
+          formData.append('files', file);
+        });
+
+        const btn = document.getElementById('submitEvidenceBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang tải lên...';
+
+        try {
+          const response = await fetch(`/student/api/activities/${activityId}/evidence`, {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            Toast.success(data.message || 'Đã nộp minh chứng thành công!');
+            bootstrap.Modal.getInstance(document.getElementById('evidenceModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            Toast.error(data.message || 'Có lỗi xảy ra');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-upload me-1"></i>Gửi minh chứng';
+          }
+        } catch (error) {
+          Toast.error('Có lỗi xảy ra: ' + error.message);
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-upload me-1"></i>Gửi minh chứng';
+        }
+      }
+
+      function viewEvidence(urls) {
+        const container = document.getElementById('evidenceImagesContainer');
+        const urlList = urls.split(',');
+        
+        container.innerHTML = urlList.map((url, index) => `
+          <div class="mb-3">
+            <img src="${url.trim()}" alt="Minh chứng ${index + 1}" class="img-fluid rounded" style="max-height: 400px;">
+          </div>
+        `).join('');
+        
+        const modal = new bootstrap.Modal(document.getElementById('viewEvidenceModal'));
+        modal.show();
+      }
+
+      // Appeal function - reuse evidence modal for resubmission
+      async function openAppealModal(regId, actId, actName) {
+        // Use the same evidence modal but show a different title
+        document.getElementById('evidenceRegId').value = regId;
+        document.getElementById('evidenceActId').value = actId;
+        document.getElementById('evidenceActivityName').innerHTML = `<span class="text-danger"><i class="fas fa-redo me-1"></i>Khiếu nại: ${actName}</span>`;
+        document.getElementById('evidenceFiles').value = '';
+        document.getElementById('evidencePreview').innerHTML = '';
+        document.getElementById('evidencePreview').style.display = 'none';
+        document.getElementById('submitEvidenceBtn').disabled = true;
+        document.getElementById('submitEvidenceBtn').innerHTML = '<i class="fas fa-upload me-1"></i>Gửi minh chứng mới';
+        selectedFiles = [];
+        
+        // Load score options for this activity
+        const scoreSelect = document.getElementById('scoreOptionSelect');
+        scoreSelect.innerHTML = '<option value="">-- Đang tải... --</option>';
+        
+        try {
+          const response = await fetch(`/student/api/activities/${actId}/score-options`);
+          const options = await response.json();
+          
+          scoreSelect.innerHTML = '<option value="">-- Chọn mục điểm --</option>';
+          options.forEach(opt => {
+            scoreSelect.innerHTML += `<option value="${opt.id}">${opt.name} (+${opt.scoreValue} điểm - Mục ${opt.scoreCategory})</option>`;
+          });
+        } catch (error) {
+          scoreSelect.innerHTML = '<option value="">-- Không tải được --</option>';
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('evidenceModal'));
+        modal.show();
+      }
+    </script>
+  </body>
+</html>

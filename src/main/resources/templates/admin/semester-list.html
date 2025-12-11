@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{admin/layout :: header}"></head>
+  <body>
+    <div th:replace="~{admin/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-clock me-2"></i>Quản lý Học kỳ</h2>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Quản lý Học kỳ</li>
+              </ol>
+            </nav>
+          </div>
+          <button class="btn btn-primary" onclick="semesterController.openCreateModal()">
+            <i class="fas fa-plus me-2"></i>Thêm mới
+          </button>
+        </div>
+
+        <!-- Semesters Table -->
+        <div class="card">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover" id="semesterTable">
+                <thead>
+                  <tr>
+                    <th style="width: 60px">ID</th>
+                    <th>Tên học kỳ</th>
+                    <th style="width: 140px">Ngày bắt đầu</th>
+                    <th style="width: 140px">Ngày kết thúc</th>
+                    <th style="width: 120px">Trạng thái</th>
+                    <th style="width: 180px" class="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="semester : ${semesters}">
+                    <td th:text="${semester.id}">1</td>
+                    <td>
+                      <span th:text="${semester.name}">Học kỳ 1</span>
+                      <span th:if="${semester.isCurrent}" class="badge bg-success ms-2">
+                        <i class="fas fa-star me-1"></i>Hiện tại
+                      </span>
+                    </td>
+                    <td th:text="${#temporals.format(semester.startDate, 'dd/MM/yyyy')}">01/09/2024</td>
+                    <td th:text="${#temporals.format(semester.endDate, 'dd/MM/yyyy')}">31/12/2024</td>
+                    <td>
+                      <span th:if="${semester.isCurrent}" class="badge bg-success">
+                        <i class="fas fa-check-circle me-1"></i>Đang diễn ra
+                      </span>
+                      <span th:unless="${semester.isCurrent}" class="badge bg-secondary">
+                        <i class="fas fa-pause-circle me-1"></i>Không hoạt động
+                      </span>
+                    </td>
+                    <td class="text-center action-buttons">
+                      <button class="btn btn-sm btn-success" 
+                              th:unless="${semester.isCurrent}"
+                              th:data-id="${semester.id}"
+                              onclick="semesterController.setCurrent(this.dataset.id)"
+                              data-bs-toggle="tooltip" title="Đặt làm hiện tại">
+                        <i class="fas fa-star"></i>
+                      </button>
+                      <button class="btn btn-sm btn-warning" 
+                              th:data-id="${semester.id}"
+                              onclick="semesterController.openEditModal(this.dataset.id)"
+                              data-bs-toggle="tooltip" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger" 
+                              th:data-id="${semester.id}"
+                              th:data-name="${semester.name}"
+                              onclick="semesterController.delete(this.dataset.id, this.dataset.name)"
+                              data-bs-toggle="tooltip" title="Xóa">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr th:if="${semesters == null or #lists.isEmpty(semesters)}">
+                    <td colspan="6" class="text-center py-5">
+                      <div class="empty-state">
+                        <i class="fas fa-clock"></i>
+                        <h5>Chưa có học kỳ nào</h5>
+                        <p class="text-muted">Bấm "Thêm mới" để tạo học kỳ đầu tiên</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Semester Modal -->
+    <div class="modal fade" id="semesterModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="semesterModalLabel">
+              <i class="fas fa-clock me-2"></i>Thêm mới Học kỳ
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form id="semesterForm">
+            <div class="modal-body">
+              <input type="hidden" name="id" id="semesterId">
+              
+              <div class="mb-3">
+                <label for="semName" class="form-label">Tên học kỳ <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="semName" name="name" required 
+                       placeholder="Ví dụ: Học kỳ 1 2024-2025">
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="semStartDate" class="form-label">Ngày bắt đầu <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="semStartDate" name="startDate" required>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="semEndDate" class="form-label">Ngày kết thúc <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="semEndDate" name="endDate" required>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="isCurrent" name="isCurrent">
+                  <label class="form-check-label" for="isCurrent">
+                    Đặt làm học kỳ hiện tại
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>Lưu lại
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <div th:replace="~{admin/layout :: scripts}"></div>
+    
+    <script>
+      const semesterController = {
+        apiEndpoint: '/admin/semesters/api',
+        modalId: 'semesterModal',
+        formId: 'semesterForm',
+        
+        init() {
+          document.getElementById(this.formId).addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.save();
+          });
+        },
+        
+        openCreateModal() {
+          Modal.reset(this.formId);
+          document.getElementById('semesterModalLabel').innerHTML = '<i class="fas fa-clock me-2"></i>Thêm mới Học kỳ';
+          Modal.open(this.modalId);
+        },
+        
+        async openEditModal(id) {
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`);
+            if (!response.ok) throw new Error('Không thể tải dữ liệu');
+            
+            const data = await response.json();
+            Modal.reset(this.formId);
+            
+            document.getElementById('semesterId').value = data.id;
+            document.getElementById('semName').value = data.name;
+            document.getElementById('semStartDate').value = data.startDate;
+            document.getElementById('semEndDate').value = data.endDate;
+            document.getElementById('isCurrent').checked = data.isCurrent || data.current;
+            
+            document.getElementById('semesterModalLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Cập nhật Học kỳ';
+            Modal.open(this.modalId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async save() {
+          const form = document.getElementById(this.formId);
+          if (!FormUtils.validate(form)) {
+            Toast.warning('Vui lòng điền đầy đủ thông tin bắt buộc.');
+            return;
+          }
+          
+          const id = document.getElementById('semesterId').value;
+          const data = {
+            name: document.getElementById('semName').value,
+            startDate: document.getElementById('semStartDate').value,
+            endDate: document.getElementById('semEndDate').value,
+            isCurrent: document.getElementById('isCurrent').checked
+          };
+          
+          try {
+            Loading.show();
+            const url = id ? `${this.apiEndpoint}/${id}` : this.apiEndpoint;
+            const method = id ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+              method: method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+              throw new Error(result.message || 'Có lỗi xảy ra');
+            }
+            
+            Toast.success(id ? 'Cập nhật thành công!' : 'Thêm mới thành công!');
+            Modal.close(this.modalId);
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async setCurrent(id) {
+          const confirmed = await Confirm.show({
+            title: 'Đặt học kỳ hiện tại',
+            message: 'Bạn có chắc chắn muốn đặt học kỳ này làm học kỳ hiện tại?',
+            confirmText: 'Xác nhận',
+            type: 'success'
+          });
+          if (!confirmed) return;
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}/set-current`, { method: 'POST' });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Không thể cập nhật');
+            }
+            
+            Toast.success('Đã đặt làm học kỳ hiện tại!');
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async delete(id, name) {
+          const confirmed = await Confirm.delete(name);
+          if (!confirmed) return;
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`, { method: 'DELETE' });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Không thể xóa');
+            }
+            
+            Toast.success('Xóa thành công!');
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        }
+      };
+      
+      document.addEventListener('DOMContentLoaded', () => semesterController.init());
+    </script>
+  </body>
+</html>

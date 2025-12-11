@@ -1,0 +1,208 @@
+{
+  "categories": [
+    {
+      "id": "1",
+      "name": "Ý thức học tập",
+      "subcategories": [
+        {
+          "id": "1.1",
+          "name": "Kết quả học tập (ĐTB)",
+          "type": "MANUAL",
+          "evidenceRequired": true,
+          "defaultScore": 0,
+          "rulesHtml": "<div class='rules-section'><h6>Điểm cơ sở (theo ĐTB chung học kỳ hiện tại):</h6><ul><li>Dưới 4.0: <strong>+3đ</strong></li><li>Từ 4.0 – cận 5.0: <strong>+6đ</strong></li><li>Từ 5.0 – cận 6.5: <strong>+8đ</strong></li><li>Từ 6.5 – cận 8.0: <strong>+10đ</strong></li><li>Từ 8.0 – 10: <strong>+12đ</strong></li></ul><h6>Tăng ĐTB so với HK trước:</h6><ul><li>0.01 – cận 0.1: <strong>+1đ</strong></li><li>0.1 – cận 0.2: <strong>+2đ</strong></li><li>0.2 – cận 0.3: <strong>+3đ</strong></li><li>0.3 – cận 0.4: <strong>+4đ</strong></li><li>0.4+: <strong>+5đ đến +10đ</strong></li></ul><p class='text-danger'><strong>Yêu cầu:</strong> Ảnh chụp bảng điểm hoặc xác nhận từ phòng đào tạo</p></div>"
+        },
+        {
+          "id": "1.2",
+          "name": "Hoạt động học thuật",
+          "type": "AUTO_ACTIVITY",
+          "activityType": "ACADEMIC",
+          "evidenceRequired": false,
+          "rulesHtml": "<div class='rules-section'><p class='text-info'><i class='fas fa-robot'></i> <strong>Tự động tính</strong> từ hoạt động loại ACADEMIC mà bạn tham gia và được duyệt.</p></div>"
+        },
+        {
+          "id": "1.3",
+          "name": "Chứng chỉ ngoại ngữ",
+          "type": "MANUAL",
+          "evidenceRequired": true,
+          "defaultScore": 0,
+          "rulesHtml": "<div class='rules-section'><ul><li>Chứng chỉ B1: <strong>+3đ</strong></li><li>IELTS, TOEFL, TOEIC, tiếng Nhật,...: <strong>+5đ/chứng chỉ</strong></li></ul><p class='text-muted'><em>Lưu ý: Cần ảnh chụp chứng chỉ còn hiệu lực.</em></p></div>"
+        },
+        {
+          "id": "1.4",
+          "name": "Chấp hành nội quy học vụ",
+          "type": "MANUAL",
+          "evidenceRequired": false,
+          "defaultScore": 4,
+          "rulesHtml": "<div class='rules-section'><p>Điểm mặc định: <strong>+4đ</strong> (nếu không vi phạm)</p><ul><li>Vi phạm: <strong>-1đ đến -3đ/lần</strong></li></ul></div>"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "name": "Chấp hành nội quy, quy chế",
+      "subcategories": [
+        {
+          "id": "2.1",
+          "name": "Chấp hành nội quy trường",
+          "type": "MANUAL",
+          "evidenceRequired": false,
+          "defaultScore": 20,
+          "rulesHtml": "<div class='rules-section'><p>Điểm mặc định: <strong>+20đ</strong> (nếu không vi phạm)</p><h6>Trừ điểm nếu vi phạm:</h6><ul><li>Không tham gia sinh hoạt chính trị: <strong>-10đ</strong></li><li>Vắng đại hội lớp/đoàn/hội: <strong>-10đ/lần</strong></li><li>Vắng sinh hoạt lớp/đoàn: <strong>-5đ/lần</strong></li><li>Đóng học phí trễ: <strong>-2đ/môn</strong></li></ul></div>"
+        },
+        {
+          "id": "2.2",
+          "name": "Nội/ngoại trú",
+          "type": "MANUAL",
+          "evidenceRequired": false,
+          "defaultScore": 5,
+          "rulesHtml": "<div class='rules-section'><p>Điểm mặc định: <strong>+5đ</strong> (nếu không vi phạm)</p><ul><li>Vi phạm nội/ngoại trú: <strong>-5đ/lần</strong></li></ul></div>"
+        },
+        {
+          "id": "2.3",
+          "name": "Vi phạm thi - kỷ luật",
+          "type": "MANUAL",
+          "evidenceRequired": false,
+          "defaultScore": 0,
+          "rulesHtml": "<div class='rules-section'><p class='text-warning'>Chỉ có điểm trừ:</p><ul><li>Khiển trách: <strong>-15đ/lần</strong></li><li>Cảnh cáo trở lên: <strong>-20đ/lần</strong></li></ul></div>"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "name": "Hoạt động chính trị - xã hội, văn hóa, thể thao",
+      "subcategories": [
+        {
+          "id": "3.1",
+          "name": "Hoạt động chính trị - xã hội",
+          "type": "AUTO_ACTIVITY",
+          "activityType": "POLITICAL_SOCIAL",
+          "evidenceRequired": false,
+          "rulesHtml": "<div class='rules-section'><p class='text-info'><i class='fas fa-robot'></i> <strong>Tự động tính</strong> từ hoạt động loại POLITICAL_SOCIAL.</p></div>"
+        },
+        {
+          "id": "3.2",
+          "name": "Hoạt động huy động lực lượng",
+          "type": "AUTO_ACTIVITY",
+          "activityType": "MOBILIZATION",
+          "evidenceRequired": false,
+          "rulesHtml": "<div class='rules-section'><p class='text-info'><i class='fas fa-robot'></i> <strong>Tự động tính</strong> từ hoạt động loại MOBILIZATION.</p></div>"
+        },
+        {
+          "id": "3.3",
+          "name": "Không tham dự hoạt động được chỉ định",
+          "type": "MANUAL",
+          "evidenceRequired": false,
+          "defaultScore": 0,
+          "rulesHtml": "<div class='rules-section'><ul><li>Không tham dự hoạt động được chỉ định: <strong>-2đ/lần</strong></li></ul></div>"
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Phẩm chất công dân và quan hệ cộng đồng",
+      "subcategories": [
+        {
+          "id": "4.1",
+          "name": "Phẩm chất đạo đức",
+          "type": "MANUAL",
+          "evidenceRequired": false,
+          "defaultScore": 15,
+          "rulesHtml": "<div class='rules-section'><p>Điểm mặc định: <strong>+15đ</strong></p><h6>Trừ điểm nếu vi phạm:</h6><ul><li>Nhắc nhở: <strong>-2đ/lần</strong></li><li>Khiển trách trở lên: <strong>-3đ/lần</strong></li></ul></div>"
+        },
+        {
+          "id": "4.2",
+          "name": "Hoạt động tình nguyện",
+          "type": "AUTO_ACTIVITY",
+          "activityType": "VOLUNTEER",
+          "evidenceRequired": false,
+          "rulesHtml": "<div class='rules-section'><p class='text-info'><i class='fas fa-robot'></i> <strong>Tự động tính</strong> từ hoạt động loại VOLUNTEER.</p></div>"
+        },
+        {
+          "id": "4.3",
+          "name": "Hỗ trợ cộng đồng",
+          "type": "AUTO_ACTIVITY",
+          "activityType": "COMMUNITY",
+          "evidenceRequired": false,
+          "rulesHtml": "<div class='rules-section'><p class='text-info'><i class='fas fa-robot'></i> <strong>Tự động tính</strong> từ hoạt động loại COMMUNITY.</p></div>"
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "name": "Hoạt động của lớp, các đoàn thể",
+      "subcategories": [
+        {
+          "id": "5.1",
+          "name": "Hoàn thành chức vụ",
+          "type": "MANUAL",
+          "evidenceRequired": false,
+          "defaultScore": 0,
+          "rulesHtml": "<div class='rules-section'><p>Ban cán sự lớp, cán bộ Đoàn/Hội:</p><ul><li>Hoàn thành: <strong>+1đ đến +3đ</strong></li><li>Hoàn thành tốt: <strong>+4đ đến +5đ</strong></li><li>Hoàn thành xuất sắc: <strong>+6đ đến +7đ</strong></li><li>Không hoàn thành: <strong>-1đ đến -7đ</strong></li></ul></div>"
+        },
+        {
+          "id": "5.2",
+          "name": "Đóng góp tích cực",
+          "type": "AUTO_CALCULATE",
+          "evidenceRequired": false,
+          "rulesHtml": "<div class='rules-section'><p class='text-info'><i class='fas fa-robot'></i> <strong>Tự động tính</strong> dựa trên số hoạt động tham gia:</p><ul><li>2 hoạt động: <strong>+1đ</strong></li><li>3 hoạt động: <strong>+2đ</strong></li><li>4 hoạt động: <strong>+3đ</strong></li><li>5 hoạt động: <strong>+4đ</strong></li><li>6+ hoạt động: <strong>+5đ (max)</strong></li></ul></div>"
+        },
+        {
+          "id": "5.3",
+          "name": "Thành viên CLB",
+          "type": "MANUAL",
+          "evidenceRequired": true,
+          "defaultScore": 0,
+          "rulesHtml": "<div class='rules-section'><ul><li>Là thành viên CLB học thuật/kỹ năng của trường: <strong>+3đ</strong></li></ul><p class='text-muted'><em>Cần ảnh xác nhận từ CLB.</em></p></div>"
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "name": "Thành tích đặc biệt",
+      "subcategories": [
+        {
+          "id": "6.1",
+          "name": "Thành tích đặc biệt",
+          "type": "MANUAL",
+          "evidenceRequired": true,
+          "defaultScore": 0,
+          "rulesHtml": "<div class='rules-section'><ul><li>Khen thưởng cấp khoa/LCĐ/LCH: <strong>+6đ</strong></li><li>Khen thưởng cấp trường/tỉnh: <strong>+8đ</strong></li><li>Khen thưởng cấp bộ/quốc gia: <strong>+10đ</strong></li></ul><p class='text-muted'><em>Cần ảnh giấy khen/quyết định.</em></p></div>"
+        }
+      ]
+    }
+  ],
+  "classification": [
+    {"min": 90, "max": 100, "label": "Xuất sắc", "cssClass": "success"},
+    {"min": 80, "max": 89, "label": "Tốt", "cssClass": "primary"},
+    {"min": 65, "max": 79, "label": "Khá", "cssClass": "info"},
+    {"min": 50, "max": 64, "label": "Trung bình", "cssClass": "warning"},
+    {"min": 35, "max": 49, "label": "Yếu", "cssClass": "danger"},
+    {"min": 0, "max": 34, "label": "Kém", "cssClass": "dark"}
+  ],
+  "gpaRules": {
+    "baseScore": [
+      {"maxGpa": 4.0, "score": 3},
+      {"maxGpa": 5.0, "score": 6},
+      {"maxGpa": 6.5, "score": 8},
+      {"maxGpa": 8.0, "score": 10},
+      {"maxGpa": 10.0, "score": 12}
+    ],
+    "increaseBonus": [
+      {"maxDiff": 0.1, "score": 1},
+      {"maxDiff": 0.2, "score": 2},
+      {"maxDiff": 0.3, "score": 3},
+      {"maxDiff": 0.4, "score": 4},
+      {"maxDiff": 0.5, "score": 5},
+      {"maxDiff": 999, "score": 10}
+    ],
+    "decreasePenalty": [
+      {"maxDiff": 0.2, "score": -1},
+      {"maxDiff": 0.3, "score": -2},
+      {"maxDiff": 0.5, "score": -4},
+      {"maxDiff": 0.7, "score": -6},
+      {"maxDiff": 0.9, "score": -8},
+      {"maxDiff": 999, "score": -10}
+    ]
+  }
+}

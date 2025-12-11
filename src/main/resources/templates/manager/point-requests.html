@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{manager/layout :: header}"></head>
+  <body>
+    <div th:replace="~{manager/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-star me-2"></i>Yêu cầu điểm rèn luyện</h2>
+            <p class="text-muted mb-0" th:if="${studentClass != null}">
+              Lớp: <strong th:text="${studentClass.name}">Lớp</strong>
+            </p>
+          </div>
+        </div>
+
+        <!-- No Class Alert -->
+        <div th:if="${studentClass == null}" class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Bạn chưa được gán quản lý lớp nào.
+        </div>
+
+        <!-- Pending Requests -->
+        <div th:if="${studentClass != null}" class="card">
+          <div class="card-header">
+            <i class="fas fa-clock me-2"></i>Yêu cầu đang chờ duyệt
+            <span class="badge bg-warning ms-2" th:text="${pendingRequests?.size()} ?: 0">0</span>
+          </div>
+          <div class="card-body">
+            <div th:if="${pendingRequests == null || pendingRequests.isEmpty()}" class="text-center text-muted py-4">
+              <i class="fas fa-inbox fa-3x mb-3"></i>
+              <p>Không có yêu cầu nào đang chờ duyệt</p>
+            </div>
+
+            <div th:if="${pendingRequests != null && !pendingRequests.isEmpty()}" class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Sinh viên</th>
+                    <th>Mục điểm</th>
+                    <th>Điểm yêu cầu</th>
+                    <th>Mô tả</th>
+                    <th>Minh chứng</th>
+                    <th>Thời gian</th>
+                    <th class="text-end">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="request, stat : ${pendingRequests}">
+                    <td th:text="${stat.index + 1}">1</td>
+                    <td>
+                      <strong th:text="${request.student.fullName}">Nguyễn Văn A</strong><br>
+                      <small class="text-muted" th:text="${request.student.username}">sinhvien01</small>
+                    </td>
+                    <td>
+                      <span class="badge bg-primary" th:text="${request.criteriaCode}">1.1</span>
+                    </td>
+                    <td>
+                      <span class="fw-bold text-success" th:text="${request.claimedScore} ?: 'N/A'">+5</span>
+                    </td>
+                    <td>
+                      <span th:text="${#strings.abbreviate(request.description ?: 'Không có mô tả', 50)}">Mô tả</span>
+                    </td>
+                    <td>
+                      <a th:if="${request.evidenceImageUrl != null && !request.evidenceImageUrl.isEmpty()}" 
+                         th:href="${request.evidenceImageUrl}" 
+                         target="_blank" 
+                         class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-image me-1"></i>Xem
+                      </a>
+                      <span th:unless="${request.evidenceImageUrl != null && !request.evidenceImageUrl.isEmpty()}" 
+                            class="text-muted">Không có</span>
+                    </td>
+                    <td th:text="${#temporals.format(request.createdAt, 'dd/MM/yyyy HH:mm')}">01/01/2024</td>
+                    <td class="text-end">
+                      <button class="btn btn-success btn-sm me-1" 
+                              th:onclick="|approvePointRequest(${request.id})|">
+                        <i class="fas fa-check me-1"></i>Duyệt
+                      </button>
+                      <button class="btn btn-danger btn-sm" 
+                              th:onclick="|rejectPointRequest(${request.id})|">
+                        <i class="fas fa-times me-1"></i>Từ chối
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{manager/layout :: scripts}"></div>
+    
+    <script>
+      async function approvePointRequest(id) {
+        const comment = prompt('Ghi chú duyệt (có thể bỏ trống):');
+        
+        try {
+          Loading.show();
+          const response = await fetch(`/manager/api/point-requests/${id}/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comment: comment })
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.message || 'Không thể duyệt yêu cầu');
+          }
+          
+          Toast.success('Đã duyệt yêu cầu điểm!');
+          setTimeout(() => location.reload(), 500);
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        } finally {
+          Loading.hide();
+        }
+      }
+      
+      async function rejectPointRequest(id) {
+        const comment = prompt('Lý do từ chối:');
+        if (!comment) {
+          Toast.error('Vui lòng nhập lý do từ chối');
+          return;
+        }
+        
+        try {
+          Loading.show();
+          const response = await fetch(`/manager/api/point-requests/${id}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comment: comment })
+          });
+          
+          const result = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(result.message || 'Không thể từ chối yêu cầu');
+          }
+          
+          Toast.success('Đã từ chối yêu cầu');
+          setTimeout(() => location.reload(), 500);
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        } finally {
+          Loading.hide();
+        }
+      }
+    </script>
+  </body>
+</html>

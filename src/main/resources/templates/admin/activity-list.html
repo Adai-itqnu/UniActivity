@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{admin/layout :: header}"></head>
+  <body>
+    <div th:replace="~{admin/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-calendar-alt me-2"></i>Quản lý Hoạt động</h2>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Quản lý Hoạt động</li>
+              </ol>
+            </nav>
+          </div>
+          <a th:href="@{/admin/activities/create}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Thêm mới
+          </a>
+        </div>
+
+        <!-- Activities Table -->
+        <div class="card">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover" id="activityTable">
+                <thead>
+                  <tr>
+                    <th style="width: 50px">ID</th>
+                    <th>Tên hoạt động</th>
+                    <th style="width: 100px">Phạm vi</th>
+                    <th style="width: 100px" class="text-center">Đăng ký</th>
+                    <th style="width: 120px">Hạn ĐK</th>
+                    <th style="width: 100px">Trạng thái</th>
+                    <th style="width: 180px" class="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="activity : ${activities}">
+                    <td th:text="${activity.id}">1</td>
+                    <td>
+                      <strong th:text="${activity.name}">Hoạt động tình nguyện</strong>
+                      <br><small class="text-muted" th:text="${activity.location}">Địa điểm</small>
+                    </td>
+                    <td>
+                      <span th:if="${activity.scope != null and activity.scope == 'SCHOOL'}" class="badge bg-primary">Toàn trường</span>
+                      <span th:if="${activity.scope != null and activity.scope == 'FACULTY'}" class="badge bg-info">Khoa</span>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-success" th:text="${activity.registeredCount != null ? activity.registeredCount : 0}">0</span>
+                      <span class="text-muted">/</span>
+                      <span class="badge bg-secondary" th:text="${activity.maxSlots != null ? activity.maxSlots : 0}">0</span>
+                    </td>
+                    <td>
+                      <span th:if="${activity.registrationDeadline != null}" 
+                            th:classappend="${activity.isDeadlinePassed} ? 'text-danger' : 'text-success'"
+                            th:text="${#temporals.format(activity.registrationDeadline, 'dd/MM HH:mm')}">31/12</span>
+                      <span th:unless="${activity.registrationDeadline != null}" class="text-muted">--</span>
+                      <span th:if="${activity.isDeadlinePassed}" class="badge bg-danger ms-1">Hết hạn</span>
+                    </td>
+                    <td>
+                      <span th:if="${activity.status != null and activity.status == 'DRAFT'}" class="badge bg-secondary">Nháp</span>
+                      <span th:if="${activity.status != null and activity.status == 'OPEN'}" class="badge bg-success">Mở ĐK</span>
+                      <span th:if="${activity.status != null and activity.status == 'FINISHED'}" class="badge bg-dark">Kết thúc</span>
+                      <span th:if="${activity.status != null and activity.status == 'CANCELLED'}" class="badge bg-danger">Hủy</span>
+                    </td>
+                    <td class="text-center action-buttons">
+                      <a class="btn btn-sm btn-primary" 
+                              th:href="@{/admin/activities/{id}(id=${activity.id})}"
+                              data-bs-toggle="tooltip" title="Xem chi tiết">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <button class="btn btn-sm btn-info" 
+                              th:data-id="${activity.id}"
+                              onclick="activityController.openSlotsModal(this.dataset.id)"
+                              data-bs-toggle="tooltip" title="Quản lý Slots">
+                        <i class="fas fa-users"></i>
+                      </button>
+                      <button class="btn btn-sm btn-warning" 
+                              th:data-id="${activity.id}"
+                              onclick="activityController.openEditModal(this.dataset.id)"
+                              data-bs-toggle="tooltip" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger" 
+                              th:data-id="${activity.id}"
+                              th:data-name="${activity.name}"
+                              onclick="activityController.delete(this.dataset.id, this.dataset.name)"
+                              data-bs-toggle="tooltip" title="Xóa">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr th:if="${activities == null or #lists.isEmpty(activities)}">
+                    <td colspan="7" class="text-center py-5">
+                      <div class="empty-state">
+                        <i class="fas fa-calendar-alt" style="font-size: 3rem; color: #6c757d;"></i>
+                        <h5 class="mt-3">Chưa có hoạt động nào</h5>
+                        <p class="text-muted">Bấm "Thêm mới" để tạo hoạt động đầu tiên</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity Modal -->
+    <div class="modal fade" id="activityModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="activityModalLabel">
+              <i class="fas fa-calendar-alt me-2"></i>Thêm mới Hoạt động
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form id="activityForm">
+            <div class="modal-body">
+              <input type="hidden" id="activityId">
+              
+              <div class="row">
+                <div class="col-md-8">
+                  <div class="mb-3">
+                    <label for="actName" class="form-label">Tên hoạt động <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="actName" name="name" required 
+                           placeholder="VD: Ngày hội việc làm 2024">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label for="actScope" class="form-label">Phạm vi <span class="text-danger">*</span></label>
+                    <select class="form-select" id="actScope" name="scope" required>
+                      <option value="SCHOOL">🏫 Toàn trường</option>
+                      <option value="FACULTY">🏛️ Theo khoa</option>
+                    </select>
+                    <div class="form-text">Toàn trường: không cần chọn khoa</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="actDescription" class="form-label">Mô tả</label>
+                <textarea class="form-control" id="actDescription" name="description" rows="2"
+                          placeholder="Mô tả chi tiết về hoạt động"></textarea>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="actLocation" class="form-label">Địa điểm</label>
+                    <input type="text" class="form-control" id="actLocation" name="location"
+                           placeholder="VD: Sân vận động">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="actStatus" class="form-label">Trạng thái</label>
+                    <select class="form-select" id="actStatus" name="status">
+                      <option value="DRAFT">📝 Nháp (chưa công khai)</option>
+                      <option value="OPEN">✅ Mở đăng ký</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label for="actStartTime" class="form-label">Thời gian bắt đầu <span class="text-danger">*</span></label>
+                    <input type="datetime-local" class="form-control" id="actStartTime" name="startTime" required>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label for="actEndTime" class="form-label">Thời gian kết thúc</label>
+                    <input type="datetime-local" class="form-control" id="actEndTime" name="endTime">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label for="actDeadline" class="form-label">Hạn đăng ký</label>
+                    <input type="datetime-local" class="form-control" id="actDeadline" name="registrationDeadline">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="actBanner" class="form-label">Banner URL</label>
+                <input type="text" class="form-control" id="actBanner" name="bannerUrl"
+                       placeholder="URL hình ảnh banner (không bắt buộc)">
+              </div>
+              
+              <div class="alert alert-info py-2 mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Bước tiếp theo:</strong> Sau khi lưu, bạn có thể thêm <strong>Slots (Khoa/Lớp)</strong> và <strong>Điểm/Giải thưởng</strong> bằng các nút bên cạnh hoạt động.
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>Lưu lại
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slots Modal -->
+    <div class="modal fade" id="slotsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+          <div class="modal-header bg-info text-white">
+            <h5 class="modal-title"><i class="fas fa-users me-2"></i>Quản lý Slots</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="slotActivityId">
+            <input type="hidden" id="slotActivityScope">
+            
+            <!-- SCHOOL Scope: Simple slot for all -->
+            <div id="slotSchoolMode" class="card mb-3 border-primary" style="display:none;">
+              <div class="card-header bg-primary text-white">
+                <i class="fas fa-globe me-2"></i>Hoạt động toàn trường
+              </div>
+              <div class="card-body">
+                <form id="slotSchoolForm">
+                  <div class="row g-2 align-items-end">
+                    <div class="col-md-8">
+                      <div class="alert alert-info py-2 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Hoạt động này dành cho <strong>toàn trường</strong>. Chỉ cần nhập số lượng tối đa.
+                      </div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label fw-bold">Số lượng tối đa <span class="text-danger">*</span></label>
+                      <input type="number" class="form-control" id="slotSchoolQuantity" min="1" value="100" required>
+                    </div>
+                    <div class="col-md-2">
+                      <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus me-1"></i>Thêm Slot
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <!-- FACULTY Scope: Choose faculty/class -->
+            <div id="slotFacultyMode" class="card mb-3 border-info">
+              <div class="card-header bg-light">
+                <i class="fas fa-plus-circle me-2"></i>Thêm Slot theo Khoa/Lớp
+              </div>
+              <div class="card-body">
+                <form id="slotForm">
+                  <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                      <label class="form-label fw-bold">Khoa <span class="text-danger">*</span></label>
+                      <select class="form-select form-select-sm" id="slotFacultyId" required onchange="activityController.filterSlotClasses()">
+                        <option value="">-- Chọn khoa --</option>
+                        <option th:each="f : ${faculties}" th:value="${f.id}" th:text="${f.name}">Faculty</option>
+                      </select>
+                      <div class="form-text">Bắt buộc chọn khoa</div>
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">Lớp <small class="text-muted">(tùy chọn)</small></label>
+                      <select class="form-select form-select-sm" id="slotClassId">
+                        <option value="">-- Tất cả lớp trong khoa --</option>
+                        <option th:each="c : ${classes}" th:value="${c.id}" 
+                                th:data-faculty="${c.facultyId}"
+                                th:text="${c.name + ' (' + (c.academicYearCode != null ? c.academicYearCode : '?') + ')'}">Class</option>
+                      </select>
+                      <div class="form-text">Để trống = slot cho cả khoa</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label fw-bold">Số lượng <span class="text-danger">*</span></label>
+                      <input type="number" class="form-control form-control-sm" id="slotMaxQuantity" min="1" value="50" required>
+                    </div>
+                    <div class="col-md-2">
+                      <button type="submit" class="btn btn-info btn-sm w-100">
+                        <i class="fas fa-plus me-1"></i>Thêm Slot
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <!-- Slots List -->
+            <div class="table-responsive">
+              <table class="table table-sm table-hover" id="slotsTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>Khoa</th>
+                    <th>Lớp</th>
+                    <th class="text-center">Số lượng tối đa</th>
+                    <th class="text-center">Đã đăng ký</th>
+                    <th class="text-center">Còn lại</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="slotsList"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Score Options Modal -->
+    <div class="modal fade" id="scoreOptionsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title"><i class="fas fa-star me-2"></i>Điểm rèn luyện & Giải thưởng</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="scoreActivityId">
+            
+            <!-- Add Score Option Form -->
+            <div class="card mb-3 border-success">
+              <div class="card-header bg-light">
+                <i class="fas fa-plus-circle me-2"></i>Thêm mức điểm / giải thưởng
+              </div>
+              <div class="card-body">
+                <form id="scoreOptionForm">
+                  <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold">Loại tham gia <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control form-control-sm" id="scoreName" 
+                             placeholder="VD: Giải nhất, Tham gia, Cổ vũ" required>
+                      <div class="form-text">Tên giải hoặc hình thức tham gia</div>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label fw-bold">Điểm cộng <span class="text-danger">*</span></label>
+                      <input type="number" class="form-control form-control-sm" id="scoreValue" min="1" value="5" required>
+                    </div>
+                    <div class="col-md-2">
+                      <label class="form-label">Mục điểm</label>
+                      <input type="text" class="form-control form-control-sm" id="scoreCategory" placeholder="VD: 1.2">
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">Ghi chú</label>
+                      <input type="text" class="form-control form-control-sm" id="scoreDescription" placeholder="Ghi chú thêm">
+                    </div>
+                    <div class="col-md-1">
+                      <button type="submit" class="btn btn-success btn-sm w-100">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            <div class="alert alert-light border py-2">
+              <i class="fas fa-lightbulb me-2 text-warning"></i>
+              <strong>Ví dụ:</strong> Giải nhất (+20đ), Giải nhì (+15đ), Tham gia (+5đ), Cổ vũ (+3đ)
+            </div>
+            
+            <!-- Score Options List -->
+            <div class="table-responsive">
+              <table class="table table-sm table-hover" id="scoreOptionsTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>Loại tham gia</th>
+                    <th class="text-center">Điểm cộng</th>
+                    <th>Mục điểm</th>
+                    <th>Ghi chú</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="scoreOptionsList"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <div th:replace="~{admin/layout :: scripts}"></div>
+    
+    <script>
+      const activityController = {
+        apiEndpoint: '/admin/activities/api',
+        
+        init() {
+          document.getElementById('activityForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.save();
+          });
+          document.getElementById('slotForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveSlot();
+          });
+          document.getElementById('slotSchoolForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveSchoolSlot();
+          });
+          document.getElementById('scoreOptionForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveScoreOption();
+          });
+        },
+        
+        // Filter classes in Slot modal by selected faculty
+        filterSlotClasses() {
+          const facultyId = document.getElementById('slotFacultyId').value;
+          const classSelect = document.getElementById('slotClassId');
+          
+          Array.from(classSelect.options).forEach(opt => {
+            if (!opt.value) return; // Skip empty option
+            const optFacultyId = opt.dataset.faculty || '';
+            opt.hidden = facultyId && optFacultyId !== facultyId;
+          });
+          classSelect.value = ''; // Reset selection
+        },
+        
+        openCreateModal() {
+          Modal.reset('activityForm');
+          document.getElementById('activityModalLabel').innerHTML = '<i class="fas fa-calendar-alt me-2"></i>Thêm mới Hoạt động';
+          Modal.open('activityModal');
+        },
+        
+        async openEditModal(id) {
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`);
+            if (!response.ok) throw new Error('Không thể tải dữ liệu');
+            
+            const data = await response.json();
+            Modal.reset('activityForm');
+            
+            document.getElementById('activityId').value = data.id;
+            document.getElementById('actName').value = data.name || '';
+            document.getElementById('actDescription').value = data.description || '';
+            document.getElementById('actLocation').value = data.location || '';
+            document.getElementById('actBanner').value = data.bannerUrl || '';
+            document.getElementById('actScope').value = data.scope || 'FACULTY';
+            document.getElementById('actStatus').value = data.status || 'DRAFT';
+            
+            if (data.startTime) document.getElementById('actStartTime').value = data.startTime.substring(0, 16);
+            if (data.endTime) document.getElementById('actEndTime').value = data.endTime.substring(0, 16);
+            if (data.registrationDeadline) document.getElementById('actDeadline').value = data.registrationDeadline.substring(0, 16);
+            
+            document.getElementById('activityModalLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Cập nhật Hoạt động';
+            Modal.open('activityModal');
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async save() {
+          const id = document.getElementById('activityId').value;
+          const data = {
+            name: document.getElementById('actName').value,
+            description: document.getElementById('actDescription').value,
+            location: document.getElementById('actLocation').value,
+            bannerUrl: document.getElementById('actBanner').value,
+            scope: document.getElementById('actScope').value,
+            status: document.getElementById('actStatus').value,
+            startTime: document.getElementById('actStartTime').value || null,
+            endTime: document.getElementById('actEndTime').value || null,
+            registrationDeadline: document.getElementById('actDeadline').value || null
+          };
+          
+          try {
+            Loading.show();
+            const url = id ? `${this.apiEndpoint}/${id}` : this.apiEndpoint;
+            const method = id ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+              method: method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Có lỗi xảy ra');
+            
+            Toast.success(id ? 'Cập nhật thành công!' : 'Thêm mới thành công!');
+            Modal.close('activityModal');
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async delete(id, name) {
+          const confirmed = await Confirm.delete(name);
+          if (!confirmed) return;
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`, { method: 'DELETE' });
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Không thể xóa');
+            }
+            Toast.success('Xóa thành công!');
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        // ========================================
+        // Slots Management
+        // ========================================
+        
+        async openSlotsModal(activityId) {
+          try {
+            // Get activity to check scope
+            const response = await fetch(`${this.apiEndpoint}/${activityId}`);
+            const activity = await response.json();
+            const scope = activity.scope;
+            
+            document.getElementById('slotActivityId').value = activityId;
+            document.getElementById('slotActivityScope').value = scope;
+            
+            // Show/hide modes based on scope
+            if (scope === 'SCHOOL') {
+              document.getElementById('slotSchoolMode').style.display = 'block';
+              document.getElementById('slotFacultyMode').style.display = 'none';
+            } else {
+              document.getElementById('slotSchoolMode').style.display = 'none';
+              document.getElementById('slotFacultyMode').style.display = 'block';
+            }
+            
+            await this.loadSlots(activityId);
+            Modal.open('slotsModal');
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          }
+        },
+        
+        async loadSlots(activityId) {
+          try {
+            const response = await fetch(`${this.apiEndpoint}/${activityId}/slots`);
+            const slots = await response.json();
+            
+            const tbody = document.getElementById('slotsList');
+            if (slots.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có slot nào</td></tr>';
+              return;
+            }
+            tbody.innerHTML = slots.map(slot => `
+              <tr>
+                <td>${slot.facultyName || '<span class="badge bg-primary">Toàn trường</span>'}</td>
+                <td>${slot.className || '<span class="text-muted">Tất cả lớp</span>'}</td>
+                <td class="text-center">${slot.maxQuantity}</td>
+                <td class="text-center">${slot.currentQuantity || 0}</td>
+                <td class="text-center"><span class="badge bg-success">${slot.maxQuantity - (slot.currentQuantity || 0)}</span></td>
+                <td><button class="btn btn-sm btn-danger" onclick="activityController.deleteSlot(${slot.id})"><i class="fas fa-trash"></i></button></td>
+              </tr>
+            `).join('');
+          } catch (error) {
+            Toast.error('Lỗi tải slots: ' + error.message);
+          }
+        },
+        
+        async saveSlot() {
+          const activityId = document.getElementById('slotActivityId').value;
+          const data = {
+            facultyId: document.getElementById('slotFacultyId').value || null,
+            classId: document.getElementById('slotClassId').value || null,
+            maxQuantity: document.getElementById('slotMaxQuantity').value
+          };
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${activityId}/slots`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Có lỗi xảy ra');
+            }
+            
+            Toast.success('Thêm slot thành công!');
+            document.getElementById('slotFacultyId').value = '';
+            document.getElementById('slotClassId').value = '';
+            await this.loadSlots(activityId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async saveSchoolSlot() {
+          const activityId = document.getElementById('slotActivityId').value;
+          const data = {
+            facultyId: null,
+            classId: null,
+            maxQuantity: document.getElementById('slotSchoolQuantity').value
+          };
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${activityId}/slots`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Có lỗi xảy ra');
+            }
+            
+            Toast.success('Thêm slot toàn trường thành công!');
+            await this.loadSlots(activityId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async deleteSlot(slotId) {
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/slots/${slotId}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Không thể xóa');
+            
+            Toast.success('Xóa slot thành công!');
+            const activityId = document.getElementById('slotActivityId').value;
+            await this.loadSlots(activityId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        // ========================================
+        // Score Options Management
+        // ========================================
+        
+        async openScoreOptionsModal(activityId) {
+          document.getElementById('scoreActivityId').value = activityId;
+          await this.loadScoreOptions(activityId);
+          Modal.open('scoreOptionsModal');
+        },
+        
+        async loadScoreOptions(activityId) {
+          try {
+            const response = await fetch(`${this.apiEndpoint}/${activityId}/score-options`);
+            const options = await response.json();
+            
+            const tbody = document.getElementById('scoreOptionsList');
+            tbody.innerHTML = options.map(opt => `
+              <tr>
+                <td>${opt.name}</td>
+                <td><span class="badge bg-info">${opt.scoreCategory}</span></td>
+                <td><strong>${opt.scoreValue}</strong> điểm</td>
+                <td>${opt.description || '-'}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="activityController.deleteScoreOption(${opt.id})"><i class="fas fa-trash"></i></button></td>
+              </tr>
+            `).join('');
+          } catch (error) {
+            Toast.error('Lỗi tải score options: ' + error.message);
+          }
+        },
+        
+        async saveScoreOption() {
+          const activityId = document.getElementById('scoreActivityId').value;
+          const data = {
+            name: document.getElementById('scoreName').value,
+            scoreCategory: document.getElementById('scoreCategory').value,
+            scoreValue: document.getElementById('scoreValue').value,
+            description: document.getElementById('scoreDescription').value
+          };
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${activityId}/score-options`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Có lỗi xảy ra');
+            }
+            
+            Toast.success('Thêm score option thành công!');
+            document.getElementById('scoreName').value = '';
+            document.getElementById('scoreCategory').value = '';
+            document.getElementById('scoreDescription').value = '';
+            await this.loadScoreOptions(activityId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async deleteScoreOption(optionId) {
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/score-options/${optionId}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Không thể xóa');
+            
+            Toast.success('Xóa score option thành công!');
+            const activityId = document.getElementById('scoreActivityId').value;
+            await this.loadScoreOptions(activityId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        }
+      };
+      
+      document.addEventListener('DOMContentLoaded', () => activityController.init());
+    </script>
+  </body>
+</html>

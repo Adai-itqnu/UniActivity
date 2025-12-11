@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{admin/layout :: header}"></head>
+  <body>
+    <div th:replace="~{admin/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-university me-2"></i>Quản lý Khoa</h2>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Quản lý Khoa</li>
+              </ol>
+            </nav>
+          </div>
+          <button class="btn btn-primary" onclick="facultyController.openCreateModal()">
+            <i class="fas fa-plus me-2"></i>Thêm mới
+          </button>
+        </div>
+
+        <!-- Faculty Table -->
+        <div class="card">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover" id="facultyTable">
+                <thead>
+                  <tr>
+                    <th style="width: 60px">ID</th>
+                    <th style="width: 120px">Mã Khoa</th>
+                    <th>Tên Khoa</th>
+                    <th style="width: 120px">Trạng thái</th>
+                    <th style="width: 150px" class="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="faculty : ${faculties}" th:id="'row-' + ${faculty.id}">
+                    <td th:text="${faculty.id}">1</td>
+                    <td>
+                      <span class="badge bg-secondary" th:text="${faculty.code}">CNTT</span>
+                    </td>
+                    <td th:text="${faculty.name}">Công nghệ thông tin</td>
+                    <td>
+                      <span th:if="${faculty.status != null and faculty.status == 'ACTIVE'}" class="badge bg-success">
+                        <i class="fas fa-check-circle me-1"></i>Hoạt động
+                      </span>
+                      <span th:if="${faculty.status != null and faculty.status == 'INACTIVE'}" class="badge bg-secondary">
+                        <i class="fas fa-pause-circle me-1"></i>Ngưng
+                      </span>
+                      <span th:if="${faculty.status == null}" class="badge bg-warning">
+                        <i class="fas fa-question-circle me-1"></i>Không xác định
+                      </span>
+                    </td>
+                    <td class="text-center action-buttons">
+                      <button class="btn btn-sm btn-warning" 
+                              th:data-id="${faculty.id}"
+                              onclick="facultyController.openEditModal(this.dataset.id)"
+                              data-bs-toggle="tooltip" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger" 
+                              th:data-id="${faculty.id}"
+                              th:data-name="${faculty.name}"
+                              onclick="facultyController.delete(this.dataset.id, this.dataset.name)"
+                              data-bs-toggle="tooltip" title="Xóa">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr th:if="${faculties == null or #lists.isEmpty(faculties)}">
+                    <td colspan="5" class="text-center py-5">
+                      <div class="empty-state">
+                        <i class="fas fa-university" style="font-size: 3rem; color: #6c757d;"></i>
+                        <h5 class="mt-3">Chưa có khoa nào</h5>
+                        <p class="text-muted">Bấm "Thêm mới" để tạo khoa đầu tiên</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Faculty Modal -->
+    <div class="modal fade" id="facultyModal" tabindex="-1" aria-labelledby="facultyModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="facultyModalLabel">
+              <i class="fas fa-university me-2"></i>Thêm mới Khoa
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="facultyForm">
+            <div class="modal-body">
+              <input type="hidden" name="id" id="facultyId">
+              
+              <div class="mb-3">
+                <label for="code" class="form-label">Mã Khoa <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="code" name="code" required 
+                       placeholder="Ví dụ: CNTT, KT, NN...">
+                <div class="form-text">Mã khoa là duy nhất và không thể sửa sau khi tạo.</div>
+                <div class="invalid-feedback">Vui lòng nhập mã khoa</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="name" class="form-label">Tên Khoa <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" name="name" required
+                       placeholder="Ví dụ: Công nghệ thông tin">
+                <div class="invalid-feedback">Vui lòng nhập tên khoa</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="description" class="form-label">Mô tả</label>
+                <textarea class="form-control" id="description" name="description" rows="3"
+                          placeholder="Mô tả về khoa (không bắt buộc)"></textarea>
+              </div>
+
+              <div class="mb-3" id="statusGroup" style="display: none;">
+                <label for="status" class="form-label">Trạng thái</label>
+                <select class="form-select" id="status" name="status">
+                  <option value="ACTIVE">Hoạt động</option>
+                  <option value="INACTIVE">Ngưng hoạt động</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>Lưu lại
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <div th:replace="~{admin/layout :: scripts}"></div>
+    
+    <script>
+      // Faculty CRUD Controller
+      const facultyController = {
+        apiEndpoint: '/admin/faculties/api',
+        modalId: 'facultyModal',
+        formId: 'facultyForm',
+        
+        init() {
+          // Form submit handler
+          document.getElementById(this.formId).addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.save();
+          });
+        },
+        
+        openCreateModal() {
+          Modal.reset(this.formId);
+          document.getElementById('facultyModalLabel').innerHTML = '<i class="fas fa-university me-2"></i>Thêm mới Khoa';
+          document.getElementById('code').removeAttribute('readonly');
+          document.getElementById('statusGroup').style.display = 'none';
+          Modal.open(this.modalId);
+        },
+        
+        async openEditModal(id) {
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`);
+            if (!response.ok) throw new Error('Không thể tải dữ liệu');
+            
+            const data = await response.json();
+            Modal.reset(this.formId);
+            
+            document.getElementById('facultyId').value = data.id;
+            document.getElementById('code').value = data.code;
+            document.getElementById('code').setAttribute('readonly', true);
+            document.getElementById('name').value = data.name;
+            document.getElementById('description').value = data.description || '';
+            document.getElementById('status').value = data.status || 'ACTIVE';
+            document.getElementById('statusGroup').style.display = 'block';
+            
+            document.getElementById('facultyModalLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Cập nhật Khoa';
+            Modal.open(this.modalId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async save() {
+          const form = document.getElementById(this.formId);
+          if (!FormUtils.validate(form)) {
+            Toast.warning('Vui lòng điền đầy đủ thông tin bắt buộc.');
+            return;
+          }
+          
+          const id = document.getElementById('facultyId').value;
+          const data = {
+            code: document.getElementById('code').value,
+            name: document.getElementById('name').value,
+            description: document.getElementById('description').value,
+            status: document.getElementById('status').value || 'ACTIVE'
+          };
+          
+          try {
+            Loading.show();
+            const url = id ? `${this.apiEndpoint}/${id}` : this.apiEndpoint;
+            const method = id ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+              method: method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+              throw new Error(result.message || 'Có lỗi xảy ra');
+            }
+            
+            Toast.success(id ? 'Cập nhật khoa thành công!' : 'Thêm khoa mới thành công!');
+            Modal.close(this.modalId);
+            
+            // Reload page to refresh data
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async delete(id, name) {
+          const confirmed = await Confirm.delete(name);
+          if (!confirmed) return;
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`, {
+              method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Không thể xóa');
+            }
+            
+            Toast.success('Xóa khoa thành công!');
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        }
+      };
+      
+      // Initialize on DOM ready
+      document.addEventListener('DOMContentLoaded', () => {
+        facultyController.init();
+      });
+    </script>
+  </body>
+</html>

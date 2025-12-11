@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{admin/layout :: header}"></head>
+  <body>
+    <div th:replace="~{admin/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <a th:href="@{/admin/activities}" class="btn btn-outline-secondary btn-sm mb-2">
+              <i class="fas fa-arrow-left me-1"></i> Quay lại
+            </a>
+            <h2 class="mb-0" th:text="${activity.name}">Tên hoạt động</h2>
+          </div>
+          <div>
+            <span th:if="${activity.scope == 'SCHOOL'}" class="badge bg-primary fs-6 me-2">🏫 Toàn trường</span>
+            <span th:if="${activity.scope == 'FACULTY'}" class="badge bg-info fs-6 me-2">🏛️ Theo khoa</span>
+            <span th:if="${activity.status == 'DRAFT'}" class="badge bg-secondary fs-6">📝 Nháp</span>
+            <span th:if="${activity.status == 'OPEN'}" class="badge bg-success fs-6">✅ Mở đăng ký</span>
+            <span th:if="${activity.status == 'FINISHED'}" class="badge bg-dark fs-6">⏹️ Kết thúc</span>
+          </div>
+        </div>
+        <!-- Summary Stats Row -->
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <div class="card bg-primary text-white">
+              <div class="card-body text-center py-3">
+                <h4 class="mb-0" th:text="${totalMaxSlots ?: 0}">100</h4>
+                <small>Tổng slot</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-success text-white">
+              <div class="card-body text-center py-3">
+                <h4 class="mb-0" th:text="${totalRegistered ?: 0}">45</h4>
+                <small>Đã đăng ký</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card bg-warning">
+              <div class="card-body text-center py-3">
+                <h4 class="mb-0" th:text="${totalRemaining ?: 0}">55</h4>
+                <small>Còn trống</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card" th:classappend="${isDeadlinePassed} ? 'bg-danger text-white' : 'bg-info text-white'">
+              <div class="card-body text-center py-3">
+                <h6 class="mb-0" th:if="${activity.registrationDeadline != null}" 
+                    th:text="${#temporals.format(activity.registrationDeadline, 'dd/MM HH:mm')}">31/12 23:59</h6>
+                <h6 class="mb-0" th:unless="${activity.registrationDeadline != null}">--</h6>
+                <small th:text="${isDeadlinePassed} ? '⚠️ Đã hết hạn' : '📅 Hạn đăng ký'">Hạn đăng ký</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <!-- Left Column: Basic Info -->
+          <div class="col-md-6 mb-4">
+            <div class="card h-100">
+              <div class="card-header bg-primary text-white">
+                <i class="fas fa-info-circle me-2"></i>Thông tin cơ bản
+              </div>
+              <div class="card-body">
+                <table class="table table-borderless mb-0">
+                  <tr>
+                    <th width="35%"><i class="fas fa-map-marker-alt me-2 text-muted"></i>Địa điểm:</th>
+                    <td th:text="${activity.location ?: 'Chưa có'}">Hội trường A</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fas fa-play me-2 text-success"></i>Bắt đầu:</th>
+                    <td>
+                      <strong th:text="${activity.startTime != null ? #temporals.format(activity.startTime, 'dd/MM/yyyy HH:mm') : 'Chưa có'}">01/01/2024</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th><i class="fas fa-stop me-2 text-danger"></i>Kết thúc:</th>
+                    <td th:text="${activity.endTime != null ? #temporals.format(activity.endTime, 'dd/MM/yyyy HH:mm') : 'Chưa có'}">01/01/2024</td>
+                  </tr>
+                  <tr>
+                    <th><i class="fas fa-calendar-check me-2 text-warning"></i>Hạn đăng ký:</th>
+                    <td>
+                      <span th:if="${activity.registrationDeadline != null}" th:classappend="${isDeadlinePassed} ? 'text-danger fw-bold' : 'text-success'"
+                            th:text="${#temporals.format(activity.registrationDeadline, 'dd/MM/yyyy HH:mm')}">31/12/2023</span>
+                      <span th:unless="${activity.registrationDeadline != null}" class="text-muted">Chưa có</span>
+                      <span th:if="${isDeadlinePassed}" class="badge bg-danger ms-2">Đã hết hạn</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th><i class="fas fa-clock me-2 text-info"></i>Ngày tạo:</th>
+                    <td th:text="${activity.createdAt != null ? #temporals.format(activity.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                  </tr>
+                </table>
+                <hr>
+                <h6><i class="fas fa-align-left me-2"></i>Mô tả:</h6>
+                <p class="text-muted" th:text="${activity.description ?: 'Chưa có mô tả'}">Mô tả hoạt động</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Banner -->
+          <div class="col-md-6 mb-4">
+            <div class="card h-100">
+              <div class="card-header bg-secondary text-white">
+                <i class="fas fa-image me-2"></i>Banner
+              </div>
+              <div class="card-body text-center">
+                <img th:if="${activity.bannerUrl}" th:src="${activity.bannerUrl}" alt="Banner" class="img-fluid rounded" style="max-height: 250px;">
+                <div th:unless="${activity.bannerUrl}" class="text-muted py-5">
+                  <i class="fas fa-image fa-3x mb-3"></i>
+                  <p>Chưa có banner</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <!-- Slots Section -->
+          <div class="col-md-6 mb-4">
+            <div class="card h-100">
+              <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-users me-2"></i>Slots đăng ký</span>
+                <button class="btn btn-light btn-sm" onclick="openAddSlotModal()">
+                  <i class="fas fa-plus"></i> Thêm
+                </button>
+              </div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Khoa</th>
+                      <th>Lớp</th>
+                      <th class="text-center">Số lượng</th>
+                      <th class="text-center">Còn lại</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="slotsList">
+                    <tr th:each="slot : ${slots}">
+                      <td th:text="${slot.facultyName ?: 'Toàn trường'}">Khoa CNTT</td>
+                      <td th:text="${slot.className ?: 'Tất cả'}">K45-CNTT</td>
+                      <td class="text-center" th:text="${slot.maxQuantity}">50</td>
+                      <td class="text-center">
+                        <span class="badge bg-success" th:text="${slot.maxQuantity - (slot.currentQuantity ?: 0)}">30</span>
+                      </td>
+                      <td>
+                        <button class="btn btn-sm btn-danger" th:onclick="|deleteSlot(${slot.id})|">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(slots)}">
+                      <td colspan="5" class="text-center text-muted py-3">Chưa có slot nào</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Score Options Section -->
+          <div class="col-md-6 mb-4">
+            <div class="card h-100">
+              <div class="card-header bg-warning d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-trophy me-2"></i>Điểm &amp; Giải thưởng</span>
+                <button class="btn btn-dark btn-sm" onclick="openAddScoreModal()">
+                  <i class="fas fa-plus"></i> Thêm
+                </button>
+              </div>
+              <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Mục điểm</th>
+                      <th>Loại tham gia</th>
+                      <th class="text-center">Điểm</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="scoresList">
+                    <tr th:each="opt : ${scoreOptions}">
+                      <td>
+                        <span class="badge bg-info" th:text="${opt.scoreCategory}">1.2</span>
+                      </td>
+                      <td th:text="${opt.name}">Giải nhất</td>
+                      <td class="text-center">
+                        <span class="badge bg-primary" th:text="${'+' + opt.scoreValue + 'đ'}">+10đ</span>
+                      </td>
+                      <td>
+                        <button class="btn btn-sm btn-danger" th:onclick="|deleteScoreOption(${opt.id})|">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(scoreOptions)}">
+                      <td colspan="4" class="text-center text-muted py-3">Chưa có mức điểm nào</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Slot Modal -->
+    <div class="modal fade" id="slotModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title"><i class="fas fa-users me-2"></i>Thêm Slot</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="slotForm">
+              <div class="mb-3" th:if="${activity.scope == 'FACULTY'}">
+                <label class="form-label">Khoa</label>
+                <select id="slotFacultyId" class="form-select" onchange="filterSlotClasses()">
+                  <option value="">-- Tất cả khoa --</option>
+                  <option th:each="f : ${faculties}" th:value="${f.id}" th:text="${f.name}">Khoa</option>
+                </select>
+              </div>
+              <div class="mb-3" th:if="${activity.scope == 'FACULTY'}">
+                <label class="form-label">Lớp (tùy chọn)</label>
+                <select id="slotClassId" class="form-select">
+                  <option value="">-- Tất cả lớp trong khoa --</option>
+                  <option th:each="c : ${classes}" th:value="${c.id}" th:text="${c.name}" th:data-faculty="${c.facultyId}">Lớp</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Số lượng tối đa <span class="text-danger">*</span></label>
+                <input type="number" id="slotMaxQuantity" class="form-control" min="1" required>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="button" class="btn btn-success" onclick="saveSlot()">
+              <i class="fas fa-save me-1"></i>Lưu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Score Option Modal -->
+    <div class="modal fade" id="scoreModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header bg-warning">
+            <h5 class="modal-title"><i class="fas fa-trophy me-2"></i>Thêm Điểm/Giải thưởng</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form id="scoreForm">
+              <div class="mb-3">
+                <label class="form-label">Mục điểm <span class="text-danger">*</span></label>
+                <select id="scoreCategory" class="form-select" required>
+                  <option value="">-- Chọn mục điểm --</option>
+                  <!-- Populated by JS from scoring rules -->
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Loại tham gia <span class="text-danger">*</span></label>
+                <input type="text" id="scoreName" class="form-control" placeholder="VD: Giải nhất, Tham gia" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Điểm cộng <span class="text-danger">*</span></label>
+                <input type="number" id="scoreValue" class="form-control" min="0" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Ghi chú</label>
+                <textarea id="scoreDescription" class="form-control" rows="2" placeholder="Ghi chú thêm nếu có"></textarea>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+            <button type="button" class="btn btn-warning" onclick="saveScoreOption()">
+              <i class="fas fa-save me-1"></i>Lưu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{admin/layout :: scripts}"></div>
+    
+    <script th:inline="javascript">
+      const activityId = /*[[${activity.id}]]*/ 0;
+      const apiBase = '/admin/activities/api';
+      const scoringRulesJson = /*[[${scoringRulesJson}]]*/ '{}';
+      const scoringRules = JSON.parse(scoringRulesJson);
+      
+      // Populate score category dropdown on load
+      document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('scoreCategory');
+        if (!scoringRules.categories) return;
+        
+        scoringRules.categories.forEach(cat => {
+          const autoSubs = cat.subcategories.filter(sub => sub.type === 'AUTO_ACTIVITY');
+          if (autoSubs.length === 0) return;
+          
+          const optgroup = document.createElement('optgroup');
+          optgroup.label = `${cat.id}. ${cat.name}`;
+          autoSubs.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.id;
+            option.textContent = `${sub.id}. ${sub.name}`;
+            optgroup.appendChild(option);
+          });
+          select.appendChild(optgroup);
+        });
+      });
+      
+      function openAddSlotModal() {
+        document.getElementById('slotMaxQuantity').value = '';
+        const facultyEl = document.getElementById('slotFacultyId');
+        const classEl = document.getElementById('slotClassId');
+        if (facultyEl) facultyEl.value = '';
+        if (classEl) classEl.value = '';
+        new bootstrap.Modal(document.getElementById('slotModal')).show();
+      }
+      
+      function openAddScoreModal() {
+        document.getElementById('scoreCategory').value = '';
+        document.getElementById('scoreName').value = '';
+        document.getElementById('scoreValue').value = '';
+        document.getElementById('scoreDescription').value = '';
+        new bootstrap.Modal(document.getElementById('scoreModal')).show();
+      }
+      
+      function filterSlotClasses() {
+        const facultyId = document.getElementById('slotFacultyId')?.value;
+        const classSelect = document.getElementById('slotClassId');
+        if (!classSelect) return;
+        
+        Array.from(classSelect.options).forEach(opt => {
+          if (!opt.value) return;
+          const optFacultyId = opt.dataset.faculty || '';
+          opt.hidden = facultyId && optFacultyId !== facultyId;
+        });
+        classSelect.value = '';
+      }
+      
+      async function saveSlot() {
+        const data = {
+          facultyId: document.getElementById('slotFacultyId')?.value || null,
+          classId: document.getElementById('slotClassId')?.value || null,
+          maxQuantity: document.getElementById('slotMaxQuantity').value
+        };
+        
+        try {
+          const response = await fetch(apiBase + '/' + activityId + '/slots', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (!response.ok) throw new Error('Lỗi khi lưu');
+          Toast.success('Thêm slot thành công!');
+          location.reload();
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        }
+      }
+      
+      async function deleteSlot(slotId) {
+        if (!confirm('Bạn có chắc muốn xóa slot này?')) return;
+        
+        try {
+          const response = await fetch(apiBase + '/slots/' + slotId, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Lỗi khi xóa');
+          Toast.success('Xóa slot thành công!');
+          location.reload();
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        }
+      }
+      
+      async function saveScoreOption() {
+        const data = {
+          scoreCategory: document.getElementById('scoreCategory').value,
+          name: document.getElementById('scoreName').value,
+          scoreValue: document.getElementById('scoreValue').value,
+          description: document.getElementById('scoreDescription').value
+        };
+        
+        try {
+          const response = await fetch(apiBase + '/' + activityId + '/score-options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+          
+          if (!response.ok) throw new Error('Lỗi khi lưu');
+          Toast.success('Thêm điểm thành công!');
+          location.reload();
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        }
+      }
+      
+      async function deleteScoreOption(id) {
+        if (!confirm('Bạn có chắc muốn xóa mức điểm này?')) return;
+        
+        try {
+          const response = await fetch(apiBase + '/score-options/' + id, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Lỗi khi xóa');
+          Toast.success('Xóa mức điểm thành công!');
+          location.reload();
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{admin/layout :: header}"></head>
+  <body>
+    <div th:replace="~{admin/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-users me-2"></i>Quản lý Người dùng</h2>
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a th:href="@{/admin/dashboard}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Quản lý Người dùng</li>
+              </ol>
+            </nav>
+          </div>
+          <button class="btn btn-primary" onclick="userController.openCreateModal()">
+            <i class="fas fa-plus me-2"></i>Thêm mới
+          </button>
+        </div>
+
+        <!-- Filter & Search Row -->
+        <div class="card mb-3">
+          <div class="card-body py-2">
+            <div class="row align-items-center">
+              <div class="col-md-3">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text"><i class="fas fa-filter"></i></span>
+                  <select class="form-select form-select-sm" id="filterRole" onchange="userController.filterTable()">
+                    <option value="">Tất cả vai trò</option>
+                    <option th:each="r : ${roles}" th:value="${r.name()}" th:text="${r.name()}">Role</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text"><i class="fas fa-users"></i></span>
+                  <select class="form-select form-select-sm" id="filterClass" onchange="userController.filterTable()">
+                    <option value="">Tất cả lớp</option>
+                    <option th:each="c : ${classes}" th:value="${c.id}" th:text="${c.name}">Lớp</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text"><i class="fas fa-search"></i></span>
+                  <input type="text" class="form-control" id="searchInput" placeholder="Tìm theo tên, email, username..." 
+                         oninput="userController.filterTable()">
+                </div>
+              </div>
+              <div class="col-md-2 text-end">
+                <button class="btn btn-outline-secondary btn-sm" onclick="userController.resetFilter()">
+                  <i class="fas fa-undo"></i> Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="card">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover" id="userTable">
+                <thead>
+                  <tr>
+                    <th style="width: 60px">ID</th>
+                    <th>Username</th>
+                    <th>Họ tên</th>
+                    <th>Email</th>
+                    <th>Vai trò</th>
+                    <th>Lớp</th>
+                    <th style="width: 100px">Trạng thái</th>
+                    <th style="width: 180px" class="text-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="user : ${users}" data-user-row 
+                      th:data-role="${user.role}" 
+                      th:data-class-id="${user.classId}">
+                    <td th:text="${user.id}">1</td>
+                    <td th:text="${user.username}">admin</td>
+                    <td th:text="${user.fullName}">Nguyễn Văn A</td>
+                    <td th:text="${user.email}">admin@gmail.com</td>
+                    <td>
+                      <span th:if="${user.role != null and user.role == 'ADMIN'}" class="badge bg-danger">Admin</span>
+                      <span th:if="${user.role != null and user.role == 'MANAGER'}" class="badge bg-warning text-dark">Manager</span>
+                      <span th:if="${user.role != null and user.role == 'STUDENT'}" class="badge bg-info">Sinh viên</span>
+                      <span th:if="${user.role == null}" class="badge bg-secondary">N/A</span>
+                    </td>
+                    <td th:text="${user.className != null ? user.className : '-'}">-</td>
+                    <td>
+                      <span th:if="${user.status != null and user.status == 'ACTIVE'}" class="badge bg-success">
+                        <i class="fas fa-check-circle me-1"></i>Active
+                      </span>
+                      <span th:if="${user.status != null and user.status == 'LOCKED'}" class="badge bg-danger">
+                        <i class="fas fa-lock me-1"></i>Khóa
+                      </span>
+                      <span th:if="${user.status == null}" class="badge bg-secondary">N/A</span>
+                    </td>
+                    <td class="text-center action-buttons">
+                      <button class="btn btn-sm btn-warning" 
+                              th:data-id="${user.id}"
+                              onclick="userController.openEditModal(this.dataset.id)"
+                              data-bs-toggle="tooltip" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="btn btn-sm" 
+                              th:classappend="${user.status != null and user.status == 'ACTIVE'} ? 'btn-secondary' : 'btn-success'"
+                              th:data-id="${user.id}"
+                              onclick="userController.toggleStatus(this.dataset.id)"
+                              data-bs-toggle="tooltip" 
+                              th:title="${user.status != null and user.status == 'ACTIVE'} ? 'Khóa tài khoản' : 'Mở khóa'">
+                        <i th:class="${user.status != null and user.status == 'ACTIVE'} ? 'fas fa-lock' : 'fas fa-unlock'"></i>
+                      </button>
+                      <button class="btn btn-sm btn-info" 
+                              th:data-id="${user.id}"
+                              onclick="userController.openResetPasswordModal(this.dataset.id)"
+                              data-bs-toggle="tooltip" title="Reset mật khẩu">
+                        <i class="fas fa-key"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger" 
+                              th:data-id="${user.id}"
+                              th:data-name="${user.fullName}"
+                              onclick="userController.delete(this.dataset.id, this.dataset.name)"
+                              data-bs-toggle="tooltip" title="Xóa">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr th:if="${users == null or #lists.isEmpty(users)}">
+                    <td colspan="8" class="text-center py-5">
+                      <div class="empty-state">
+                        <i class="fas fa-users" style="font-size: 3rem; color: #6c757d;"></i>
+                        <h5 class="mt-3">Chưa có người dùng nào</h5>
+                        <p class="text-muted">Bấm "Thêm mới" để tạo người dùng đầu tiên</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Modal -->
+    <div class="modal fade" id="userModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userModalLabel">
+              <i class="fas fa-user me-2"></i>Thêm mới Người dùng
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form id="userForm">
+            <div class="modal-body">
+              <input type="hidden" name="id" id="userId">
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="userUsername" class="form-label">Username <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="userUsername" name="username" required 
+                           placeholder="Mã sinh viên hoặc username">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="userEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" id="userEmail" name="email" required
+                           placeholder="email@example.com">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="userFullName" class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="userFullName" name="fullName" required
+                           placeholder="Nguyễn Văn A">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="userPhone" class="form-label">Số điện thoại</label>
+                    <input type="text" class="form-control" id="userPhone" name="phone"
+                           placeholder="0912345678">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="row" id="passwordRow">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="userPassword" class="form-label">Mật khẩu <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="userPassword" name="password" required
+                           placeholder="Tối thiểu 6 ký tự">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="confirmPassword" class="form-label">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="confirmPassword" required
+                           placeholder="Nhập lại mật khẩu">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label for="userRole" class="form-label">Vai trò <span class="text-danger">*</span></label>
+                    <select class="form-select" id="userRole" name="role" required>
+                      <option th:each="r : ${roles}" th:value="${r.name()}" th:text="${r.name()}">Role</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Lớp</label>
+                    <!-- Class filter by Faculty & Year -->
+                    <div class="row g-1 mb-2">
+                      <div class="col-6">
+                        <select class="form-select form-select-sm" id="modalFilterFaculty" onchange="userController.filterClassOptions()">
+                          <option value="">Tất cả khoa</option>
+                          <option th:each="f : ${faculties}" th:value="${f.id}" th:text="${f.name}">Khoa</option>
+                        </select>
+                      </div>
+                      <div class="col-6">
+                        <select class="form-select form-select-sm" id="modalFilterYear" onchange="userController.filterClassOptions()">
+                          <option value="">Tất cả khóa</option>
+                          <option th:each="y : ${academicYears}" th:value="${y.id}" th:text="${y.code}">Khóa</option>
+                        </select>
+                      </div>
+                    </div>
+                    <select class="form-select" id="userClassId" name="classId">
+                      <option value="">-- Không thuộc lớp nào --</option>
+                      <option th:each="c : ${classes}" th:value="${c.id}" 
+                              th:data-faculty="${c.facultyId}" 
+                              th:data-year="${c.academicYearId}"
+                              th:text="${c.name + ' (' + (c.facultyName != null ? c.facultyName : '?') + ' - ' + (c.academicYearCode != null ? c.academicYearCode : '?') + ')'}">Lớp</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i>Hủy
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>Lưu lại
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Reset Password Modal -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="fas fa-key me-2"></i>Reset mật khẩu
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <form id="resetPasswordForm">
+            <div class="modal-body">
+              <input type="hidden" id="resetUserId">
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">Mật khẩu mới <span class="text-danger">*</span></label>
+                <input type="password" class="form-control" id="newPassword" required
+                       placeholder="Tối thiểu 6 ký tự">
+              </div>
+              <div class="mb-3">
+                <label for="confirmNewPassword" class="form-label">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+                <input type="password" class="form-control" id="confirmNewPassword" required
+                       placeholder="Nhập lại mật khẩu mới">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+              <button type="submit" class="btn btn-primary">Reset mật khẩu</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <div th:replace="~{admin/layout :: scripts}"></div>
+    
+    <script>
+      const userController = {
+        apiEndpoint: '/admin/users/api',
+        modalId: 'userModal',
+        formId: 'userForm',
+        
+        init() {
+          document.getElementById(this.formId).addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.save();
+          });
+          document.getElementById('resetPasswordForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.resetPassword();
+          });
+        },
+        
+        // Filter table
+        filterTable() {
+          const roleFilter = document.getElementById('filterRole').value.toLowerCase();
+          const classFilter = document.getElementById('filterClass').value;
+          const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+          
+          const rows = document.querySelectorAll('#userTable tbody tr[data-user-row]');
+          rows.forEach(row => {
+            const role = (row.dataset.role || '').toLowerCase();
+            const classId = row.dataset.classId || '';
+            const text = row.textContent.toLowerCase();
+            
+            const matchRole = !roleFilter || role === roleFilter;
+            const matchClass = !classFilter || classId === classFilter;
+            const matchSearch = !searchTerm || text.includes(searchTerm);
+            
+            row.style.display = (matchRole && matchClass && matchSearch) ? '' : 'none';
+          });
+        },
+        
+        resetFilter() {
+          document.getElementById('filterRole').value = '';
+          document.getElementById('filterClass').value = '';
+          document.getElementById('searchInput').value = '';
+          this.filterTable();
+        },
+        
+        // Filter class options in modal
+        filterClassOptions() {
+          const facultyId = document.getElementById('modalFilterFaculty').value;
+          const yearId = document.getElementById('modalFilterYear').value;
+          const classSelect = document.getElementById('userClassId');
+          
+          Array.from(classSelect.options).forEach(opt => {
+            if (!opt.value) return; // Skip empty option
+            const optFacultyId = opt.dataset.faculty || '';
+            const optYearId = opt.dataset.year || '';
+            
+            const matchFaculty = !facultyId || optFacultyId === facultyId;
+            const matchYear = !yearId || optYearId === yearId;
+            
+            opt.hidden = !(matchFaculty && matchYear);
+          });
+        },
+        
+        openCreateModal() {
+          Modal.reset(this.formId);
+          document.getElementById('userModalLabel').innerHTML = '<i class="fas fa-user me-2"></i>Thêm mới Người dùng';
+          document.getElementById('userUsername').removeAttribute('readonly');
+          document.getElementById('passwordRow').style.display = 'flex';
+          document.getElementById('userPassword').setAttribute('required', true);
+          document.getElementById('confirmPassword').setAttribute('required', true);
+          Modal.open(this.modalId);
+        },
+        
+        async openEditModal(id) {
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`);
+            if (!response.ok) throw new Error('Không thể tải dữ liệu');
+            
+            const data = await response.json();
+            Modal.reset(this.formId);
+            
+            document.getElementById('userId').value = data.id;
+            document.getElementById('userUsername').value = data.username;
+            document.getElementById('userUsername').setAttribute('readonly', true);
+            document.getElementById('userEmail').value = data.email;
+            document.getElementById('userFullName').value = data.fullName;
+            document.getElementById('userPhone').value = data.phone || '';
+            document.getElementById('userRole').value = data.role || '';
+            document.getElementById('userClassId').value = data.classId || '';
+            
+            // Hide password fields in edit mode
+            document.getElementById('passwordRow').style.display = 'none';
+            document.getElementById('userPassword').removeAttribute('required');
+            document.getElementById('confirmPassword').removeAttribute('required');
+            
+            document.getElementById('userModalLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Cập nhật Người dùng';
+            Modal.open(this.modalId);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async save() {
+          const form = document.getElementById(this.formId);
+          if (!FormUtils.validate(form)) {
+            Toast.warning('Vui lòng điền đầy đủ thông tin bắt buộc.');
+            return;
+          }
+          
+          const id = document.getElementById('userId').value;
+          
+          // Validate password for new user
+          if (!id) {
+            const password = document.getElementById('userPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            if (password !== confirmPassword) {
+              Toast.error('Mật khẩu xác nhận không khớp');
+              return;
+            }
+            if (password.length < 6) {
+              Toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+              return;
+            }
+          }
+          
+          const data = {
+            username: document.getElementById('userUsername').value,
+            email: document.getElementById('userEmail').value,
+            fullName: document.getElementById('userFullName').value,
+            phone: document.getElementById('userPhone').value,
+            role: document.getElementById('userRole').value,
+            classId: document.getElementById('userClassId').value || null
+          };
+          
+          if (!id) {
+            data.password = document.getElementById('userPassword').value;
+          }
+          
+          try {
+            Loading.show();
+            const url = id ? `${this.apiEndpoint}/${id}` : this.apiEndpoint;
+            const method = id ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+              method: method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+              throw new Error(result.message || 'Có lỗi xảy ra');
+            }
+            
+            Toast.success(id ? 'Cập nhật thành công!' : 'Thêm mới thành công!');
+            Modal.close(this.modalId);
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async toggleStatus(id) {
+          const confirmed = await Confirm.show({
+            title: 'Thay đổi trạng thái',
+            message: 'Bạn có chắc chắn muốn thay đổi trạng thái tài khoản này?',
+            confirmText: 'Xác nhận',
+            type: 'warning'
+          });
+          if (!confirmed) return;
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}/toggle-status`, { method: 'POST' });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Không thể cập nhật');
+            }
+            
+            Toast.success('Cập nhật trạng thái thành công!');
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        openResetPasswordModal(id) {
+          document.getElementById('resetUserId').value = id;
+          document.getElementById('newPassword').value = '';
+          document.getElementById('confirmNewPassword').value = '';
+          Modal.open('resetPasswordModal');
+        },
+        
+        async resetPassword() {
+          const newPassword = document.getElementById('newPassword').value;
+          const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+          
+          if (newPassword !== confirmNewPassword) {
+            Toast.error('Mật khẩu xác nhận không khớp');
+            return;
+          }
+          if (newPassword.length < 6) {
+            Toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+            return;
+          }
+          
+          const id = document.getElementById('resetUserId').value;
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}/reset-password`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: newPassword })
+            });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Không thể reset mật khẩu');
+            }
+            
+            Toast.success('Reset mật khẩu thành công!');
+            Modal.close('resetPasswordModal');
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        },
+        
+        async delete(id, name) {
+          const confirmed = await Confirm.delete(name);
+          if (!confirmed) return;
+          
+          try {
+            Loading.show();
+            const response = await fetch(`${this.apiEndpoint}/${id}`, { method: 'DELETE' });
+            
+            if (!response.ok) {
+              const result = await response.json();
+              throw new Error(result.message || 'Không thể xóa');
+            }
+            
+            Toast.success('Xóa thành công!');
+            setTimeout(() => location.reload(), 500);
+          } catch (error) {
+            Toast.error('Lỗi: ' + error.message);
+          } finally {
+            Loading.hide();
+          }
+        }
+      };
+      
+      document.addEventListener('DOMContentLoaded', () => userController.init());
+    </script>
+  </body>
+</html>

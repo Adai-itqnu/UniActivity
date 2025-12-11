@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{student/layout :: header}"></head>
+  <body>
+    <div th:replace="~{student/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <h2 class="mb-4"><i class="fas fa-calendar-alt text-primary me-2"></i>Hoạt động</h2>
+
+        <!-- No Class Warning -->
+        <div th:if="${!hasClass}" class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Bạn chưa tham gia lớp nào. Vui lòng vào <a th:href="@{/student/home}">trang chủ</a> để tham gia lớp trước khi xem hoạt động.
+        </div>
+
+        <!-- Activities -->
+        <div th:if="${hasClass}">
+          <div th:if="${#lists.isEmpty(activities)}" class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            Hiện không có hoạt động nào dành cho bạn.
+          </div>
+
+          <div class="row">
+            <div th:each="activity : ${activities}" class="col-md-6 col-lg-4 mb-4">
+              <div class="card h-100 activity-card">
+                <!-- Banner -->
+                <div class="card-img-top bg-gradient position-relative" 
+                     th:style="'height: 150px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);'">
+                  <img th:if="${activity.bannerUrl}" th:src="${activity.bannerUrl}" 
+                       class="w-100 h-100" style="object-fit: cover;">
+                  <div class="position-absolute bottom-0 start-0 w-100 p-2" 
+                       style="background: linear-gradient(transparent, rgba(0,0,0,0.7));">
+                    <span class="badge bg-success" th:if="${!activity.isDeadlinePassed}">
+                      <i class="fas fa-check-circle me-1"></i>Đang mở
+                    </span>
+                    <span class="badge bg-danger" th:if="${activity.isDeadlinePassed}">
+                      <i class="fas fa-times-circle me-1"></i>Đã hết hạn
+                    </span>
+                  </div>
+                </div>
+
+                <div class="card-body d-flex flex-column">
+                  <h5 class="card-title" th:text="${activity.name}">Tên hoạt động</h5>
+                  <p class="card-text text-muted small flex-grow-1" 
+                     th:text="${#strings.abbreviate(activity.description ?: 'Không có mô tả', 100)}">
+                    Mô tả hoạt động...
+                  </p>
+                  
+                  <div class="mb-3">
+                    <div class="d-flex justify-content-between text-muted small mb-1">
+                      <span><i class="fas fa-users me-1"></i>Đã đăng ký</span>
+                      <span th:text="${activity.registeredCount + '/' + activity.maxSlots}">10/50</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                      <div class="progress-bar" role="progressbar" 
+                           th:style="${activity.maxSlots > 0 ? 'width: ' + (activity.registeredCount * 100 / activity.maxSlots) + '%' : 'width: 0%'}">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="small text-muted mb-3">
+                    <div th:if="${activity.startTime}">
+                      <i class="fas fa-clock me-1"></i>
+                      <span th:text="${#temporals.format(activity.startTime, 'dd/MM/yyyy HH:mm')}">01/01/2024 08:00</span>
+                    </div>
+                    <div th:if="${activity.location}">
+                      <i class="fas fa-map-marker-alt me-1"></i>
+                      <span th:text="${activity.location}">Hội trường A</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card-footer bg-transparent">
+                  <!-- Already Registered -->
+                  <div th:if="${registeredActivityIds.contains(activity.id)}" class="d-grid gap-2">
+                    <span class="btn btn-success disabled">
+                      <i class="fas fa-check me-1"></i>Đã đăng ký
+                    </span>
+                    <button class="btn btn-outline-danger btn-sm" 
+                            th:onclick="'cancelRegistration(' + ${activity.id} + ')'"
+                            th:disabled="${activity.isDeadlinePassed}">
+                      <i class="fas fa-times me-1"></i>Hủy đăng ký
+                    </button>
+                  </div>
+
+                  <!-- Not Registered -->
+                  <div th:unless="${registeredActivityIds.contains(activity.id)}" class="d-grid">
+                    <button class="btn btn-primary" 
+                            th:onclick="'registerActivity(' + ${activity.id} + ')'"
+                            th:disabled="${activity.isDeadlinePassed || activity.registeredCount >= activity.maxSlots}">
+                      <i class="fas fa-user-plus me-1"></i>
+                      <span th:if="${activity.registeredCount >= activity.maxSlots}">Đã đầy</span>
+                      <span th:unless="${activity.registeredCount >= activity.maxSlots}">Đăng ký tham gia</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{student/layout :: scripts}"></div>
+
+    <script>
+      async function registerActivity(activityId) {
+        try {
+          const response = await fetch(`/student/api/activities/${activityId}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await response.json();
+          
+          if (response.ok) {
+            Toast.success(data.message);
+            setTimeout(() => location.reload(), 500);
+          } else {
+            Toast.error(data.message);
+          }
+        } catch (error) {
+          Toast.error('Có lỗi xảy ra: ' + error.message);
+        }
+      }
+
+      async function cancelRegistration(activityId) {
+        if (!confirm('Bạn có chắc muốn hủy đăng ký hoạt động này?')) return;
+        
+        try {
+          const response = await fetch(`/student/api/activities/${activityId}/register`, {
+            method: 'DELETE'
+          });
+          const data = await response.json();
+          
+          if (response.ok) {
+            Toast.success(data.message);
+            setTimeout(() => location.reload(), 500);
+          } else {
+            Toast.error(data.message);
+          }
+        } catch (error) {
+          Toast.error('Có lỗi xảy ra: ' + error.message);
+        }
+      }
+    </script>
+
+    <style>
+      .activity-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .activity-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      }
+    </style>
+  </body>
+</html>

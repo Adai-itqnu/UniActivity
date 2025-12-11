@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{student/layout :: header}"></head>
+<body>
+  <div class="wrapper">
+    <div th:replace="~{student/layout :: sidebar}"></div>
+    
+    <div class="content">
+      <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2><i class="fas fa-star text-warning me-2"></i>Phiếu Đánh Giá Kết Quả Rèn Luyện</h2>
+            <p class="text-muted mb-0" th:if="${currentSemester != null}">
+              <span th:text="${currentSemester.name}">Học kỳ II - Năm học 2024-2025</span>
+            </p>
+          </div>
+          <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#classificationModal">
+            <i class="fas fa-info-circle me-1"></i>Cách xếp loại
+          </button>
+        </div>
+
+        <!-- Student Info Card -->
+        <div class="card mb-4">
+          <div class="card-body py-3">
+            <div class="row">
+              <div class="col-md-4">
+                <p class="mb-0"><strong>Họ tên:</strong> <span th:text="${user.fullName}">Nguyễn Văn A</span></p>
+              </div>
+              <div class="col-md-4">
+                <p class="mb-0"><strong>Lớp:</strong> <span th:text="${studentClass != null ? studentClass.name : 'Chưa tham gia lớp'}">Lớp A</span></p>
+              </div>
+              <div class="col-md-4">
+                <p class="mb-0"><strong>Khoa:</strong> <span th:text="${studentClass != null && studentClass.faculty != null ? studentClass.faculty.name : 'N/A'}">Khoa CNTT</span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BẢNG ĐIỂM TỔNG HỢP -->
+        <div class="card mb-4">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-table me-2"></i>Bảng Điểm Tổng Hợp</h5>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-bordered table-score mb-0">
+                <thead class="table-light">
+                  <tr class="text-center">
+                    <th style="min-width: 100px;">Mục 1<br><small>Ý thức học tập</small></th>
+                    <th style="min-width: 100px;">Mục 2<br><small>Chấp hành nội quy</small></th>
+                    <th style="min-width: 100px;">Mục 3<br><small>Hoạt động CT-XH</small></th>
+                    <th style="min-width: 100px;">Mục 4<br><small>Phẩm chất</small></th>
+                    <th style="min-width: 100px;">Mục 5<br><small>Lớp, Đoàn</small></th>
+                    <th style="min-width: 100px;">Mục 6<br><small>Thành tích</small></th>
+                    <th style="min-width: 80px;" class="bg-primary text-white">Tổng<br><small>max 100</small></th>
+                    <th style="min-width: 100px;" class="bg-success text-white">Xếp loại</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="text-center fs-5">
+                    <td th:text="${categoryTotals[1] ?: 0}">0</td>
+                    <td th:text="${categoryTotals[2] ?: 0}">0</td>
+                    <td th:text="${categoryTotals[3] ?: 0}">0</td>
+                    <td th:text="${categoryTotals[4] ?: 0}">0</td>
+                    <td th:text="${categoryTotals[5] ?: 0}">0</td>
+                    <td th:text="${categoryTotals[6] ?: 0}">0</td>
+                    <td class="bg-primary text-white fw-bold" th:text="${totalScore}">0</td>
+                    <td class="fw-bold" th:classappend="${totalScore >= 90 ? 'bg-success text-white' : (totalScore >= 80 ? 'bg-primary text-white' : (totalScore >= 65 ? 'bg-info text-white' : (totalScore >= 50 ? 'bg-warning' : 'bg-danger text-white')))}"
+                        th:text="${classification}">Chưa xếp loại</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- CHI TIẾT ĐIỂM -->
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list-ul me-2"></i>Chi Tiết Điểm Từng Mục</h5>
+          </div>
+          <div class="card-body p-2">
+            <div class="row g-2" id="scoreDetails">
+              <!-- Will be filled by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ROW: NHẬP ĐIỂM + LỊCH SỬ -->
+        <div class="row">
+          <!-- NHẬP ĐIỂM -->
+          <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+              <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Nhập Điểm Rèn Luyện (NHÓM A)</h5>
+              </div>
+              <div class="card-body">
+                <p class="text-muted small mb-3">
+                  <i class="fas fa-info-circle me-1"></i>Các mục dưới đây cần Manager xác nhận trước khi được tính điểm.
+                </p>
+                
+                <!-- Form nhập điểm thủ công -->
+                <form id="scoreEntryForm">
+                  <!-- Loại điểm -->
+                  <div class="mb-3">
+                    <label class="form-label">Chọn mục điểm <span class="text-danger">*</span></label>
+                    <select class="form-select" id="criteriaSelect" onchange="onCriteriaChange()">
+                      <option value="">-- Chọn mục --</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Hướng dẫn -->
+                  <div class="alert alert-light border mb-3" id="rulesContainer" style="display: none;">
+                    <div id="rulesContent"></div>
+                  </div>
+
+                  <!-- GPA Calculator for 1.1 -->
+                  <div id="gpaSection" class="card bg-info bg-opacity-10 border-info mb-3" style="display: none;">
+                    <div class="card-body py-3">
+                      <h6 class="mb-3"><i class="fas fa-calculator me-2"></i>Tính điểm từ ĐTB</h6>
+                      <div class="row g-2 mb-2">
+                        <div class="col-6">
+                          <label class="form-label small">ĐTB kỳ trước</label>
+                          <input type="number" class="form-control form-control-sm" id="previousGpa" step="0.01" min="0" max="10" placeholder="VD: 7.5" onchange="calculateGpaScore()">
+                        </div>
+                        <div class="col-6">
+                          <label class="form-label small">ĐTB kỳ này</label>
+                          <input type="number" class="form-control form-control-sm" id="currentGpa" step="0.01" min="0" max="10" placeholder="VD: 8.0" onchange="calculateGpaScore()">
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-info btn-sm w-100" onclick="calculateGpaScore()">
+                        <i class="fas fa-calculator me-1"></i>Tính điểm
+                      </button>
+                      <div class="alert alert-success py-1 px-2 mt-2 mb-0" id="gpaResult" style="display: none;">
+                        <small>Điểm tính được: <strong id="gpaScoreValue">0</strong>đ (đã điền vào ô điểm bên dưới)</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Manual Entry Fields -->
+                  <div id="manualSection" style="display: none;">
+                    <div class="mb-3">
+                      <label class="form-label">Mô tả <span class="text-danger">*</span></label>
+                      <textarea class="form-control" id="description" rows="2" placeholder="VD: ĐTB kỳ này 8.0, kỳ trước 7.5, tăng 0.5"></textarea>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Điểm <span class="text-danger">*</span> <small class="text-muted">(Mục 1.1 sẽ tự tính)</small></label>
+                      <input type="number" class="form-control" id="claimedScore" placeholder="Nhập điểm">
+                    </div>
+                    <div class="mb-3" id="evidenceSection">
+                      <label class="form-label">Minh chứng (ảnh) <span class="text-danger" id="evidenceRequired" style="display:none;">*</span></label>
+                      <input type="file" class="form-control" id="evidenceFiles" multiple accept="image/*">
+                      <small class="text-muted">Tối đa 5MB/ảnh. Hoặc nhập URL:</small>
+                      <input type="text" class="form-control mt-1" id="evidenceUrl" placeholder="https://...">
+                    </div>
+                    <button type="button" class="btn btn-success w-100" onclick="submitRequest()">
+                      <i class="fas fa-paper-plane me-2"></i>Gửi Yêu Cầu
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- LỊCH SỬ YÊU CẦU + ĐIỂM HOẠT ĐỘNG -->
+          <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+              <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Lịch Sử Điểm Rèn Luyện</h5>
+              </div>
+              <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+                <!-- Điểm từ hoạt động -->
+                <div class="p-2 border-bottom bg-light" th:if="${approvedActivities != null && !approvedActivities.isEmpty()}">
+                  <h6 class="mb-2"><i class="fas fa-calendar-check text-success me-1"></i>Điểm từ Hoạt động</h6>
+                </div>
+                <table class="table table-sm table-hover mb-0" th:if="${approvedActivities != null && !approvedActivities.isEmpty()}">
+                  <thead class="table-success">
+                    <tr>
+                      <th>Hoạt động</th>
+                      <th>Mục</th>
+                      <th>Điểm</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr th:each="reg : ${approvedActivities}">
+                      <td th:text="${#strings.abbreviate(reg.activity.name, 25)}">Tên hoạt động</td>
+                      <td th:text="${reg.scoreOption != null ? reg.scoreOption.scoreCategory : '-'}">3.1</td>
+                      <td><span class="badge bg-success" th:text="${reg.scoreOption != null ? '+' + reg.scoreOption.scoreValue : '-'}">+5</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+                
+                <!-- Điểm tự khai (yêu cầu) -->
+                <div class="p-2 border-bottom bg-light" th:if="${myRequests != null && !myRequests.isEmpty()}">
+                  <h6 class="mb-2"><i class="fas fa-edit text-primary me-1"></i>Điểm tự khai (Nhóm A)</h6>
+                </div>
+                <table class="table table-sm table-hover mb-0" th:if="${myRequests != null && !myRequests.isEmpty()}">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Mục</th>
+                      <th>Mô tả</th>
+                      <th>Điểm</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr th:each="req : ${myRequests}">
+                      <td th:text="${req.criteriaCode}">1.2</td>
+                      <td th:text="${#strings.abbreviate(req.description, 30)}">Mô tả</td>
+                      <td th:text="${req.claimedScore}">5</td>
+                      <td>
+                        <span th:class="${'badge ' + (req.status.name() == 'PENDING' ? 'bg-warning text-dark' : (req.status.name() == 'APPROVED' ? 'bg-success' : 'bg-danger'))}"
+                              th:text="${req.status.name() == 'PENDING' ? 'Chờ duyệt' : (req.status.name() == 'APPROVED' ? 'Đã duyệt' : 'Từ chối')}">
+                          Chờ duyệt
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="text-center text-muted py-4" th:if="${(myRequests == null || myRequests.isEmpty()) && (approvedActivities == null || approvedActivities.isEmpty())}">
+                  <i class="fas fa-inbox fa-2x mb-2"></i>
+                  <p class="mb-0">Chưa có điểm nào</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Classification Modal -->
+  <div class="modal fade" id="classificationModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Phân loại kết quả rèn luyện</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <table class="table table-bordered">
+            <tbody>
+              <tr class="table-success"><td>90 ≤ Điểm ≤ 100</td><td><strong>Xuất sắc</strong></td></tr>
+              <tr class="table-primary"><td>80 ≤ Điểm < 90</td><td><strong>Tốt</strong></td></tr>
+              <tr class="table-info"><td>65 ≤ Điểm < 80</td><td><strong>Khá</strong></td></tr>
+              <tr class="table-warning"><td>50 ≤ Điểm < 65</td><td><strong>Trung bình</strong></td></tr>
+              <tr class="table-danger"><td>35 ≤ Điểm < 50</td><td><strong>Yếu</strong></td></tr>
+              <tr class="table-dark"><td>Điểm < 35</td><td><strong>Kém</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div th:replace="~{student/layout :: scripts}"></div>
+  
+  <style>
+    .table-score th, .table-score td {
+      vertical-align: middle;
+    }
+    .score-detail-card {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .score-detail-card .score-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px dashed #dee2e6;
+    }
+    .score-detail-card .score-item:last-child {
+      border-bottom: none;
+    }
+    .sticky-top {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+  </style>
+
+  <script th:inline="javascript">
+    const scoringRules = /*[[${scoringRulesJson}]]*/ '{}';
+    const rulesData = JSON.parse(scoringRules);
+    const savedScores = /*[[${scores}]]*/ {};
+    let uploadedImages = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      populateCriteriaSelect();
+      renderScoreDetails();
+    });
+
+    function populateCriteriaSelect() {
+      const select = document.getElementById('criteriaSelect');
+      rulesData.categories.forEach(cat => {
+        // Filter to only MANUAL items
+        const manualSubs = cat.subcategories.filter(sub => sub.type === 'MANUAL');
+        if (manualSubs.length === 0) return;
+        
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = `${cat.id}. ${cat.name}`;
+        manualSubs.forEach(sub => {
+          const option = document.createElement('option');
+          option.value = sub.id;
+          option.textContent = `${sub.id}. ${sub.name}`;
+          option.dataset.type = sub.type;
+          option.dataset.evidenceRequired = sub.evidenceRequired;
+          optgroup.appendChild(option);
+        });
+        select.appendChild(optgroup);
+      });
+    }
+
+    function renderScoreDetails() {
+      const container = document.getElementById('scoreDetails');
+      container.innerHTML = '';
+      
+      rulesData.categories.forEach(cat => {
+        let html = `<div class="col-md-4 col-sm-6">
+          <div class="score-detail-card">
+            <strong>${cat.id}. ${cat.name}</strong>`;
+        cat.subcategories.forEach(sub => {
+          const score = savedScores[sub.id] || 0;
+          const isAuto = sub.type === 'AUTO_CALCULATE' || sub.type === 'AUTO_ACTIVITY';
+          const badgeClass = isAuto ? 'bg-info' : (score > 0 ? 'bg-success' : 'bg-secondary');
+          const noteIcon = isAuto ? '<i class="fas fa-robot ms-1" title="Hệ thống tự tính"></i>' : '';
+          const autoLabel = isAuto ? '<span class="text-info small">(tự động)</span>' : '';
+          html += `<div class="score-item">
+            <span>${sub.id} ${autoLabel}</span>
+            <span class="badge ${badgeClass}" id="score_${sub.id.replace('.','_')}">${score}đ${noteIcon}</span>
+          </div>`;
+        });
+        html += `</div></div>`;
+        container.innerHTML += html;
+      });
+    }
+
+    function onCriteriaChange() {
+      const select = document.getElementById('criteriaSelect');
+      const selected = select.options[select.selectedIndex];
+      const code = select.value;
+      
+      // Reset all sections
+      document.getElementById('manualSection').style.display = 'none';
+      document.getElementById('rulesContainer').style.display = 'none';
+      document.getElementById('gpaSection').style.display = 'none';
+      document.getElementById('gpaResult').style.display = 'none';
+      
+      if (!code) return;
+      
+      // Load rules
+      fetch(`/student/api/scoring-rules/${code}`)
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById('rulesContent').innerHTML = data.rulesHtml || '<p class="text-muted mb-0">Không có hướng dẫn</p>';
+          document.getElementById('rulesContainer').style.display = 'block';
+          
+          // Show evidence required marker
+          document.getElementById('evidenceRequired').style.display = 
+              data.requiresEvidence ? 'inline' : 'none';
+        });
+      
+      // Show GPA calculator for 1.1
+      if (code === '1.1') {
+        document.getElementById('gpaSection').style.display = 'block';
+        // Clear GPA inputs
+        document.getElementById('previousGpa').value = '';
+        document.getElementById('currentGpa').value = '';
+        // Pre-fill description
+        document.getElementById('description').value = '';
+        document.getElementById('description').placeholder = 'Sẽ tự điền khi tính điểm';
+      }
+      
+      // Show manual entry section
+      document.getElementById('manualSection').style.display = 'block';
+      // Clear score field
+      document.getElementById('claimedScore').value = '';
+    }
+
+    async function calculateGpaScore() {
+      const currentGpa = parseFloat(document.getElementById('currentGpa').value);
+      const previousGpa = parseFloat(document.getElementById('previousGpa').value);
+      
+      if (isNaN(currentGpa) || isNaN(previousGpa)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/student/api/calculate-gpa-score', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({currentGpa, previousGpa})
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Fill the score field
+          document.getElementById('claimedScore').value = data.score;
+          document.getElementById('gpaScoreValue').textContent = data.score;
+          document.getElementById('gpaResult').style.display = 'block';
+          
+          // Auto-fill description
+          document.getElementById('description').value = 
+            `ĐTB kỳ này: ${currentGpa}, ĐTB kỳ trước: ${previousGpa}` + 
+            (currentGpa > previousGpa ? `, tăng ${(currentGpa - previousGpa).toFixed(2)}` : 
+             currentGpa < previousGpa ? `, giảm ${(previousGpa - currentGpa).toFixed(2)}` : '');
+        }
+      } catch (error) {
+        console.error('Error calculating GPA score:', error);
+      }
+    }
+
+    async function submitRequest() {
+      const criteriaCode = document.getElementById('criteriaSelect').value;
+      const description = document.getElementById('description').value;
+      const claimedScore = parseInt(document.getElementById('claimedScore').value);
+      
+      if (!criteriaCode || !description.trim()) {
+        alert('Vui lòng điền đầy đủ thông tin');
+        return;
+      }
+      
+      if (isNaN(claimedScore)) {
+        alert('Vui lòng nhập điểm');
+        return;
+      }
+      
+      // Upload files if any
+      const fileInput = document.getElementById('evidenceFiles');
+      if (fileInput.files.length > 0) {
+        const formData = new FormData();
+        for (let file of fileInput.files) {
+          formData.append('files', file);
+        }
+        try {
+          const uploadRes = await fetch('/student/api/upload-evidence', {method: 'POST', body: formData});
+          const uploadData = await uploadRes.json();
+          if (uploadData.paths) uploadedImages = uploadData.paths;
+        } catch (e) {
+          console.error('Upload failed:', e);
+        }
+      }
+      
+      // Add URL if provided
+      const urlInput = document.getElementById('evidenceUrl').value;
+      if (urlInput.trim()) uploadedImages.push(urlInput.trim());
+      
+      try {
+        const response = await fetch('/student/api/point-requests', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            criteriaCode,
+            claimedScore,
+            description: description.trim(),
+            evidenceImages: uploadedImages
+          })
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert(data.message);
+          location.reload();
+        } else {
+          alert(data.message || 'Có lỗi xảy ra');
+        }
+      } catch (error) {
+        alert('Lỗi: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>
