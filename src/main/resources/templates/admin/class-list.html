@@ -24,6 +24,31 @@
 
         <!-- Classes Table -->
         <div class="card">
+          <div class="card-header bg-white">
+            <div class="row align-items-center g-2">
+              <div class="col-md-4">
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                  <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm lớp...">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" id="facultyFilter">
+                  <option value="all">Tất cả khoa</option>
+                  <option th:each="f : ${faculties}" th:value="${f.name}" th:text="${f.name}">Khoa</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" id="yearFilter">
+                  <option value="all">Tất cả khóa</option>
+                  <option th:each="y : ${academicYears}" th:value="${y.code}" th:text="${y.code}">Khóa</option>
+                </select>
+              </div>
+              <div class="col-md-2 text-end">
+                <span class="text-muted" id="resultCount"></span>
+              </div>
+            </div>
+          </div>
           <div class="card-body">
             <div class="table-responsive">
               <table class="table table-hover" id="classTable">
@@ -50,34 +75,36 @@
                     <td>
                       <span class="badge bg-secondary" th:text="${cls.joinCode}">ABC123</span>
                     </td>
-                    <td class="text-center action-buttons">
-                      <button class="btn btn-sm btn-success" 
-                              th:data-id="${cls.id}"
-                              th:data-name="${cls.name}"
-                              th:data-code="${cls.joinCode}"
-                              onclick="classController.showQRCode(this.dataset.id, this.dataset.name, this.dataset.code)"
-                              data-bs-toggle="tooltip" title="Mã QR">
-                        <i class="fas fa-qrcode"></i>
-                      </button>
-                      <button class="btn btn-sm btn-warning" 
-                              th:data-id="${cls.id}"
-                              onclick="classController.openEditModal(this.dataset.id)"
-                              data-bs-toggle="tooltip" title="Chỉnh sửa">
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button class="btn btn-sm btn-info" 
-                              th:data-id="${cls.id}"
-                              onclick="classController.regenerateCode(this.dataset.id)"
-                              data-bs-toggle="tooltip" title="Tạo mã mới">
-                        <i class="fas fa-sync-alt"></i>
-                      </button>
-                      <button class="btn btn-sm btn-danger" 
-                              th:data-id="${cls.id}"
-                              th:data-name="${cls.name}"
-                              onclick="classController.delete(this.dataset.id, this.dataset.name)"
-                              data-bs-toggle="tooltip" title="Xóa">
-                        <i class="fas fa-trash"></i>
-                      </button>
+                    <td class="text-center">
+                      <div class="d-flex gap-1 justify-content-center">
+                        <button class="btn btn-sm btn-success" 
+                                th:data-id="${cls.id}"
+                                th:data-name="${cls.name}"
+                                th:data-code="${cls.joinCode}"
+                                onclick="classController.showQRCode(this.dataset.id, this.dataset.name, this.dataset.code)"
+                                data-bs-toggle="tooltip" title="Mã QR">
+                          <i class="fas fa-qrcode"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" 
+                                th:data-id="${cls.id}"
+                                onclick="classController.openEditModal(this.dataset.id)"
+                                data-bs-toggle="tooltip" title="Chỉnh sửa">
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" 
+                                th:data-id="${cls.id}"
+                                onclick="classController.regenerateCode(this.dataset.id)"
+                                data-bs-toggle="tooltip" title="Tạo mã mới">
+                          <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" 
+                                th:data-id="${cls.id}"
+                                th:data-name="${cls.name}"
+                                onclick="classController.delete(this.dataset.id, this.dataset.name)"
+                                data-bs-toggle="tooltip" title="Xóa">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr th:if="${classes == null or #lists.isEmpty(classes)}">
@@ -353,7 +380,45 @@
         }
       };
       
-      document.addEventListener('DOMContentLoaded', () => classController.init());
+      document.addEventListener('DOMContentLoaded', () => {
+        classController.init();
+        
+        // Search and filter functionality
+        const searchInput = document.getElementById('searchInput');
+        const facultyFilter = document.getElementById('facultyFilter');
+        const yearFilter = document.getElementById('yearFilter');
+        
+        function filterTable() {
+          const searchTerm = searchInput.value.toLowerCase();
+          const facultyValue = facultyFilter.value;
+          const yearValue = yearFilter.value;
+          const rows = document.querySelectorAll('#classTable tbody tr');
+          let visibleCount = 0;
+          
+          rows.forEach(row => {
+            if (row.querySelector('.empty-state')) return;
+            
+            const text = row.textContent.toLowerCase();
+            const faculty = row.querySelector('td:nth-child(4)')?.textContent || '';
+            const year = row.querySelector('td:nth-child(5)')?.textContent || '';
+            
+            const matchSearch = text.includes(searchTerm);
+            const matchFaculty = facultyValue === 'all' || faculty.includes(facultyValue);
+            const matchYear = yearValue === 'all' || year.includes(yearValue);
+            
+            const isVisible = matchSearch && matchFaculty && matchYear;
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+          });
+          
+          document.getElementById('resultCount').textContent = `${visibleCount} kết quả`;
+        }
+        
+        searchInput?.addEventListener('input', filterTable);
+        facultyFilter?.addEventListener('change', filterTable);
+        yearFilter?.addEventListener('change', filterTable);
+        filterTable();
+      });
     </script>
   </body>
 </html>

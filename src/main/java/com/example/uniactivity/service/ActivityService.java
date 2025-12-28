@@ -44,8 +44,12 @@ public class ActivityService {
                     // Count checked-in users
                     int checkedIn = (int) activityRegistrationRepository.countByActivityAndStatus(activity, RegistrationStatus.ATTENDED);
                     dto.setCheckedInCount(checkedIn);
+                    // Check if registration deadline has passed
                     dto.setIsDeadlinePassed(activity.getRegistrationDeadline() != null 
                         && activity.getRegistrationDeadline().isBefore(java.time.LocalDateTime.now()));
+                    // Check if activity has ended (based on endTime)
+                    dto.setIsEnded(activity.getEndTime() != null 
+                        && activity.getEndTime().isBefore(java.time.LocalDateTime.now()));
                     return dto;
                 })
                 .toList();
@@ -74,7 +78,8 @@ public class ActivityService {
      * Get activities visible to a specific student based on their class/faculty
      */
     public List<ActivityResponseDto> getVisibleActivitiesForStudent(User student) {
-        return activityRepository.findByStatusOrderByCreatedAtDesc(ActivityStatus.OPEN).stream()
+        // Get all activities, not just OPEN ones - let manager see ended activities too
+        return activityRepository.findAllByOrderByCreatedAtDesc().stream()
                 .filter(activity -> isActivityVisibleToStudent(activity, student))
                 .map(activity -> {
                     ActivityResponseDto dto = activityMapper.toResponseDto(activity);
@@ -88,6 +93,9 @@ public class ActivityService {
                     dto.setCheckedInCount(checkedIn);
                     dto.setIsDeadlinePassed(activity.getRegistrationDeadline() != null 
                         && activity.getRegistrationDeadline().isBefore(java.time.LocalDateTime.now()));
+                    // Calculate if activity has ended
+                    dto.setIsEnded(activity.getEndTime() != null 
+                        && activity.getEndTime().isBefore(java.time.LocalDateTime.now()));
                     return dto;
                 })
                 .toList();

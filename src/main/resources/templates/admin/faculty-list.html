@@ -24,6 +24,26 @@
 
         <!-- Faculty Table -->
         <div class="card">
+          <div class="card-header bg-white">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                  <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm khoa...">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="ACTIVE">Hoạt động</option>
+                  <option value="INACTIVE">Ngừng hoạt động</option>
+                </select>
+              </div>
+              <div class="col-md-3 text-end">
+                <span class="text-muted" id="resultCount"></span>
+              </div>
+            </div>
+          </div>
           <div class="card-body">
             <div class="table-responsive">
               <table class="table table-hover" id="facultyTable">
@@ -267,6 +287,38 @@
       // Initialize on DOM ready
       document.addEventListener('DOMContentLoaded', () => {
         facultyController.init();
+        
+        // Search and filter functionality
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        
+        function filterTable() {
+          const searchTerm = searchInput.value.toLowerCase();
+          const statusValue = statusFilter.value;
+          const rows = document.querySelectorAll('#facultyTable tbody tr');
+          let visibleCount = 0;
+          
+          rows.forEach(row => {
+            if (row.querySelector('.empty-state')) return;
+            
+            const text = row.textContent.toLowerCase();
+            const statusBadge = row.querySelector('td:nth-child(4) span.badge');
+            const rowStatus = statusBadge?.textContent.includes('Hoạt động') ? 'ACTIVE' : 'INACTIVE';
+            
+            const matchSearch = text.includes(searchTerm);
+            const matchStatus = statusValue === 'all' || rowStatus === statusValue;
+            
+            const isVisible = matchSearch && matchStatus;
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+          });
+          
+          document.getElementById('resultCount').textContent = `${visibleCount} kết quả`;
+        }
+        
+        searchInput?.addEventListener('input', filterTable);
+        statusFilter?.addEventListener('change', filterTable);
+        filterTable();
       });
     </script>
   </body>

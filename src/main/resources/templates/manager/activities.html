@@ -20,8 +20,25 @@
           </div>
 
           <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <span><i class="fas fa-list me-2"></i>Danh sách hoạt động</span>
+            <div class="card-header">
+              <div class="row align-items-center">
+                <div class="col-md-4">
+                  <span><i class="fas fa-list me-2"></i>Danh sách hoạt động</span>
+                </div>
+                <div class="col-md-4">
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm hoạt động...">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <select class="form-select" id="statusFilter">
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="open">Đang mở</option>
+                    <option value="ended">Đã kết thúc</option>
+                  </select>
+                </div>
+              </div>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -89,8 +106,15 @@
     <script>
       let currentActivityId = null;
       let qrRefreshInterval = null;
+      let allActivities = []; // Store all activities for filtering
 
-      document.addEventListener('DOMContentLoaded', loadActivities);
+      document.addEventListener('DOMContentLoaded', function() {
+        loadActivities();
+        
+        // Setup search input
+        document.getElementById('searchInput').addEventListener('input', filterActivities);
+        document.getElementById('statusFilter').addEventListener('change', filterActivities);
+      });
 
       async function loadActivities() {
         try {
@@ -100,47 +124,8 @@
             throw new Error('Failed to load');
           }
           
-          const activities = await response.json();
-          const tbody = document.getElementById('activitiesBody');
-          
-          if (activities.length === 0) {
-            tbody.innerHTML = `
-              <tr>
-                <td colspan="8" class="text-center text-muted py-4">
-                  <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
-                  Chưa có hoạt động nào
-                </td>
-              </tr>
-            `;
-            return;
-          }
-
-          tbody.innerHTML = activities.map((act, idx) => `
-            <tr>
-              <td>${idx + 1}</td>
-              <td>
-                <strong>${act.name}</strong>
-                ${act.description ? `<br><small class="text-muted">${act.description.substring(0, 50)}...</small>` : ''}
-              </td>
-              <td>${act.startTime ? new Date(act.startTime).toLocaleString('vi-VN') : '-'}</td>
-              <td>${act.location || '-'}</td>
-              <td><span class="badge bg-info">${act.registeredCount || 0}</span></td>
-              <td><span class="badge bg-success">${act.checkedInCount || 0}</span></td>
-              <td>
-                ${act.status === 'OPEN' ? '<span class="badge bg-success">Đang mở</span>' : 
-                  act.status === 'CLOSED' ? '<span class="badge bg-secondary">Đã đóng</span>' :
-                  '<span class="badge bg-warning">Nháp</span>'}
-              </td>
-              <td class="text-end">
-                <a class="btn btn-info btn-sm me-1" href="/manager/activities/${act.id}">
-                  <i class="fas fa-eye me-1"></i>Chi tiết
-                </a>
-                <button class="btn btn-primary btn-sm btn-qr" data-id="${act.id}" data-name="${escapeHtml(act.name)}">
-                  <i class="fas fa-qrcode me-1"></i>QR
-                </button>
-              </td>
-            </tr>
-          `).join('');
+          allActivities = await response.json();
+          renderActivities(allActivities);
         } catch (error) {
           document.getElementById('activitiesBody').innerHTML = `
             <tr>
@@ -150,6 +135,71 @@
             </tr>
           `;
         }
+      }
+
+      function filterActivities() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        
+        let filtered = allActivities.filter(act => {
+          // Search by name or location
+          const matchSearch = act.name.toLowerCase().includes(searchTerm) ||
+                              (act.location && act.location.toLowerCase().includes(searchTerm));
+          
+          // Filter by status
+          let matchStatus = true;
+          if (statusFilter === 'open') {
+            matchStatus = !act.isEnded;
+          } else if (statusFilter === 'ended') {
+            matchStatus = act.isEnded === true;
+          }
+          
+          return matchSearch && matchStatus;
+        });
+        
+        renderActivities(filtered);
+      }
+
+      function renderActivities(activities) {
+        const tbody = document.getElementById('activitiesBody');
+        
+        if (activities.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">
+                <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                Không tìm thấy hoạt động nào
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = activities.map((act, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>
+              <strong>${act.name}</strong>
+              ${act.description ? `<br><small class="text-muted">${act.description.substring(0, 50)}...</small>` : ''}
+            </td>
+            <td>${act.startTime ? new Date(act.startTime).toLocaleString('vi-VN') : '-'}</td>
+            <td>${act.location || '-'}</td>
+            <td><span class="badge bg-info">${act.registeredCount || 0}</span></td>
+            <td><span class="badge bg-success">${act.checkedInCount || 0}</span></td>
+            <td>
+              ${act.isEnded ? '<span class="badge bg-secondary"><i class="fas fa-check-circle me-1"></i>Đã kết thúc</span>' : 
+                '<span class="badge bg-success"><i class="fas fa-door-open me-1"></i>Đang mở</span>'}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-info btn-sm me-1" href="/manager/activities/${act.id}">
+                <i class="fas fa-eye me-1"></i>Chi tiết
+              </a>
+              <button class="btn btn-primary btn-sm btn-qr" data-id="${act.id}" data-name="${escapeHtml(act.name)}">
+                <i class="fas fa-qrcode me-1"></i>QR
+              </button>
+            </td>
+          </tr>
+        `).join('');
       }
 
       // Helper to escape HTML in activity names

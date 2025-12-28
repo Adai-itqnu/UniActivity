@@ -101,34 +101,36 @@
                       </span>
                       <span th:if="${user.status == null}" class="badge bg-secondary">N/A</span>
                     </td>
-                    <td class="text-center action-buttons">
-                      <button class="btn btn-sm btn-warning" 
-                              th:data-id="${user.id}"
-                              onclick="userController.openEditModal(this.dataset.id)"
-                              data-bs-toggle="tooltip" title="Chỉnh sửa">
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button class="btn btn-sm" 
-                              th:classappend="${user.status != null and user.status == 'ACTIVE'} ? 'btn-secondary' : 'btn-success'"
-                              th:data-id="${user.id}"
-                              onclick="userController.toggleStatus(this.dataset.id)"
-                              data-bs-toggle="tooltip" 
-                              th:title="${user.status != null and user.status == 'ACTIVE'} ? 'Khóa tài khoản' : 'Mở khóa'">
-                        <i th:class="${user.status != null and user.status == 'ACTIVE'} ? 'fas fa-lock' : 'fas fa-unlock'"></i>
-                      </button>
-                      <button class="btn btn-sm btn-info" 
-                              th:data-id="${user.id}"
-                              onclick="userController.openResetPasswordModal(this.dataset.id)"
-                              data-bs-toggle="tooltip" title="Reset mật khẩu">
-                        <i class="fas fa-key"></i>
-                      </button>
-                      <button class="btn btn-sm btn-danger" 
-                              th:data-id="${user.id}"
-                              th:data-name="${user.fullName}"
-                              onclick="userController.delete(this.dataset.id, this.dataset.name)"
-                              data-bs-toggle="tooltip" title="Xóa">
-                        <i class="fas fa-trash"></i>
-                      </button>
+                    <td class="text-center">
+                      <div class="d-flex gap-1 justify-content-center">
+                        <button class="btn btn-sm btn-warning" 
+                                th:data-id="${user.id}"
+                                onclick="userController.openEditModal(this.dataset.id)"
+                                data-bs-toggle="tooltip" title="Chỉnh sửa">
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm" 
+                                th:classappend="${user.status != null and user.status == 'ACTIVE'} ? 'btn-secondary' : 'btn-success'"
+                                th:data-id="${user.id}"
+                                onclick="userController.toggleStatus(this.dataset.id)"
+                                data-bs-toggle="tooltip" 
+                                th:title="${user.status != null and user.status == 'ACTIVE'} ? 'Khóa tài khoản' : 'Mở khóa'">
+                          <i th:class="${user.status != null and user.status == 'ACTIVE'} ? 'fas fa-lock' : 'fas fa-unlock'"></i>
+                        </button>
+                        <button class="btn btn-sm btn-info" 
+                                th:data-id="${user.id}"
+                                onclick="userController.openResetPasswordModal(this.dataset.id)"
+                                data-bs-toggle="tooltip" title="Reset mật khẩu">
+                          <i class="fas fa-key"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" 
+                                th:data-id="${user.id}"
+                                th:data-name="${user.fullName}"
+                                onclick="userController.delete(this.dataset.id, this.dataset.name)"
+                                data-bs-toggle="tooltip" title="Xóa">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr th:if="${users == null or #lists.isEmpty(users)}">

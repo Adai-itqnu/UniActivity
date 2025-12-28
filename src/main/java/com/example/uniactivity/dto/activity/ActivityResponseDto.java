@@ -26,4 +26,5 @@ public class ActivityResponseDto {
     private Integer registeredCount;
     private Integer checkedInCount;
     private Boolean isDeadlinePassed;
+    private Boolean isEnded; // true nếu endTime < now
 }

@@ -24,6 +24,26 @@
 
         <!-- Semesters Table -->
         <div class="card">
+          <div class="card-header bg-white">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                  <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm học kỳ...">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="current">Đang diễn ra</option>
+                  <option value="inactive">Không hoạt động</option>
+                </select>
+              </div>
+              <div class="col-md-3 text-end">
+                <span class="text-muted" id="resultCount"></span>
+              </div>
+            </div>
+          </div>
           <div class="card-body">
             <div class="table-responsive">
               <table class="table table-hover" id="semesterTable">
@@ -291,7 +311,42 @@
         }
       };
       
-      document.addEventListener('DOMContentLoaded', () => semesterController.init());
+      document.addEventListener('DOMContentLoaded', () => {
+        semesterController.init();
+        
+        // Search and filter functionality
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        
+        function filterTable() {
+          const searchTerm = searchInput.value.toLowerCase();
+          const statusValue = statusFilter.value;
+          const rows = document.querySelectorAll('#semesterTable tbody tr');
+          let visibleCount = 0;
+          
+          rows.forEach(row => {
+            if (row.querySelector('.empty-state')) return;
+            
+            const text = row.textContent.toLowerCase();
+            const isCurrent = row.querySelector('td:nth-child(5) span.badge.bg-success') !== null;
+            
+            const matchSearch = text.includes(searchTerm);
+            let matchStatus = true;
+            if (statusValue === 'current') matchStatus = isCurrent;
+            else if (statusValue === 'inactive') matchStatus = !isCurrent;
+            
+            const isVisible = matchSearch && matchStatus;
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+          });
+          
+          document.getElementById('resultCount').textContent = `${visibleCount} kết quả`;
+        }
+        
+        searchInput?.addEventListener('input', filterTable);
+        statusFilter?.addEventListener('change', filterTable);
+        filterTable();
+      });
     </script>
   </body>
 </html>

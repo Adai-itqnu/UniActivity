@@ -24,74 +24,135 @@
 
         <!-- Activities Table -->
         <div class="card">
-          <div class="card-body">
+          <!-- Search & Filter Header -->
+          <div class="card-header bg-white">
+            <div class="row align-items-center g-2">
+              <div class="col-md-4">
+                <div class="input-group">
+                  <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                  <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm hoạt động...">
+                </div>
+              </div>
+              <div class="col-md-2">
+                <select class="form-select" id="scopeFilter">
+                  <option value="all">Tất cả phạm vi</option>
+                  <option value="SCHOOL">Toàn trường</option>
+                  <option value="FACULTY">Theo khoa</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select class="form-select" id="statusFilter">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="DRAFT">Nháp</option>
+                  <option value="OPEN">Mở ĐK</option>
+                  <option value="FINISHED">Kết thúc</option>
+                  <option value="CANCELLED">Đã hủy</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select class="form-select" id="eventFilter">
+                  <option value="all">Tất cả sự kiện</option>
+                  <option value="ongoing">Đang diễn ra</option>
+                  <option value="ended">Đã kết thúc</option>
+                </select>
+              </div>
+              <div class="col-md-2 text-end">
+                <span class="text-muted" id="resultCount"></span>
+              </div>
+            </div>
+          </div>
+          <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover" id="activityTable">
-                <thead>
+              <table class="table table-hover mb-0" id="activityTable">
+                <thead class="table-light">
                   <tr>
                     <th style="width: 50px">ID</th>
                     <th>Tên hoạt động</th>
-                    <th style="width: 100px">Phạm vi</th>
-                    <th style="width: 100px" class="text-center">Đăng ký</th>
-                    <th style="width: 120px">Hạn ĐK</th>
-                    <th style="width: 100px">Trạng thái</th>
-                    <th style="width: 180px" class="text-center">Thao tác</th>
+                    <th style="width: 90px" class="text-center">Phạm vi</th>
+                    <th style="width: 130px" class="text-center">Đăng ký</th>
+                    <th style="width: 90px" class="text-center">Trạng thái</th>
+                    <th style="width: 90px" class="text-center">Sự kiện</th>
+                    <th style="width: 140px" class="text-center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr th:each="activity : ${activities}">
-                    <td th:text="${activity.id}">1</td>
-                    <td>
-                      <strong th:text="${activity.name}">Hoạt động tình nguyện</strong>
-                      <br><small class="text-muted" th:text="${activity.location}">Địa điểm</small>
+                  <tr th:each="activity : ${activities}" 
+                      th:data-scope="${activity.scope}"
+                      th:data-status="${activity.status}"
+                      th:data-ended="${activity.isEnded}">
+                    <td class="align-middle" th:text="${activity.id}">1</td>
+                    <td class="align-middle">
+                      <div class="fw-semibold" th:text="${activity.name}">Hoạt động tình nguyện</div>
+                      <small class="text-muted" th:if="${activity.location}">
+                        <i class="fas fa-map-marker-alt me-1"></i><span th:text="${activity.location}">Địa điểm</span>
+                      </small>
                     </td>
-                    <td>
-                      <span th:if="${activity.scope != null and activity.scope == 'SCHOOL'}" class="badge bg-primary">Toàn trường</span>
-                      <span th:if="${activity.scope != null and activity.scope == 'FACULTY'}" class="badge bg-info">Khoa</span>
+                    <td class="align-middle text-center">
+                      <span th:if="${activity.scope == 'SCHOOL'}" class="badge bg-primary">Toàn trường</span>
+                      <span th:if="${activity.scope == 'FACULTY'}" class="badge bg-info">Khoa</span>
                     </td>
-                    <td class="text-center">
-                      <span class="badge bg-success" th:text="${activity.registeredCount != null ? activity.registeredCount : 0}">0</span>
-                      <span class="text-muted">/</span>
-                      <span class="badge bg-secondary" th:text="${activity.maxSlots != null ? activity.maxSlots : 0}">0</span>
+                    <td class="align-middle">
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="flex-grow-1">
+                          <div class="progress" style="height: 6px;">
+                            <div class="progress-bar" role="progressbar"
+                                 th:style="'width: ' + (${activity.maxSlots != null and activity.maxSlots > 0} ? (${activity.registeredCount} * 100 / ${activity.maxSlots}) : 0) + '%'"
+                                 th:classappend="${activity.registeredCount >= activity.maxSlots} ? 'bg-danger' : 'bg-success'"></div>
+                          </div>
+                        </div>
+                        <div class="text-nowrap small">
+                          <span class="fw-bold" th:text="${activity.registeredCount ?: 0}">0</span>
+                          <span class="text-muted">/</span>
+                          <span th:text="${activity.maxSlots ?: 0}">0</span>
+                        </div>
+                      </div>
                     </td>
-                    <td>
-                      <span th:if="${activity.registrationDeadline != null}" 
-                            th:classappend="${activity.isDeadlinePassed} ? 'text-danger' : 'text-success'"
-                            th:text="${#temporals.format(activity.registrationDeadline, 'dd/MM HH:mm')}">31/12</span>
-                      <span th:unless="${activity.registrationDeadline != null}" class="text-muted">--</span>
-                      <span th:if="${activity.isDeadlinePassed}" class="badge bg-danger ms-1">Hết hạn</span>
+                    <td class="align-middle text-center">
+                      <span th:if="${activity.status == 'DRAFT'}" class="badge bg-secondary">Nháp</span>
+                      <span th:if="${activity.status == 'OPEN' and activity.isDeadlinePassed == true}" class="badge bg-warning text-dark">
+                        <i class="fas fa-clock me-1"></i>Hết hạn ĐK
+                      </span>
+                      <span th:if="${activity.status == 'OPEN' and (activity.isDeadlinePassed == null or activity.isDeadlinePassed == false)}" class="badge bg-success">
+                        <i class="fas fa-door-open me-1"></i>Mở ĐK
+                      </span>
+                      <span th:if="${activity.status == 'FINISHED'}" class="badge bg-dark">Kết thúc</span>
+                      <span th:if="${activity.status == 'CANCELLED'}" class="badge bg-danger">Đã hủy</span>
                     </td>
-                    <td>
-                      <span th:if="${activity.status != null and activity.status == 'DRAFT'}" class="badge bg-secondary">Nháp</span>
-                      <span th:if="${activity.status != null and activity.status == 'OPEN'}" class="badge bg-success">Mở ĐK</span>
-                      <span th:if="${activity.status != null and activity.status == 'FINISHED'}" class="badge bg-dark">Kết thúc</span>
-                      <span th:if="${activity.status != null and activity.status == 'CANCELLED'}" class="badge bg-danger">Hủy</span>
+                    <td class="align-middle text-center">
+                      <span th:if="${activity.isEnded == true}" class="badge bg-secondary">
+                        <i class="fas fa-check-circle me-1"></i>Đã KT
+                      </span>
+                      <span th:unless="${activity.isEnded == true}" class="badge bg-success">
+                        <i class="fas fa-play-circle me-1"></i>Đang mở
+                      </span>
                     </td>
-                    <td class="text-center action-buttons">
-                      <a class="btn btn-sm btn-primary" 
-                              th:href="@{/admin/activities/{id}(id=${activity.id})}"
-                              data-bs-toggle="tooltip" title="Xem chi tiết">
-                        <i class="fas fa-eye"></i>
-                      </a>
-                      <button class="btn btn-sm btn-info" 
-                              th:data-id="${activity.id}"
-                              onclick="activityController.openSlotsModal(this.dataset.id)"
-                              data-bs-toggle="tooltip" title="Quản lý Slots">
-                        <i class="fas fa-users"></i>
-                      </button>
-                      <button class="btn btn-sm btn-warning" 
-                              th:data-id="${activity.id}"
-                              onclick="activityController.openEditModal(this.dataset.id)"
-                              data-bs-toggle="tooltip" title="Chỉnh sửa">
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button class="btn btn-sm btn-danger" 
-                              th:data-id="${activity.id}"
-                              th:data-name="${activity.name}"
-                              onclick="activityController.delete(this.dataset.id, this.dataset.name)"
-                              data-bs-toggle="tooltip" title="Xóa">
-                        <i class="fas fa-trash"></i>
-                      </button>
+                    <td class="align-middle text-center">
+                      <div class="d-flex gap-1 justify-content-center">
+                        <a class="btn btn-sm btn-primary" 
+                           th:href="@{/admin/activities/{id}(id=${activity.id})}"
+                           data-bs-toggle="tooltip" title="Chi tiết">
+                          <i class="fas fa-eye"></i>
+                        </a>
+                        <button class="btn btn-sm btn-info" 
+                                th:data-id="${activity.id}"
+                                onclick="activityController.openSlotsModal(this.dataset.id)"
+                                data-bs-toggle="tooltip" title="Slots">
+                          <i class="fas fa-users"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" 
+                                th:data-id="${activity.id}"
+                                onclick="activityController.openEditModal(this.dataset.id)"
+                                data-bs-toggle="tooltip" title="Sửa">
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" 
+                                th:data-id="${activity.id}"
+                                th:data-name="${activity.name}"
+                                onclick="activityController.delete(this.dataset.id, this.dataset.name)"
+                                data-bs-toggle="tooltip" title="Xóa">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   <tr th:if="${activities == null or #lists.isEmpty(activities)}">
@@ -735,7 +796,53 @@
         }
       };
       
-      document.addEventListener('DOMContentLoaded', () => activityController.init());
+      document.addEventListener('DOMContentLoaded', () => {
+        activityController.init();
+        
+        // Search and filter functionality
+        const searchInput = document.getElementById('searchInput');
+        const scopeFilter = document.getElementById('scopeFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const eventFilter = document.getElementById('eventFilter');
+        
+        function filterTable() {
+          const searchTerm = searchInput.value.toLowerCase();
+          const scopeValue = scopeFilter.value;
+          const statusValue = statusFilter.value;
+          const eventValue = eventFilter.value;
+          const rows = document.querySelectorAll('#activityTable tbody tr');
+          let visibleCount = 0;
+          
+          rows.forEach(row => {
+            if (row.querySelector('.empty-state')) return;
+            
+            const text = row.textContent.toLowerCase();
+            const rowScope = row.dataset.scope || '';
+            const rowStatus = row.dataset.status || '';
+            const isEnded = row.dataset.ended === 'true';
+            
+            const matchSearch = text.includes(searchTerm);
+            const matchScope = scopeValue === 'all' || rowScope === scopeValue;
+            const matchStatus = statusValue === 'all' || rowStatus === statusValue;
+            
+            let matchEvent = true;
+            if (eventValue === 'ongoing') matchEvent = !isEnded;
+            else if (eventValue === 'ended') matchEvent = isEnded;
+            
+            const isVisible = matchSearch && matchScope && matchStatus && matchEvent;
+            row.style.display = isVisible ? '' : 'none';
+            if (isVisible) visibleCount++;
+          });
+          
+          document.getElementById('resultCount').textContent = `${visibleCount} kết quả`;
+        }
+        
+        searchInput?.addEventListener('input', filterTable);
+        scopeFilter?.addEventListener('change', filterTable);
+        statusFilter?.addEventListener('change', filterTable);
+        eventFilter?.addEventListener('change', filterTable);
+        filterTable();
+      });
     </script>
   </body>
 </html>

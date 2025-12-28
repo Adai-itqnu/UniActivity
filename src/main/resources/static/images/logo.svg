@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <!-- Icon: Graduation cap with activity symbol -->
+  <circle cx="25" cy="30" r="20" fill="#0d6efd"/>
+  <path d="M15 28 L25 22 L35 28 L25 34 Z" fill="white"/>
+  <rect x="23" y="28" width="4" height="10" fill="white"/>
+  <circle cx="25" cy="40" r="2" fill="white"/>
+  
+  <!-- Text: UniActivity -->
+  <text x="52" y="38" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#0d6efd">Uni</text>
+  <text x="88" y="38" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#198754">Activity</text>
+</svg>

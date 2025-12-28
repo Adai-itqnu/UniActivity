@@ -31,6 +31,7 @@ public class StudentHomeController {
     private final TrainingPointService trainingPointService;
     private final UserRepository userRepository;
     private final ActivityRegistrationRepository activityRegistrationRepository;
+    private final ActivityService activityService;
 
     @GetMapping("/home")
     public String home(@AuthenticationPrincipal CustomUserDetails userDetails, Model model) {
@@ -44,6 +45,32 @@ public class StudentHomeController {
         model.addAttribute("hasPendingRequest", pendingRequest != null);
         if (pendingRequest != null) {
             model.addAttribute("pendingClassName", pendingRequest.getStudentClass().getName());
+        }
+        
+        // If user has class, load additional data for dashboard
+        if (currentUser.getStudentClass() != null) {
+            // Training points data for chart
+            int totalScore = trainingPointService.getTotalScore(currentUser);
+            String classification = trainingPointService.getClassification(currentUser);
+            java.util.Map<Integer, Integer> categoryTotals = trainingPointService.getCategoryTotals(currentUser);
+            
+            model.addAttribute("totalScore", totalScore);
+            model.addAttribute("classification", classification);
+            model.addAttribute("categoryTotals", categoryTotals);
+            
+            // Get upcoming/hot activities (limit 6)
+            var upcomingActivities = activityService.getVisibleActivitiesForStudent(currentUser).stream()
+                .filter(a -> !Boolean.TRUE.equals(a.getIsDeadlinePassed()) && !Boolean.TRUE.equals(a.getIsEnded()))
+                .limit(6)
+                .toList();
+            model.addAttribute("upcomingActivities", upcomingActivities);
+            
+            // Check registered activities
+            java.util.Set<Long> registeredActivityIds = new java.util.HashSet<>();
+            for (var reg : activityRegistrationRepository.findByStudentOrderByRegisteredAtDesc(currentUser)) {
+                registeredActivityIds.add(reg.getActivity().getId());
+            }
+            model.addAttribute("registeredActivityIds", registeredActivityIds);
         }
         
         return "student/home";

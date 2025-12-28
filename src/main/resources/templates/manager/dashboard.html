@@ -15,97 +15,249 @@
         </div>
 
         <!-- Class Info Alert -->
-        <div th:if="${studentClass == null}" class="alert alert-warning">
-          <i class="fas fa-exclamation-triangle me-2"></i>
-          Bạn chưa được gán quản lý lớp nào. Vui lòng liên hệ Admin.
-        </div>
-
-        <!-- Class Info Card -->
-        <div th:if="${studentClass != null}" class="row">
-          <div class="col-md-6 mb-4">
-            <div class="card border-primary">
-              <div class="card-header bg-primary text-white">
-                <i class="fas fa-chalkboard-teacher me-2"></i>Thông tin lớp quản lý
-              </div>
-              <div class="card-body">
-                <h4 th:text="${studentClass.name}">Lớp CNTT K45</h4>
-                <table class="table table-borderless mb-0">
-                  <tr>
-                    <th width="40%"><i class="fas fa-code me-2 text-muted"></i>Mã lớp:</th>
-                    <td><span class="badge bg-primary" th:text="${studentClass.code}">CNTT-K45A</span></td>
-                  </tr>
-                  <tr>
-                    <th><i class="fas fa-key me-2 text-muted"></i>Mã tham gia:</th>
-                    <td><span class="badge bg-success fs-6" th:text="${studentClass.joinCode}">ABC123</span></td>
-                  </tr>
-                  <tr>
-                    <th><i class="fas fa-users me-2 text-muted"></i>Số thành viên:</th>
-                    <td><strong th:text="${memberCount}">0</strong> sinh viên</td>
-                  </tr>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick Stats -->
-          <div class="col-md-6 mb-4">
-            <div class="row">
-              <div class="col-6 mb-3">
-                <a th:href="@{/manager/join-requests}" class="card bg-info text-white text-decoration-none">
-                  <div class="card-body text-center">
-                    <h3 class="mb-0" th:text="${pendingJoinRequests}">0</h3>
-                    <small>Yêu cầu tham gia</small>
-                  </div>
-                </a>
-              </div>
-              <div class="col-6 mb-3">
-                <a th:href="@{/manager/point-requests}" class="card bg-warning text-decoration-none">
-                  <div class="card-body text-center">
-                    <h3 class="mb-0" th:text="${pendingPointRequests}">0</h3>
-                    <small>Yêu cầu điểm</small>
-                  </div>
-                </a>
-              </div>
-              <div class="col-6">
-                <div class="card bg-success text-white">
-                  <div class="card-body text-center">
-                    <h3 class="mb-0">0</h3>
-                    <small>Hoạt động đang diễn ra</small>
-                  </div>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="card bg-secondary text-white">
-                  <div class="card-body text-center">
-                    <h3 class="mb-0">0</h3>
-                    <small>Minh chứng chờ duyệt</small>
-                  </div>
-                </div>
-              </div>
+        <div th:if="${studentClass == null}" class="alert alert-warning border-0 shadow-sm">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle fa-2x me-3 text-warning"></i>
+            <div>
+              <h5 class="mb-1">Bạn chưa được gán quản lý lớp nào</h5>
+              <p class="mb-0">Vui lòng liên hệ Admin để được phân công.</p>
             </div>
           </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div th:if="${studentClass != null}" class="row">
-          <div class="col-12">
-            <div class="card">
-              <div class="card-header">
-                <i class="fas fa-bolt me-2"></i>Thao tác nhanh
+        <!-- Dashboard Content when has class -->
+        <div th:if="${studentClass != null}">
+          <!-- Statistics Cards Row -->
+          <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+              <div class="card border-0 shadow-sm stat-card-new h-100">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="stat-icon-wrapper bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                      <i class="fas fa-users fa-2x text-primary"></i>
+                    </div>
+                    <div>
+                      <h3 class="mb-0 fw-bold" th:text="${memberCount}">0</h3>
+                      <small class="text-muted">Thành viên lớp</small>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body">
-                <a th:href="@{/manager/members}" class="btn btn-outline-primary me-2">
-                  <i class="fas fa-users me-1"></i>Xem thành viên
-                </a>
-                <a th:href="@{/manager/join-requests}" class="btn btn-outline-info me-2">
-                  <i class="fas fa-user-plus me-1"></i>Duyệt yêu cầu tham gia
-                </a>
-                <a th:href="@{/manager/point-requests}" class="btn btn-outline-warning me-2">
-                  <i class="fas fa-star me-1"></i>Duyệt yêu cầu điểm
-                </a>
-                <a th:href="@{/manager/reports}" class="btn btn-outline-success">
-                  <i class="fas fa-file-excel me-1"></i>Xuất báo cáo
-                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+              <a th:href="@{/manager/join-requests}" class="card border-0 shadow-sm stat-card-new h-100 text-decoration-none">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="stat-icon-wrapper bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                      <i class="fas fa-user-plus fa-2x text-info"></i>
+                    </div>
+                    <div>
+                      <h3 class="mb-0 fw-bold text-dark" th:text="${pendingJoinRequests}">0</h3>
+                      <small class="text-muted">Yêu cầu tham gia</small>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 mb-3">
+              <a th:href="@{/manager/point-requests}" class="card border-0 shadow-sm stat-card-new h-100 text-decoration-none">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="stat-icon-wrapper bg-warning bg-opacity-10 rounded-circle p-3 me-3">
+                      <i class="fas fa-star fa-2x text-warning"></i>
+                    </div>
+                    <div>
+                      <h3 class="mb-0 fw-bold text-dark" th:text="${pendingPointRequests}">0</h3>
+                      <small class="text-muted">Yêu cầu điểm</small>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 mb-3">
+              <div class="card border-0 shadow-sm stat-card-new h-100">
+                <div class="card-body">
+                  <div class="d-flex align-items-center">
+                    <div class="stat-icon-wrapper bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                      <i class="fas fa-chart-line fa-2x text-success"></i>
+                    </div>
+                    <div>
+                      <h3 class="mb-0 fw-bold" th:text="${avgTrainingPoints}">0</h3>
+                      <small class="text-muted">Điểm TB lớp</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts and Info Row -->
+          <div class="row mb-4">
+            <!-- Class Overview Chart -->
+            <div class="col-md-8 mb-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0">
+                  <i class="fas fa-chart-bar me-2 text-primary"></i>Tổng quan lớp học
+                </div>
+                <div class="card-body">
+                  <canvas id="overviewChart" height="200"></canvas>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Class Info Card -->
+            <div class="col-md-4 mb-4">
+              <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body">
+                  <h5 class="mb-3 text-primary"><i class="fas fa-chalkboard-teacher me-2"></i>Lớp quản lý</h5>
+                  <h3 class="mb-4 text-dark" th:text="${studentClass.name}">Lớp CNTT K45</h3>
+                  
+                  <div class="mb-3">
+                    <small class="text-muted">Mã lớp</small>
+                    <div class="fs-5 fw-bold text-dark" th:text="${studentClass.code}">CNTT-K45A</div>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <small class="text-muted">Mã tham gia</small>
+                    <div class="fs-4 fw-bold bg-success text-white rounded px-3 py-2 d-inline-block" 
+                         th:text="${studentClass.joinCode}">ABC123</div>
+                  </div>
+                  
+                  <div class="mt-4">
+                    <a th:href="@{/manager/members}" class="btn btn-primary btn-sm">
+                      <i class="fas fa-users me-1"></i>Xem thành viên
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upcoming Activities & Recent Members -->
+          <div class="row mb-4">
+            <!-- Upcoming Activities -->
+            <div class="col-md-6 mb-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-calendar-check me-2 text-success"></i>Hoạt động đang diễn ra</span>
+                  <a th:href="@{/manager/activities}" class="btn btn-sm btn-outline-success">Xem tất cả</a>
+                </div>
+                <div class="card-body p-0">
+                  <div th:if="${activeActivities == null or #lists.isEmpty(activeActivities)}" 
+                       class="text-center text-muted py-5">
+                    <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                    <p>Không có hoạt động nào đang diễn ra</p>
+                  </div>
+                  <div class="list-group list-group-flush" 
+                       th:if="${activeActivities != null and !#lists.isEmpty(activeActivities)}">
+                    <div th:each="act : ${activeActivities}" class="list-group-item">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                          <h6 class="mb-1" th:text="${act.name}">Hoạt động ABC</h6>
+                          <small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>
+                            <span th:if="${act.startTime}" th:text="${#temporals.format(act.startTime, 'dd/MM HH:mm')}">01/01 08:00</span>
+                          </small>
+                        </div>
+                        <span class="badge bg-success" th:text="${act.registeredCount + '/' + act.maxSlots}">0/50</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Members -->
+            <div class="col-md-6 mb-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-user-friends me-2 text-primary"></i>Thành viên mới</span>
+                  <a th:href="@{/manager/members}" class="btn btn-sm btn-outline-primary">Xem tất cả</a>
+                </div>
+                <div class="card-body p-0">
+                  <div th:if="${members == null or #lists.isEmpty(members)}" 
+                       class="text-center text-muted py-5">
+                    <i class="fas fa-users fa-3x mb-3"></i>
+                    <p>Chưa có thành viên nào</p>
+                  </div>
+                  <div class="list-group list-group-flush" 
+                       th:if="${members != null and !#lists.isEmpty(members)}">
+                    <div th:each="member : ${members}" class="list-group-item">
+                      <div class="d-flex align-items-center">
+                        <div class="avatar-circle bg-primary text-white me-3">
+                          <span th:text="${#strings.substring(member.fullName, 0, 1)}">N</span>
+                        </div>
+                        <div>
+                          <h6 class="mb-0" th:text="${member.fullName}">Nguyễn Văn A</h6>
+                          <small class="text-muted" th:text="${member.username}">sinhvien01</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="row mb-4">
+            <div class="col-12">
+              <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0">
+                  <i class="fas fa-bolt me-2 text-warning"></i>Thao tác nhanh
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-2 col-4 mb-3">
+                      <a th:href="@{/manager/members}" class="card border-0 bg-primary bg-opacity-10 text-decoration-none action-card h-100">
+                        <div class="card-body text-center py-4">
+                          <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                          <h6 class="mb-0 text-primary small">Thành viên</h6>
+                        </div>
+                      </a>
+                    </div>
+                    <div class="col-md-2 col-4 mb-3">
+                      <a th:href="@{/manager/join-requests}" class="card border-0 bg-info bg-opacity-10 text-decoration-none action-card h-100">
+                        <div class="card-body text-center py-4">
+                          <i class="fas fa-user-plus fa-2x text-info mb-2"></i>
+                          <h6 class="mb-0 text-info small">Duyệt tham gia</h6>
+                        </div>
+                      </a>
+                    </div>
+                    <div class="col-md-2 col-4 mb-3">
+                      <a th:href="@{/manager/point-requests}" class="card border-0 bg-warning bg-opacity-10 text-decoration-none action-card h-100">
+                        <div class="card-body text-center py-4">
+                          <i class="fas fa-star fa-2x text-warning mb-2"></i>
+                          <h6 class="mb-0 text-warning small">Duyệt điểm</h6>
+                        </div>
+                      </a>
+                    </div>
+                    <div class="col-md-2 col-4 mb-3">
+                      <a th:href="@{/manager/activities}" class="card border-0 bg-success bg-opacity-10 text-decoration-none action-card h-100">
+                        <div class="card-body text-center py-4">
+                          <i class="fas fa-calendar-alt fa-2x text-success mb-2"></i>
+                          <h6 class="mb-0 text-success small">Hoạt động</h6>
+                        </div>
+                      </a>
+                    </div>
+                    <div class="col-md-2 col-4 mb-3">
+                      <a th:href="@{/manager/training-points}" class="card border-0 bg-secondary bg-opacity-10 text-decoration-none action-card h-100">
+                        <div class="card-body text-center py-4">
+                          <i class="fas fa-chart-bar fa-2x text-secondary mb-2"></i>
+                          <h6 class="mb-0 text-secondary small">Điểm RL</h6>
+                        </div>
+                      </a>
+                    </div>
+                    <div class="col-md-2 col-4 mb-3">
+                      <a th:href="@{/manager/reports}" class="card border-0 bg-danger bg-opacity-10 text-decoration-none action-card h-100">
+                        <div class="card-body text-center py-4">
+                          <i class="fas fa-file-excel fa-2x text-danger mb-2"></i>
+                          <h6 class="mb-0 text-danger small">Xuất báo cáo</h6>
+                        </div>
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -114,5 +266,71 @@
     </div>
 
     <div th:replace="~{manager/layout :: scripts}"></div>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <script th:inline="javascript">
+      document.addEventListener('DOMContentLoaded', function() {
+        const overviewCtx = document.getElementById('overviewChart');
+        if (overviewCtx) {
+          new Chart(overviewCtx, {
+            type: 'bar',
+            data: {
+              labels: ['Thành viên', 'YC Tham gia', 'YC Điểm', 'Minh chứng', 'HĐ đang mở'],
+              datasets: [{
+                label: 'Số lượng',
+                data: [
+                  /*[[${memberCount}]]*/ 0,
+                  /*[[${pendingJoinRequests}]]*/ 0,
+                  /*[[${pendingPointRequests}]]*/ 0,
+                  /*[[${pendingEvidences}]]*/ 0,
+                  /*[[${activeActivitiesCount}]]*/ 0
+                ],
+                backgroundColor: [
+                  'rgba(13, 110, 253, 0.8)',
+                  'rgba(13, 202, 240, 0.8)',
+                  'rgba(255, 193, 7, 0.8)',
+                  'rgba(108, 117, 125, 0.8)',
+                  'rgba(25, 135, 84, 0.8)'
+                ],
+                borderRadius: 8
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+          });
+        }
+      });
+    </script>
+    
+    <style>
+      .stat-card-new {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .stat-card-new:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+      }
+      .action-card {
+        transition: transform 0.3s ease;
+      }
+      .action-card:hover {
+        transform: translateY(-5px);
+      }
+      .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+      }
+    </style>
   </body>
 </html>

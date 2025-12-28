@@ -73,43 +73,188 @@
           </div>
         </div>
 
-        <!-- Has Class - Show Class Info -->
+        <!-- Has Class - Show Dashboard -->
         <div th:if="${hasClass}">
-          <div class="row">
-            <div class="col-md-6 mb-4">
-              <div class="card border-success">
+          <!-- Row 1: Class Info + Training Points Chart -->
+          <div class="row mb-4">
+            <!-- Class Info Card -->
+            <div class="col-md-4 mb-4">
+              <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-success text-white">
                   <i class="fas fa-check-circle me-2"></i>Lớp của bạn
                 </div>
                 <div class="card-body">
                   <h4 th:text="${studentClass.name}">Lớp CNTT K45</h4>
-                  <table class="table table-borderless mb-0">
-                    <tr>
-                      <th width="40%"><i class="fas fa-code me-2 text-muted"></i>Mã lớp:</th>
-                      <td><span class="badge bg-primary" th:text="${studentClass.code}">CNTT-K45A</span></td>
-                    </tr>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="col-md-6 mb-4">
-              <div class="card">
-                <div class="card-header">
-                  <i class="fas fa-bolt me-2"></i>Thao tác nhanh
-                </div>
-                <div class="card-body">
+                  <p class="text-muted mb-3">
+                    <span class="badge bg-primary" th:text="${studentClass.code}">CNTT-K45A</span>
+                  </p>
                   <div class="d-grid gap-2">
-                    <a th:href="@{/student/activities}" class="btn btn-outline-primary">
-                      <i class="fas fa-calendar-alt me-2"></i>Xem hoạt động
-                    </a>
-                    <a th:href="@{/student/my-scores}" class="btn btn-outline-success">
-                      <i class="fas fa-star me-2"></i>Điểm rèn luyện
+                    <a th:href="@{/student/my-class}" class="btn btn-outline-success btn-sm">
+                      <i class="fas fa-users me-1"></i>Xem thành viên
                     </a>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Training Points Progress Chart -->
+            <div class="col-md-8 mb-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-chart-pie me-2"></i>Tiến độ điểm rèn luyện</span>
+                  <a th:href="@{/student/my-scores}" class="btn btn-sm btn-light">
+                    <i class="fas fa-external-link-alt me-1"></i>Chi tiết
+                  </a>
+                </div>
+                <div class="card-body">
+                  <div class="row align-items-center">
+                    <!-- Chart Container -->
+                    <div class="col-md-5 text-center">
+                      <div class="position-relative" style="width: 180px; height: 180px; margin: 0 auto;">
+                        <canvas id="scoreChart"></canvas>
+                        <div class="position-absolute top-50 start-50 translate-middle text-center">
+                          <h2 class="mb-0 fw-bold" th:text="${totalScore} ?: 0">0</h2>
+                          <small class="text-muted">điểm</small>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Score Details -->
+                    <div class="col-md-7">
+                      <div class="mb-3">
+                        <span class="badge fs-6" 
+                              th:classappend="${classification == 'Xuất sắc' ? 'bg-success' : 
+                                              classification == 'Tốt' ? 'bg-primary' : 
+                                              classification == 'Khá' ? 'bg-info' : 
+                                              classification == 'Trung bình' ? 'bg-warning' : 'bg-secondary'}"
+                              th:text="${classification} ?: 'Chưa xếp loại'">Tốt</span>
+                      </div>
+                      <div class="score-legend">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span><i class="fas fa-circle text-primary me-2" style="font-size: 10px;"></i>Ý thức học tập</span>
+                          <span class="fw-bold" th:text="${categoryTotals?.get(1)} ?: 0">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span><i class="fas fa-circle text-success me-2" style="font-size: 10px;"></i>Ý thức chấp hành</span>
+                          <span class="fw-bold" th:text="${categoryTotals?.get(2)} ?: 0">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span><i class="fas fa-circle text-info me-2" style="font-size: 10px;"></i>Hoạt động CT-XH</span>
+                          <span class="fw-bold" th:text="${categoryTotals?.get(3)} ?: 0">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span><i class="fas fa-circle text-warning me-2" style="font-size: 10px;"></i>Quan hệ cộng đồng</span>
+                          <span class="fw-bold" th:text="${categoryTotals?.get(4)} ?: 0">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                          <span><i class="fas fa-circle text-danger me-2" style="font-size: 10px;"></i>Thành tích đặc biệt</span>
+                          <span class="fw-bold" th:text="${(categoryTotals?.get(5) ?: 0) + (categoryTotals?.get(6) ?: 0)}">0</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Hot Activities Carousel -->
+          <div class="card border-0 shadow-sm mb-4" th:if="${upcomingActivities != null && !upcomingActivities.isEmpty()}">
+            <div class="card-header bg-gradient text-white d-flex justify-content-between align-items-center"
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <span><i class="fas fa-fire me-2"></i>Hoạt động HOT sắp tới</span>
+              <a th:href="@{/student/activities}" class="btn btn-sm btn-light">
+                <i class="fas fa-arrow-right me-1"></i>Xem tất cả
+              </a>
+            </div>
+            <div class="card-body p-3">
+              <div class="activities-carousel" id="activitiesCarousel">
+                <div class="d-flex gap-3 overflow-auto pb-2" style="scroll-snap-type: x mandatory;">
+                  <div th:each="activity : ${upcomingActivities}" 
+                       class="activity-card-mini flex-shrink-0" 
+                       style="width: 280px; scroll-snap-align: start;">
+                    <div class="card h-100 border-0 shadow-sm">
+                      <div class="card-img-top position-relative" style="height: 120px; overflow: hidden;">
+                        <div th:if="${activity.bannerUrl}" 
+                             th:style="'background-image: url(' + ${activity.bannerUrl} + '); background-size: cover; background-position: center; height: 100%;'">
+                        </div>
+                        <div th:unless="${activity.bannerUrl}" 
+                             class="h-100 d-flex align-items-center justify-content-center"
+                             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                          <i class="fas fa-calendar-alt fa-2x text-white opacity-75"></i>
+                        </div>
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-danger" 
+                              th:if="${activity.registeredCount >= activity.maxSlots}">
+                          <i class="fas fa-fire me-1"></i>HOT
+                        </span>
+                        <span class="position-absolute top-0 start-0 m-2 badge bg-success" 
+                              th:if="${registeredActivityIds.contains(activity.id)}">
+                          <i class="fas fa-check me-1"></i>Đã ĐK
+                        </span>
+                      </div>
+                      <div class="card-body p-3">
+                        <h6 class="card-title mb-2 text-truncate" th:text="${activity.name}">Tên hoạt động</h6>
+                        <div class="small text-muted mb-2">
+                          <i class="fas fa-clock me-1"></i>
+                          <span th:text="${#temporals.format(activity.startTime, 'dd/MM HH:mm')}">01/01 08:00</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                          <small class="text-muted">
+                            <i class="fas fa-users me-1"></i>
+                            <span th:text="${activity.registeredCount + '/' + activity.maxSlots}">10/50</span>
+                          </small>
+                          <a th:href="@{/student/activities}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="row">
+            <div class="col-md-3 mb-3">
+              <a th:href="@{/student/activities}" class="card border-0 shadow-sm text-decoration-none action-card">
+                <div class="card-body text-center py-4">
+                  <div class="rounded-circle bg-primary bg-opacity-10 p-3 d-inline-block mb-3">
+                    <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+                  </div>
+                  <h6 class="mb-0">Xem hoạt động</h6>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 mb-3">
+              <a th:href="@{/student/my-registrations}" class="card border-0 shadow-sm text-decoration-none action-card">
+                <div class="card-body text-center py-4">
+                  <div class="rounded-circle bg-success bg-opacity-10 p-3 d-inline-block mb-3">
+                    <i class="fas fa-clipboard-list fa-2x text-success"></i>
+                  </div>
+                  <h6 class="mb-0">Lịch sử đăng ký</h6>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 mb-3">
+              <a th:href="@{/student/my-scores}" class="card border-0 shadow-sm text-decoration-none action-card">
+                <div class="card-body text-center py-4">
+                  <div class="rounded-circle bg-warning bg-opacity-10 p-3 d-inline-block mb-3">
+                    <i class="fas fa-star fa-2x text-warning"></i>
+                  </div>
+                  <h6 class="mb-0">Điểm rèn luyện</h6>
+                </div>
+              </a>
+            </div>
+            <div class="col-md-3 mb-3">
+              <a th:href="@{/student/my-class}" class="card border-0 shadow-sm text-decoration-none action-card">
+                <div class="card-body text-center py-4">
+                  <div class="rounded-circle bg-info bg-opacity-10 p-3 d-inline-block mb-3">
+                    <i class="fas fa-users fa-2x text-info"></i>
+                  </div>
+                  <h6 class="mb-0">Lớp của tôi</h6>
+                </div>
+              </a>
             </div>
           </div>
         </div>
@@ -137,8 +282,62 @@
 
     <div th:replace="~{student/layout :: scripts}"></div>
     
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
     <!-- HTML5 QR Code Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <script th:inline="javascript">
+      // Training Points Chart
+      document.addEventListener('DOMContentLoaded', function() {
+        const chartCanvas = document.getElementById('scoreChart');
+        if (chartCanvas) {
+          const categoryTotals = /*[[${categoryTotals}]]*/ {};
+          
+          const cat1 = categoryTotals[1] || 0;
+          const cat2 = categoryTotals[2] || 0;
+          const cat3 = categoryTotals[3] || 0;
+          const cat4 = categoryTotals[4] || 0;
+          const cat56 = (categoryTotals[5] || 0) + (categoryTotals[6] || 0);
+          
+          new Chart(chartCanvas, {
+            type: 'doughnut',
+            data: {
+              labels: ['Ý thức học tập', 'Ý thức chấp hành', 'Hoạt động CT-XH', 'Quan hệ cộng đồng', 'Thành tích đặc biệt'],
+              datasets: [{
+                data: [cat1, cat2, cat3, cat4, cat56],
+                backgroundColor: [
+                  '#0d6efd', // primary
+                  '#198754', // success
+                  '#0dcaf0', // info
+                  '#ffc107', // warning
+                  '#dc3545'  // danger
+                ],
+                borderWidth: 0,
+                cutout: '70%'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  display: false
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      return context.label + ': ' + context.raw + ' điểm';
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+      });
+    </script>
     
     <script>
       let html5QrcodeScanner = null;
@@ -251,5 +450,59 @@
         }
       });
     </script>
+    
+    <style>
+      /* Action Cards */
+      .action-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        color: #333;
+      }
+      .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+        color: #333;
+      }
+      
+      /* Activities Carousel */
+      .activities-carousel {
+        position: relative;
+      }
+      .activities-carousel .d-flex {
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f0f0f0;
+      }
+      .activities-carousel .d-flex::-webkit-scrollbar {
+        height: 8px;
+      }
+      .activities-carousel .d-flex::-webkit-scrollbar-track {
+        background: #f0f0f0;
+        border-radius: 4px;
+      }
+      .activities-carousel .d-flex::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 4px;
+      }
+      .activity-card-mini .card {
+        transition: transform 0.3s ease;
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .activity-card-mini .card:hover {
+        transform: translateY(-5px);
+      }
+      
+      /* Score Legend */
+      .score-legend {
+        font-size: 0.9rem;
+      }
+      
+      /* Card hover effects */
+      .card.shadow-sm {
+        transition: box-shadow 0.3s ease;
+      }
+      .card.shadow-sm:hover {
+        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1) !important;
+      }
+    </style>
   </body>
 </html>
