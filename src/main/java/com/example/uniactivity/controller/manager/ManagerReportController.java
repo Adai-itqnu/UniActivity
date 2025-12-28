@@ -80,4 +80,31 @@ public class ManagerReportController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    /**
+     * Export comprehensive student training points summary report
+     * Format: STT | MSSV | Họ tên | Mục 1-5 (by criteria) | Tổng | Tối đa | Xếp loại | Ghi chú
+     */
+    @GetMapping("/api/reports/student-points")
+    public ResponseEntity<byte[]> exportStudentPointsSummaryReport(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        try {
+            User currentUser = userDetails.getUser();
+            if (currentUser.getStudentClass() == null) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            byte[] excelData = reportService.generateStudentPointsSummaryReport(currentUser.getStudentClass());
+            String filename = "TongHopDiem_" + currentUser.getStudentClass().getCode() + "_" + 
+                    LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".xlsx";
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + 
+                            URLEncoder.encode(filename, StandardCharsets.UTF_8))
+                    .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                    .body(excelData);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }
