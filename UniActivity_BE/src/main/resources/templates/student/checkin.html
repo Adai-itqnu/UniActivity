@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{student/layout :: header}"></head>
+  <body>
+    <div th:replace="~{student/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <div class="row justify-content-center">
+          <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+              <div class="card-header bg-primary text-white text-center py-4">
+                <i class="fas fa-qrcode fa-3x mb-3"></i>
+                <h3 class="mb-0">Check-in Hoạt động</h3>
+              </div>
+              
+              <div class="card-body p-4">
+                <!-- Activity Info -->
+                <div th:if="${activity}" class="text-center mb-4">
+                  <h4 th:text="${activity.name}">Tên hoạt động</h4>
+                  <p class="text-muted mb-0" th:if="${activity.location}">
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    <span th:text="${activity.location}">Địa điểm</span>
+                  </p>
+                  <p class="text-muted" th:if="${activity.startTime}">
+                    <i class="fas fa-clock me-1"></i>
+                    <span th:text="${#temporals.format(activity.startTime, 'dd/MM/yyyy HH:mm')}">Thời gian</span>
+                  </p>
+                </div>
+
+                <!-- Error Message -->
+                <div th:if="${error}" class="alert alert-danger text-center">
+                  <i class="fas fa-exclamation-circle me-2"></i>
+                  <span th:text="${error}">Lỗi</span>
+                </div>
+
+                <!-- Success Message (already checked in) -->
+                <div th:if="${success}" class="text-center py-4">
+                  <div class="alert alert-success">
+                    <i class="fas fa-check-circle fa-3x mb-3 d-block"></i>
+                    <h5 th:text="${success}">Thành công</h5>
+                  </div>
+                  <a th:href="@{/student/my-registrations}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Quay lại
+                  </a>
+                </div>
+
+                <!-- Check-in Button -->
+                <div th:if="${canCheckin}" class="text-center py-4" id="checkinSection">
+                  <p class="mb-4 text-muted">Nhấn nút bên dưới để xác nhận bạn đã tham gia sự kiện này.</p>
+                  
+                  <button id="checkinBtn" class="btn btn-success btn-lg px-5 py-3" th:data-activity="${activityId}">
+                    <i class="fas fa-check-circle me-2"></i>Xác nhận Check-in
+                  </button>
+                </div>
+
+                <!-- Success after check-in -->
+                <div id="successSection" class="text-center py-4" style="display: none;">
+                  <div class="alert alert-success mb-4">
+                    <i class="fas fa-check-circle fa-4x mb-3 d-block text-success"></i>
+                    <h4 class="text-success">Check-in thành công!</h4>
+                    <p class="mb-0">Cảm ơn bạn đã tham gia sự kiện.</p>
+                  </div>
+                  
+                  <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Để được cộng điểm rèn luyện, vui lòng vào <strong>Lịch sử đăng ký</strong> để nộp minh chứng tham gia.
+                  </div>
+                  
+                  <a th:href="@{/student/my-registrations}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-camera me-2"></i>Nộp minh chứng ngay
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{student/layout :: scripts}"></div>
+
+    <script th:inline="javascript">
+      const activityId = [[${activityId}]];
+      
+      const checkinBtn = document.getElementById('checkinBtn');
+      if (checkinBtn) {
+        checkinBtn.addEventListener('click', async function() {
+          const btn = this;
+          
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang xử lý...';
+          
+          try {
+            const response = await fetch(`/student/api/checkin/${activityId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+              document.getElementById('checkinSection').style.display = 'none';
+              document.getElementById('successSection').style.display = 'block';
+            } else {
+              Toast.error(data.message);
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Xác nhận Check-in';
+            }
+          } catch (error) {
+            Toast.error('Có lỗi xảy ra: ' + error.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Xác nhận Check-in';
+          }
+        });
+      }
+    </script>
+
+    <style>
+      .card {
+        border-radius: 15px;
+        overflow: hidden;
+      }
+      .btn-success {
+        transition: transform 0.2s;
+      }
+      .btn-success:hover {
+        transform: scale(1.05);
+      }
+    </style>
+  </body>
+</html>

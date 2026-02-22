@@ -1,0 +1,15 @@
+package com.example.uniactivity.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class NotFoundException extends RuntimeException {
+    public NotFoundException(String message) {
+        super(message);
+    }
+    
+    public NotFoundException(String entity, Long id) {
+        super(String.format("Không tìm thấy %s với ID: %d", entity, id));
+    }
+}

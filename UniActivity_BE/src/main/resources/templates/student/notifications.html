@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{student/layout :: header}"></head>
+  <body>
+    <div th:replace="~{student/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <div
+          class="content-header d-flex justify-content-between align-items-center mb-4"
+        >
+          <div>
+            <h4 class="mb-1"><i class="fas fa-bell me-2"></i>Thông báo</h4>
+            <p class="text-muted mb-0">Tất cả thông báo của bạn</p>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span
+              id="unreadBadge"
+              class="badge bg-danger"
+              th:if="${unreadCount > 0}"
+            >
+              <span th:text="${unreadCount}">0</span> chưa đọc
+            </span>
+            <button
+              id="markAllReadBtn"
+              class="btn btn-outline-success btn-sm"
+              th:disabled="${unreadCount == 0}"
+            >
+              <i class="fas fa-check-double me-1"></i>Đọc tất cả
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body p-0">
+            <!-- Danh sách thông báo -->
+            <div id="notificationList" class="notification-list">
+              <!-- Sẽ được load bằng JS -->
+            </div>
+
+            <!-- Loading indicator -->
+            <div id="loadingIndicator" class="text-center py-4 d-none">
+              <div class="spinner-border text-success" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+              </div>
+            </div>
+
+            <!-- Empty state -->
+            <div id="emptyState" class="text-center py-5 d-none">
+              <i class="fas fa-bell-slash fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">Không có thông báo</h5>
+              <p class="text-muted">Bạn chưa có thông báo nào</p>
+            </div>
+
+            <!-- Load more trigger -->
+            <div id="loadMoreTrigger" class="py-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .notification-list {
+        max-height: calc(100vh - 250px);
+        overflow-y: auto;
+      }
+
+      .notification-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #e9ecef;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .notification-item:hover {
+        background-color: #f8f9fa;
+      }
+
+      .notification-item.unread {
+        background-color: #e8f5e9;
+        border-left: 3px solid #28a745;
+      }
+
+      .notification-item.unread:hover {
+        background-color: #c8e6c9;
+      }
+
+      .notification-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+      }
+
+      .notification-icon.approved {
+        background-color: #d4edda;
+        color: #28a745;
+      }
+
+      .notification-icon.rejected {
+        background-color: #f8d7da;
+        color: #dc3545;
+      }
+
+      .notification-icon.info {
+        background-color: #d1ecf1;
+        color: #17a2b8;
+      }
+
+      .notification-icon.activity {
+        background-color: #fff3cd;
+        color: #ffc107;
+      }
+
+      .notification-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .notification-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: #333;
+      }
+
+      .notification-message {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 0.25rem;
+      }
+
+      .notification-time {
+        font-size: 0.8rem;
+        color: #999;
+      }
+
+      .notification-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-mark-read {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+      }
+    </style>
+
+    <script th:inline="javascript">
+      document.addEventListener("DOMContentLoaded", function () {
+        const notificationList = document.getElementById("notificationList");
+        const loadingIndicator = document.getElementById("loadingIndicator");
+        const emptyState = document.getElementById("emptyState");
+        const loadMoreTrigger = document.getElementById("loadMoreTrigger");
+        const markAllReadBtn = document.getElementById("markAllReadBtn");
+        const unreadBadge = document.getElementById("unreadBadge");
+
+        let currentPage = 0;
+        let isLoading = false;
+        let hasMore = true;
+
+        // Icon mapping theo loại thông báo
+        const iconMap = {
+          JOIN_REQUEST_APPROVED: { icon: "fa-check-circle", class: "approved" },
+          JOIN_REQUEST_REJECTED: { icon: "fa-times-circle", class: "rejected" },
+          REMOVED_FROM_CLASS: { icon: "fa-user-slash", class: "rejected" },
+          POINT_REQUEST_APPROVED: { icon: "fa-star", class: "approved" },
+          POINT_REQUEST_REJECTED: {
+            icon: "fa-star-half-alt",
+            class: "rejected",
+          },
+          EVIDENCE_APPROVED: { icon: "fa-file-check", class: "approved" },
+          EVIDENCE_REJECTED: { icon: "fa-file-times", class: "rejected" },
+          NEW_ACTIVITY: { icon: "fa-calendar-plus", class: "activity" },
+          default: { icon: "fa-bell", class: "info" },
+        };
+
+        // Format thời gian
+        function formatTime(dateStr) {
+          const date = new Date(dateStr);
+          const now = new Date();
+          const diff = now - date;
+
+          if (diff < 60000) return "Vừa xong";
+          if (diff < 3600000) return Math.floor(diff / 60000) + " phút trước";
+          if (diff < 86400000) return Math.floor(diff / 3600000) + " giờ trước";
+          if (diff < 604800000)
+            return Math.floor(diff / 86400000) + " ngày trước";
+
+          return date.toLocaleDateString("vi-VN");
+        }
+
+        // Render một thông báo
+        function renderNotification(notification) {
+          const iconInfo = iconMap[notification.type] || iconMap.default;
+
+          const div = document.createElement("div");
+          div.className = `notification-item ${
+            notification.read ? "" : "unread"
+          }`;
+          div.dataset.id = notification.id;
+
+          div.innerHTML = `
+            <div class="notification-icon ${iconInfo.class}">
+                <i class="fas ${iconInfo.icon}"></i>
+            </div>
+            <div class="notification-content">
+                <div class="notification-title">${notification.title}</div>
+                <div class="notification-message">${notification.message}</div>
+                <div class="notification-time">
+                    <i class="fas fa-clock me-1"></i>${formatTime(
+                      notification.createdAt
+                    )}
+                </div>
+            </div>
+            ${
+              !notification.read
+                ? `
+                <div class="notification-actions">
+                    <button class="btn btn-outline-success btn-mark-read" title="Đánh dấu đã đọc">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            `
+                : ""
+            }
+        `;
+
+          // Click vào thông báo
+          div.addEventListener("click", function (e) {
+            if (e.target.closest(".btn-mark-read")) {
+              e.stopPropagation();
+              markAsRead(notification.id, div);
+              return;
+            }
+
+            // Đánh dấu đã đọc và chuyển trang nếu có link
+            if (!notification.read) {
+              markAsRead(notification.id, div);
+            }
+            if (notification.link) {
+              window.location.href = notification.link;
+            }
+          });
+
+          return div;
+        }
+
+        // Load thông báo
+        async function loadNotifications() {
+          if (isLoading || !hasMore) return;
+
+          isLoading = true;
+          loadingIndicator.classList.remove("d-none");
+
+          try {
+            const response = await fetch(
+              `/student/api/notifications?page=${currentPage}&size=20`
+            );
+            const data = await response.json();
+
+            if (data.notifications.length === 0 && currentPage === 0) {
+              emptyState.classList.remove("d-none");
+            } else {
+              data.notifications.forEach((notification) => {
+                notificationList.appendChild(renderNotification(notification));
+              });
+            }
+
+            hasMore = data.hasMore;
+            currentPage++;
+          } catch (error) {
+            console.error("Error loading notifications:", error);
+          } finally {
+            isLoading = false;
+            loadingIndicator.classList.add("d-none");
+          }
+        }
+
+        // Đánh dấu đã đọc
+        async function markAsRead(id, element) {
+          try {
+            const response = await fetch(
+              `/student/api/notifications/${id}/read`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            const data = await response.json();
+
+            if (data.success) {
+              element.classList.remove("unread");
+              element.querySelector(".notification-actions")?.remove();
+              updateUnreadBadge(data.unreadCount);
+            }
+          } catch (error) {
+            console.error("Error marking as read:", error);
+          }
+        }
+
+        // Đánh dấu tất cả đã đọc
+        markAllReadBtn.addEventListener("click", async function () {
+          try {
+            const response = await fetch(
+              "/student/api/notifications/read-all",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            const data = await response.json();
+
+            if (data.success) {
+              document
+                .querySelectorAll(".notification-item.unread")
+                .forEach((item) => {
+                  item.classList.remove("unread");
+                  item.querySelector(".notification-actions")?.remove();
+                });
+              updateUnreadBadge(0);
+            }
+          } catch (error) {
+            console.error("Error marking all as read:", error);
+          }
+        });
+
+        // Cập nhật badge
+        function updateUnreadBadge(count) {
+          if (count > 0) {
+            unreadBadge.classList.remove("d-none");
+            unreadBadge.querySelector("span").textContent = count;
+            markAllReadBtn.disabled = false;
+          } else {
+            unreadBadge.classList.add("d-none");
+            markAllReadBtn.disabled = true;
+          }
+
+          // Cập nhật badge ở sidebar
+          const sidebarBadge = document.getElementById("notificationBadge");
+          if (sidebarBadge) {
+            if (count > 0) {
+              sidebarBadge.textContent = count > 99 ? "99+" : count;
+              sidebarBadge.classList.remove("d-none");
+            } else {
+              sidebarBadge.classList.add("d-none");
+            }
+          }
+        }
+
+        // Infinite scroll với Intersection Observer
+        const observer = new IntersectionObserver(
+          (entries) => {
+            if (entries[0].isIntersecting) {
+              loadNotifications();
+            }
+          },
+          { threshold: 0.1 }
+        );
+
+        observer.observe(loadMoreTrigger);
+
+        // Load lần đầu
+        loadNotifications();
+
+        // Lắng nghe SSE notification event
+        if (window.SSE) {
+          window.SSE.on("notification", function (data) {
+            // Thêm notification mới vào đầu danh sách
+            const notification = data.payload;
+            const firstItem = notificationList.firstChild;
+            const newItem = renderNotification(notification);
+
+            if (firstItem) {
+              notificationList.insertBefore(newItem, firstItem);
+            } else {
+              emptyState.classList.add("d-none");
+              notificationList.appendChild(newItem);
+            }
+
+            // Cập nhật unread count
+            fetch("/student/api/notifications/unread-count")
+              .then((res) => res.json())
+              .then((data) => updateUnreadBadge(data.count));
+          });
+        }
+      });
+    </script>
+
+    <th:block th:replace="~{student/layout :: scripts}"></th:block>
+  </body>
+</html>

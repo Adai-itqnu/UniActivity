@@ -1,0 +1,66 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+/* ===== Custom Theme ===== */
+@theme {
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-primary-light: #818cf8;
+  --color-secondary: #a855f7;
+  --color-secondary-light: #c084fc;
+  --font-display: "Lexend", sans-serif;
+}
+
+/* ===== Base Styles ===== */
+body {
+  font-family: "Lexend", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Tab Styles ===== */
+.tab-active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+.tab-inactive {
+  color: #64748b;
+  border-bottom-color: transparent;
+}
+
+.tab-inactive:hover {
+  color: #334155;
+  border-bottom-color: #cbd5e1;
+}
+
+/* ===== Dark Mode Tab Styles ===== */
+.dark .tab-active {
+  color: #818cf8;
+  border-bottom-color: #818cf8;
+}
+
+.dark .tab-inactive {
+  color: #94a3b8;
+  border-bottom-color: transparent;
+}
+
+.dark .tab-inactive:hover {
+  color: #e2e8f0;
+  border-bottom-color: #475569;
+}
+
+/* ===== Dark Mode Transitions ===== */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+/* Reset transitions cho animations để tránh conflict */
+.animate-spin,
+[class*="transition-all"],
+[class*="transition-colors"],
+[class*="transition-transform"] {
+  transition-property: all;
+}

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{admin/layout :: header}"></head>
+  <body>
+    <div th:replace="~{admin/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <a th:href="@{/admin/activities}" class="btn btn-outline-secondary btn-sm mb-2">
+              <i class="fas fa-arrow-left me-1"></i> Quay lại
+            </a>
+            <h2 class="mb-0"><i class="fas fa-plus-circle text-primary me-2"></i>Tạo Hoạt động mới</h2>
+          </div>
+        </div>
+
+        <!-- Wizard Progress -->
+        <div class="card mb-4">
+          <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center position-relative">
+              <div class="position-absolute w-100" style="top: 50%; height: 2px; background: #dee2e6; z-index: 0;"></div>
+              
+              <div class="wizard-step text-center position-relative" style="z-index: 1;">
+                <div class="step-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                     style="width: 40px; height: 40px;" id="stepIcon1">
+                  <span>1</span>
+                </div>
+                <small class="d-block fw-bold text-primary" id="stepLabel1">Thông tin</small>
+              </div>
+              
+              <div class="wizard-step text-center position-relative" style="z-index: 1;">
+                <div class="step-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                     style="width: 40px; height: 40px;" id="stepIcon2">
+                  <span>2</span>
+                </div>
+                <small class="d-block text-muted" id="stepLabel2">Slots</small>
+              </div>
+              
+              <div class="wizard-step text-center position-relative" style="z-index: 1;">
+                <div class="step-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                     style="width: 40px; height: 40px;" id="stepIcon3">
+                  <span>3</span>
+                </div>
+                <small class="d-block text-muted" id="stepLabel3">Điểm/Giải</small>
+              </div>
+              
+              <div class="wizard-step text-center position-relative" style="z-index: 1;">
+                <div class="step-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" 
+                     style="width: 40px; height: 40px;" id="stepIcon4">
+                  <span>4</span>
+                </div>
+                <small class="d-block text-muted" id="stepLabel4">Xem lại</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1: Basic Info -->
+        <div class="card step-content" id="step1">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Bước 1: Thông tin cơ bản</h5>
+          </div>
+          <div class="card-body">
+            <form id="basicInfoForm">
+              <div class="row">
+                <div class="col-md-8">
+                  <div class="mb-3">
+                    <label class="form-label">Tên hoạt động <span class="text-danger">*</span></label>
+                    <input type="text" id="actName" class="form-control form-control-lg" placeholder="VD: Hội thao sinh viên 2024" required>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Phạm vi <span class="text-danger">*</span></label>
+                    <select id="actScope" class="form-select form-select-lg" required>
+                      <option value="SCHOOL">🏫 Toàn trường</option>
+                      <option value="FACULTY">🏛️ Theo khoa</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Mô tả</label>
+                <textarea id="actDescription" class="form-control" rows="3" placeholder="Mô tả chi tiết về hoạt động..."></textarea>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Địa điểm</label>
+                    <input type="text" id="actLocation" class="form-control" placeholder="VD: Hội trường A">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Banner (Chọn file từ máy)</label>
+                    <input type="file" id="bannerFile" class="form-control" accept="image/*">
+                    <small class="text-muted">Hỗ trợ: JPG, PNG, GIF. Tối đa 5MB</small>
+                    <div id="bannerPreview" class="mt-2" style="display: none;">
+                      <img id="bannerPreviewImg" src="" alt="Preview" class="img-fluid rounded" style="max-height: 200px;">
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="mb-3">
+                    <label class="form-label">Hoặc nhập URL banner</label>
+                    <input type="url" id="actBanner" class="form-control" placeholder="https://example.com/banner.jpg">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Thời gian bắt đầu <span class="text-danger">*</span></label>
+                    <input type="datetime-local" id="actStartTime" class="form-control" required>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Thời gian kết thúc</label>
+                    <input type="datetime-local" id="actEndTime" class="form-control">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="mb-3">
+                    <label class="form-label">Hạn đăng ký</label>
+                    <input type="datetime-local" id="actDeadline" class="form-control">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Trạng thái</label>
+                <select id="actStatus" class="form-select">
+                  <option value="DRAFT">📝 Nháp (chưa công khai)</option>
+                  <option value="OPEN">✅ Mở đăng ký</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="card-footer d-flex justify-content-end">
+            <button class="btn btn-primary btn-lg" onclick="goToStep(2)">
+              Tiếp theo <i class="fas fa-arrow-right ms-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Slots -->
+        <div class="card step-content d-none" id="step2">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Bước 2: Phân bổ Slots</h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <i class="fas fa-lightbulb me-2"></i>
+              <strong>Hướng dẫn:</strong>
+              <span id="slotGuide"></span>
+            </div>
+            
+            <!-- School Mode -->
+            <div id="slotSchoolMode" class="mb-4">
+              <div class="row align-items-end">
+                <div class="col-md-4">
+                  <label class="form-label">Số lượng tối đa toàn trường <span class="text-danger">*</span></label>
+                  <input type="number" id="slotSchoolQuantity" class="form-control" min="1" placeholder="VD: 100">
+                </div>
+                <div class="col-md-4">
+                  <button type="button" class="btn btn-success" onclick="addSchoolSlot()">
+                    <i class="fas fa-plus me-1"></i>Thêm
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Faculty Mode -->
+            <div id="slotFacultyMode" class="mb-4 d-none">
+              <div class="row align-items-end">
+                <div class="col-md-3">
+                  <label class="form-label">Khoa <span class="text-danger">*</span></label>
+                  <select id="slotFacultyId" class="form-select" onchange="filterSlotClasses()">
+                    <option value="">-- Chọn khoa --</option>
+                    <option th:each="f : ${faculties}" th:value="${f.id}" th:text="${f.name}">Khoa</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Lớp (tùy chọn)</label>
+                  <select id="slotClassId" class="form-select">
+                    <option value="">-- Tất cả lớp --</option>
+                    <option th:each="c : ${classes}" th:value="${c.id}" th:text="${c.name}" th:data-faculty="${c.facultyId}">Lớp</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Số lượng <span class="text-danger">*</span></label>
+                  <input type="number" id="slotMaxQuantity" class="form-control" min="1" placeholder="VD: 50">
+                </div>
+                <div class="col-md-3">
+                  <button type="button" class="btn btn-success" onclick="addFacultySlot()">
+                    <i class="fas fa-plus me-1"></i>Thêm slot
+                  </button>
+                </div>
+              </div>
+              <small class="text-muted mt-2 d-block">Để trống lớp = áp dụng cho cả khoa.</small>
+            </div>
+            
+            <hr>
+            <h6><i class="fas fa-list me-2"></i>Danh sách Slots đã thêm:</h6>
+            <table class="table table-bordered">
+              <thead class="table-light">
+                <tr>
+                  <th>Khoa</th>
+                  <th>Lớp</th>
+                  <th class="text-center">Số lượng</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="slotsList">
+                <tr id="noSlotsRow">
+                  <td colspan="4" class="text-center text-muted py-3">Chưa thêm slot nào</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer d-flex justify-content-between">
+            <button class="btn btn-outline-secondary btn-lg" onclick="goToStep(1)">
+              <i class="fas fa-arrow-left me-2"></i>Quay lại
+            </button>
+            <button class="btn btn-primary btn-lg" onclick="goToStep(3)">
+              Tiếp theo <i class="fas fa-arrow-right ms-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3: Score Options -->
+        <div class="card step-content d-none" id="step3">
+          <div class="card-header bg-warning">
+            <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Bước 3: Điểm &amp; Giải thưởng</h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-warning">
+              <i class="fas fa-lightbulb me-2"></i>
+              <strong>Hướng dẫn:</strong> Thêm các mức điểm/giải thưởng cho từng loại tham gia.
+            </div>
+            
+            <div class="row align-items-end mb-4">
+              <div class="col-md-3">
+                <label class="form-label">Mục điểm <span class="text-danger">*</span></label>
+                <select id="scoreCategory" class="form-select" required>
+                  <option value="">-- Chọn mục --</option>
+                  <!-- Populated by JS from scoring rules -->
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Loại tham gia <span class="text-danger">*</span></label>
+                <input type="text" id="scoreName" class="form-control" placeholder="VD: Giải nhất">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Điểm <span class="text-danger">*</span></label>
+                <input type="number" id="scoreValue" class="form-control" min="0" placeholder="10">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Ghi chú</label>
+                <input type="text" id="scoreDescription" class="form-control" placeholder="Ghi chú">
+              </div>
+              <div class="col-md-2">
+                <button type="button" class="btn btn-warning w-100" onclick="addScoreOption()">
+                  <i class="fas fa-plus me-1"></i>Thêm
+                </button>
+              </div>
+            </div>
+            
+            <hr>
+            <h6><i class="fas fa-list me-2"></i>Danh sách Điểm/Giải thưởng:</h6>
+            <table class="table table-bordered">
+              <thead class="table-light">
+                <tr>
+                  <th>Mục điểm</th>
+                  <th>Loại tham gia</th>
+                  <th class="text-center">Điểm</th>
+                  <th>Ghi chú</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="scoresList">
+                <tr id="noScoresRow">
+                  <td colspan="5" class="text-center text-muted py-3">Chưa thêm mức điểm nào</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer d-flex justify-content-between">
+            <button class="btn btn-outline-secondary btn-lg" onclick="goToStep(2)">
+              <i class="fas fa-arrow-left me-2"></i>Quay lại
+            </button>
+            <button class="btn btn-primary btn-lg" onclick="goToStep(4)">
+              Tiếp theo <i class="fas fa-arrow-right ms-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 4: Review & Save -->
+        <div class="card step-content d-none" id="step4">
+          <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Bước 4: Xem lại &amp; Lưu</h5>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header"><i class="fas fa-info-circle me-2"></i>Thông tin cơ bản</div>
+                  <div class="card-body" id="reviewBasicInfo"></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header"><i class="fas fa-users me-2"></i>Slots (<span id="reviewSlotCount">0</span>)</div>
+                  <div class="card-body p-0" id="reviewSlots"></div>
+                </div>
+                <div class="card">
+                  <div class="card-header"><i class="fas fa-trophy me-2"></i>Điểm (<span id="reviewScoreCount">0</span>)</div>
+                  <div class="card-body p-0" id="reviewScores"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer d-flex justify-content-between">
+            <button class="btn btn-outline-secondary btn-lg" onclick="goToStep(3)">
+              <i class="fas fa-arrow-left me-2"></i>Quay lại
+            </button>
+            <button class="btn btn-success btn-lg" onclick="saveActivity()" id="saveBtn">
+              <i class="fas fa-save me-2"></i>Lưu Hoạt động
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{admin/layout :: scripts}"></div>
+    
+    <script th:inline="javascript">
+      // Load scoring rules from server
+      const scoringRulesJson = /*[[${scoringRulesJson}]]*/ '{}';
+      const scoringRules = JSON.parse(scoringRulesJson);
+      
+      let currentStep = 1;
+      let wizardData = { activity: {}, slots: [], scores: [] };
+      let bannerFileToUpload = null;
+      
+      // Populate score category dropdown on load
+      document.addEventListener('DOMContentLoaded', function() {
+        populateCategorySelect();
+        
+        // Banner file preview handler
+        const bannerFile = document.getElementById('bannerFile');
+        if (bannerFile) {
+          bannerFile.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+              bannerFileToUpload = file;
+              const reader = new FileReader();
+              reader.onload = function(e) {
+                document.getElementById('bannerPreviewImg').src = e.target.result;
+                document.getElementById('bannerPreview').style.display = 'block';
+              };
+              reader.readAsDataURL(file);
+              // Clear URL input if file is selected
+              document.getElementById('actBanner').value = '';
+            } else {
+              bannerFileToUpload = null;
+              document.getElementById('bannerPreview').style.display = 'none';
+            }
+          });
+        }
+      });
+      
+      function populateCategorySelect() {
+        const select = document.getElementById('scoreCategory');
+        if (!scoringRules.categories) return;
+        
+        scoringRules.categories.forEach(cat => {
+          // Only show AUTO_ACTIVITY categories (for activities that give points)
+          const autoSubs = cat.subcategories.filter(sub => sub.type === 'AUTO_ACTIVITY');
+          if (autoSubs.length === 0) return;
+          
+          const optgroup = document.createElement('optgroup');
+          optgroup.label = `${cat.id}. ${cat.name}`;
+          autoSubs.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.id;
+            option.textContent = `${sub.id}. ${sub.name}`;
+            optgroup.appendChild(option);
+          });
+          select.appendChild(optgroup);
+        });
+      }
+      
+      function goToStep(step) {
+        if (step > currentStep && currentStep === 1 && !validateStep1()) return;
+        
+        for (let i = 1; i <= 4; i++) {
+          document.getElementById('step' + i).classList.toggle('d-none', i !== step);
+          const icon = document.getElementById('stepIcon' + i);
+          const label = document.getElementById('stepLabel' + i);
+          
+          if (i < step) {
+            icon.className = 'step-icon bg-success text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2';
+            icon.innerHTML = '<i class="fas fa-check"></i>';
+            label.className = 'd-block fw-bold text-success';
+          } else if (i === step) {
+            icon.className = 'step-icon bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2';
+            icon.innerHTML = '<span>' + i + '</span>';
+            label.className = 'd-block fw-bold text-primary';
+          } else {
+            icon.className = 'step-icon bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2';
+            icon.innerHTML = '<span>' + i + '</span>';
+            label.className = 'd-block text-muted';
+          }
+        }
+        currentStep = step;
+        if (step === 2) updateSlotMode();
+        else if (step === 4) buildReview();
+      }
+      
+      function validateStep1() {
+        const form = document.getElementById('basicInfoForm');
+        if (!form.checkValidity()) { form.reportValidity(); return false; }
+        wizardData.activity = {
+          name: document.getElementById('actName').value,
+          scope: document.getElementById('actScope').value,
+          description: document.getElementById('actDescription').value,
+          location: document.getElementById('actLocation').value,
+          bannerUrl: document.getElementById('actBanner').value,
+          startTime: document.getElementById('actStartTime').value || null,
+          endTime: document.getElementById('actEndTime').value || null,
+          registrationDeadline: document.getElementById('actDeadline').value || null,
+          status: document.getElementById('actStatus').value
+        };
+        return true;
+      }
+      
+      function updateSlotMode() {
+        const scope = wizardData.activity.scope;
+        document.getElementById('slotSchoolMode').classList.toggle('d-none', scope !== 'SCHOOL');
+        document.getElementById('slotFacultyMode').classList.toggle('d-none', scope === 'SCHOOL');
+        document.getElementById('slotGuide').textContent = scope === 'SCHOOL' 
+          ? 'Hoạt động toàn trường: Chỉ cần nhập số lượng tối đa.'
+          : 'Hoạt động theo khoa: Chọn khoa và số lượng slot.';
+      }
+      
+      function filterSlotClasses() {
+        const facultyId = document.getElementById('slotFacultyId').value;
+        const classSelect = document.getElementById('slotClassId');
+        Array.from(classSelect.options).forEach(opt => {
+          if (!opt.value) return;
+          opt.hidden = facultyId && opt.dataset.faculty !== facultyId;
+        });
+        classSelect.value = '';
+      }
+      
+      function addSchoolSlot() {
+        const qty = document.getElementById('slotSchoolQuantity').value;
+        if (!qty || qty <= 0) { Toast.error('Vui lòng nhập số lượng hợp lệ'); return; }
+        wizardData.slots = [{ facultyId: null, facultyName: 'Toàn trường', classId: null, className: 'Tất cả', maxQuantity: qty }];
+        renderSlotsList();
+        document.getElementById('slotSchoolQuantity').value = '';
+      }
+      
+      function addFacultySlot() {
+        const facultyId = document.getElementById('slotFacultyId').value;
+        const facultyName = document.getElementById('slotFacultyId').selectedOptions[0]?.text || '';
+        const classId = document.getElementById('slotClassId').value;
+        const className = document.getElementById('slotClassId').selectedOptions[0]?.text || 'Tất cả';
+        const qty = document.getElementById('slotMaxQuantity').value;
+        
+        if (!facultyId) { Toast.error('Vui lòng chọn khoa'); return; }
+        if (!qty || qty <= 0) { Toast.error('Vui lòng nhập số lượng hợp lệ'); return; }
+        
+        wizardData.slots.push({ facultyId, facultyName, classId: classId || null, className, maxQuantity: qty });
+        renderSlotsList();
+        document.getElementById('slotFacultyId').value = '';
+        document.getElementById('slotClassId').value = '';
+        document.getElementById('slotMaxQuantity').value = '';
+      }
+      
+      function removeSlot(index) { wizardData.slots.splice(index, 1); renderSlotsList(); }
+      
+      function renderSlotsList() {
+        const tbody = document.getElementById('slotsList');
+        if (wizardData.slots.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Chưa thêm slot nào</td></tr>';
+          return;
+        }
+        tbody.innerHTML = wizardData.slots.map((s, i) => 
+          '<tr><td>' + s.facultyName + '</td><td>' + s.className + '</td><td class="text-center"><span class="badge bg-primary">' + s.maxQuantity + '</span></td><td class="text-center"><button class="btn btn-sm btn-danger" onclick="removeSlot(' + i + ')"><i class="fas fa-trash"></i></button></td></tr>'
+        ).join('');
+      }
+      
+      function addScoreOption() {
+        const category = document.getElementById('scoreCategory').value;
+        const categoryText = document.getElementById('scoreCategory').selectedOptions[0]?.text || '';
+        const name = document.getElementById('scoreName').value;
+        const value = document.getElementById('scoreValue').value;
+        const desc = document.getElementById('scoreDescription').value;
+        
+        if (!category) { Toast.error('Vui lòng chọn mục điểm'); return; }
+        if (!name) { Toast.error('Vui lòng nhập loại tham gia'); return; }
+        if (!value) { Toast.error('Vui lòng nhập điểm'); return; }
+        
+        wizardData.scores.push({ scoreCategory: category, categoryText, name, scoreValue: value, description: desc });
+        renderScoresList();
+        document.getElementById('scoreCategory').value = '';
+        document.getElementById('scoreName').value = '';
+        document.getElementById('scoreValue').value = '';
+        document.getElementById('scoreDescription').value = '';
+      }
+      
+      function removeScore(index) { wizardData.scores.splice(index, 1); renderScoresList(); }
+      
+      function renderScoresList() {
+        const tbody = document.getElementById('scoresList');
+        if (wizardData.scores.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Chưa thêm mức điểm nào</td></tr>';
+          return;
+        }
+        tbody.innerHTML = wizardData.scores.map((s, i) =>
+          '<tr><td><span class="badge bg-info">' + s.categoryText + '</span></td><td>' + s.name + '</td><td class="text-center"><span class="badge bg-success">+' + s.scoreValue + 'đ</span></td><td>' + (s.description || '-') + '</td><td class="text-center"><button class="btn btn-sm btn-danger" onclick="removeScore(' + i + ')"><i class="fas fa-trash"></i></button></td></tr>'
+        ).join('');
+      }
+      
+      function buildReview() {
+        const a = wizardData.activity;
+        document.getElementById('reviewBasicInfo').innerHTML = 
+          '<table class="table table-sm mb-0"><tr><th>Tên:</th><td>' + a.name + '</td></tr><tr><th>Phạm vi:</th><td>' + (a.scope === 'SCHOOL' ? '🏫 Toàn trường' : '🏛️ Theo khoa') + '</td></tr><tr><th>Địa điểm:</th><td>' + (a.location || '-') + '</td></tr><tr><th>Thời gian:</th><td>' + (a.startTime || '-') + '</td></tr><tr><th>Trạng thái:</th><td>' + (a.status === 'DRAFT' ? '📝 Nháp' : '✅ Mở đăng ký') + '</td></tr></table>';
+        
+        document.getElementById('reviewSlotCount').textContent = wizardData.slots.length;
+        document.getElementById('reviewSlots').innerHTML = wizardData.slots.length === 0 
+          ? '<p class="text-center text-muted py-3 mb-0">Không có slot</p>'
+          : '<table class="table table-sm mb-0">' + wizardData.slots.map(s => '<tr><td>' + s.facultyName + '</td><td>' + s.className + '</td><td class="text-center">' + s.maxQuantity + '</td></tr>').join('') + '</table>';
+        
+        document.getElementById('reviewScoreCount').textContent = wizardData.scores.length;
+        document.getElementById('reviewScores').innerHTML = wizardData.scores.length === 0
+          ? '<p class="text-center text-muted py-3 mb-0">Không có điểm</p>'
+          : '<table class="table table-sm mb-0">' + wizardData.scores.map(s => '<tr><td>' + s.name + '</td><td class="text-center">+' + s.scoreValue + 'đ</td></tr>').join('') + '</table>';
+      }
+      
+      async function saveActivity() {
+        const saveBtn = document.getElementById('saveBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...';
+        
+        try {
+          // Upload banner file first if selected
+          if (bannerFileToUpload) {
+            const formData = new FormData();
+            formData.append('file', bannerFileToUpload);
+            
+            const uploadResponse = await fetch('/admin/activities/api/upload-banner', {
+              method: 'POST',
+              body: formData
+            });
+            
+            if (uploadResponse.ok) {
+              const uploadResult = await uploadResponse.json();
+              wizardData.activity.bannerUrl = uploadResult.bannerUrl;
+            } else {
+              const err = await uploadResponse.json();
+              throw new Error(err.error || 'Lỗi upload banner');
+            }
+          }
+          
+          const actResponse = await fetch('/admin/activities/api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(wizardData.activity)
+          });
+          
+          if (!actResponse.ok) { const err = await actResponse.json(); throw new Error(err.message || 'Lỗi tạo hoạt động'); }
+          
+          const activity = await actResponse.json();
+          const activityId = activity.id;
+          
+          for (const slot of wizardData.slots) {
+            await fetch('/admin/activities/api/' + activityId + '/slots', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(slot)
+            });
+          }
+          
+          for (const score of wizardData.scores) {
+            await fetch('/admin/activities/api/' + activityId + '/score-options', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(score)
+            });
+          }
+          
+          Toast.success('Tạo hoạt động thành công!');
+          setTimeout(() => { window.location.href = '/admin/activities/' + activityId; }, 1000);
+        } catch (error) {
+          Toast.error('Lỗi: ' + error.message);
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>Lưu Hoạt động';
+        }
+      }
+    </script>
+  </body>
+</html>

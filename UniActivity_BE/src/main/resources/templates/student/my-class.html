@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head th:replace="~{student/layout :: header}"></head>
+  <body>
+    <div th:replace="~{student/layout :: sidebar}"></div>
+
+    <div class="content">
+      <div class="container-fluid">
+        <h2 class="mb-4"><i class="fas fa-users text-primary me-2"></i>Lớp của tôi</h2>
+
+        <!-- No Class Warning -->
+        <div th:if="${!hasClass}" class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Bạn chưa tham gia lớp nào. Vui lòng vào <a th:href="@{/student/home}">trang chủ</a> để tham gia lớp.
+        </div>
+
+        <!-- Class Info Card -->
+        <div th:if="${hasClass}">
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                  <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Thông tin lớp</h5>
+                </div>
+                <div class="card-body">
+                  <table class="table table-borderless mb-0">
+                    <tr>
+                      <th width="40%">Tên lớp:</th>
+                      <td th:text="${studentClass.name}">Lớp A</td>
+                    </tr>
+                    <tr>
+                      <th>Mã lớp:</th>
+                      <td th:text="${studentClass.code}">CNTT01</td>
+                    </tr>
+                    <tr>
+                      <th>Khoa:</th>
+                      <td th:text="${studentClass.faculty?.name ?: 'Chưa xác định'}">Khoa CNTT</td>
+                    </tr>
+                    <tr>
+                      <th>Niên khóa:</th>
+                      <td th:text="${studentClass.academicYear?.code ?: 'N/A'}">K2021</td>
+                    </tr>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card bg-info text-white">
+                <div class="card-body text-center py-4">
+                  <h1 class="display-3 mb-2" th:text="${memberCount}">25</h1>
+                  <p class="mb-0">Thành viên trong lớp</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search -->
+          <div class="card mb-4">
+            <div class="card-body">
+              <form method="get" th:action="@{/student/my-class}" class="row g-3 align-items-end">
+                <div class="col-md-8">
+                  <label class="form-label">Tìm kiếm thành viên</label>
+                  <input type="text" name="search" class="form-control" placeholder="Nhập tên hoặc mã sinh viên..." th:value="${search}">
+                </div>
+                <div class="col-md-4">
+                  <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i>Tìm kiếm
+                  </button>
+                  <a th:href="@{/student/my-class}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Xóa lọc
+                  </a>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Members Table -->
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0"><i class="fas fa-list me-2"></i>Danh sách thành viên
+                <span th:if="${search}" class="badge bg-info ms-2">Tìm: "<span th:text="${search}"></span>"</span>
+              </h5>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>#</th>
+                      <th>Mã sinh viên</th>
+                      <th>Họ tên</th>
+                      <th>Email</th>
+                      <th>Vai trò</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr th:each="member, iter : ${members}">
+                      <td th:text="${iter.index + 1}">1</td>
+                      <td>
+                        <span class="badge bg-secondary" th:text="${member.username}">SV001</span>
+                      </td>
+                      <td>
+                        <i class="fas fa-user-circle me-1 text-muted"></i>
+                        <span th:text="${member.fullName}">Nguyễn Văn A</span>
+                      </td>
+                      <td th:text="${member.email}">email@example.com</td>
+                      <td>
+                        <span th:if="${member.role.name() == 'MANAGER'}" class="badge bg-warning">
+                          <i class="fas fa-crown me-1"></i>Quản lý lớp
+                        </span>
+                        <span th:if="${member.role.name() == 'STUDENT'}" class="badge bg-primary">
+                          <i class="fas fa-user-graduate me-1"></i>Sinh viên
+                        </span>
+                      </td>
+                    </tr>
+                    <tr th:if="${#lists.isEmpty(members)}">
+                      <td colspan="5" class="text-center text-muted py-4">
+                        <i class="fas fa-search fa-2x mb-2 d-block"></i>
+                        <span th:if="${search}">Không tìm thấy thành viên với từ khóa "<span th:text="${search}"></span>"</span>
+                        <span th:unless="${search}">Chưa có thành viên nào trong lớp</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div th:replace="~{student/layout :: scripts}"></div>
+  </body>
+</html>
