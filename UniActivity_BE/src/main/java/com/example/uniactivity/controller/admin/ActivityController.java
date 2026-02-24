@@ -161,6 +161,13 @@ public class ActivityController {
         return ResponseEntity.ok().build();
     }
 
+    // Scoring rules API for React frontend
+    @GetMapping("/api/scoring-rules")
+    @ResponseBody
+    public ResponseEntity<?> getScoringRules() {
+        return ResponseEntity.ok(scoringRulesService.getScoringRules());
+    }
+
     // Banner upload API
     @PostMapping("/api/upload-banner")
     @ResponseBody

@@ -38,8 +38,14 @@ export default function AuthPage({ defaultTab = 'login' }) {
                 redirect: 'follow',
                 credentials: 'include',
             })
+            // Kiểm tra nếu redirect đến trang lỗi (/login?error)
             if (response.redirected) {
-                window.location.href = response.url
+                const redirectUrl = new URL(response.url)
+                if (redirectUrl.searchParams.has('error')) {
+                    setLoginError('Tên đăng nhập hoặc mật khẩu không đúng.')
+                } else {
+                    window.location.href = response.url
+                }
             } else if (response.ok) {
                 window.location.href = '/'
             } else {
@@ -68,27 +74,28 @@ export default function AuthPage({ defaultTab = 'login' }) {
             return
         }
         try {
-            const formData = new URLSearchParams()
-            formData.append('fullName', registerForm.fullName)
-            formData.append('username', registerForm.username)
-            formData.append('email', registerForm.email)
-            formData.append('phone', registerForm.phone)
-            formData.append('password', registerForm.password)
-            formData.append('confirmPassword', registerForm.confirmPassword)
-            formData.append('termsAccepted', registerForm.termsAccepted)
-            const response = await fetch('/register', {
+            // Gửi JSON tới API endpoint thay vì form submit
+            const response = await fetch('/api/auth/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData.toString(),
-                redirect: 'follow',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fullName: registerForm.fullName,
+                    username: registerForm.username,
+                    email: registerForm.email,
+                    phone: registerForm.phone,
+                    password: registerForm.password,
+                    confirmPassword: registerForm.confirmPassword,
+                    termsAccepted: registerForm.termsAccepted,
+                }),
                 credentials: 'include',
             })
-            if (response.redirected && response.url.includes('success')) {
+            const data = await response.json()
+            if (response.ok) {
                 setRegisterSuccess('Đăng ký thành công! Vui lòng đăng nhập.')
                 setActiveTab('login')
                 setRegisterForm({ fullName: '', username: '', email: '', phone: '', password: '', confirmPassword: '', termsAccepted: false })
-            } else if (!response.ok) {
-                setRegisterError('Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.')
+            } else {
+                setRegisterError(data.error || 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.')
             }
         } catch (error) {
             setRegisterError('Có lỗi xảy ra. Vui lòng thử lại.')

@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";
 
+/* Bật dark mode dùng class .dark thay vì prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ===== Custom Theme ===== */
 @theme {
   --color-primary: #6366f1;
@@ -63,4 +66,34 @@ body {
 [class*="transition-colors"],
 [class*="transition-transform"] {
   transition-property: all;
+}
+
+/* ===== Scrollbar Thin ===== */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 9999px;
+}
+.scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+/* ===== Animate-in utility ===== */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-in {
+  animation: fadeSlideIn 0.2s ease-out;
 }

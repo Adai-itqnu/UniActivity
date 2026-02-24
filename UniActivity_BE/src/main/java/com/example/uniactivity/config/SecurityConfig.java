@@ -80,6 +80,7 @@ public class SecurityConfig {
                     "/admin/semesters/api/**",
                     "/admin/users/api/**",
                     "/admin/activities/api/**",
+                    "/admin/api/**",
                     "/manager/api/**",
                     "/student/api/**",
                     "/api/auth/**",
@@ -91,7 +92,7 @@ public class SecurityConfig {
                 .maximumSessions(-1)
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/register", "/login", "/css/**", "/js/**", "/images/**", "/api/auth/**", "/oauth2/**").permitAll()
+                .requestMatchers("/register", "/login", "/css/**", "/js/**", "/images/**", "/api/auth/**", "/oauth2/**", "/error", "/terms").permitAll()
                 .requestMatchers("/sse/**").authenticated()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/manager/**").hasRole("MANAGER")

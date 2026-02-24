@@ -8,6 +8,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // Proxy OAuth2 callback (luôn proxy, không bypass)
+      '/login/oauth2': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       // Proxy POST /login tới Spring Boot backend (chỉ POST, không GET)
       '/login': {
         target: 'http://localhost:8080',
@@ -29,10 +34,17 @@ export default defineConfig({
           }
         },
       },
-      // Proxy tất cả API endpoints
+      // Proxy admin API endpoints tới Spring Boot backend
+      // GET requests trang admin sẽ do React SPA xử lý
       '/admin': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        bypass: (req) => {
+          // Chỉ proxy các request tới API endpoints, không proxy trang HTML
+          if (req.method === 'GET' && !req.url.includes('/api')) {
+            return req.url // Trả về React app
+          }
+        },
       },
       '/manager': {
         target: 'http://localhost:8080',
