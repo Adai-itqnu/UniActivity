@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.Set;
 
+/**
+ * Xử lý sau khi đăng nhập thành công (cả form login lẫn Google OAuth2).
+ * Redirect thẳng về React frontend theo role.
+ * Cookie session tự động chia sẻ giữa các port trên cùng localhost.
+ */
 @Component
 public class CustomAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
@@ -19,7 +24,8 @@ public class CustomAuthenticationSuccessHandler implements AuthenticationSuccess
     private String frontendUrl;
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+                                        Authentication authentication) throws IOException, ServletException {
         Set<String> roles = AuthorityUtils.authorityListToSet(authentication.getAuthorities());
 
         if (roles.contains("ROLE_ADMIN")) {

@@ -64,7 +64,10 @@ export default function Header() {
   // Fetch notifications từ backend
   const fetchNotifications = useCallback(() => {
     setNotifLoading(true)
-    fetch('/admin/api/notifications', { credentials: 'include' })
+    fetch('/admin/api/notifications', {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Failed')
         return res.json()
@@ -93,6 +96,7 @@ export default function Header() {
     fetch('/admin/api/notifications/mark-all-read', {
       method: 'POST',
       credentials: 'include',
+      headers: { 'Accept': 'application/json' },
     })
       .then(() => {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
@@ -118,7 +122,10 @@ export default function Header() {
     searchTimeoutRef.current = setTimeout(() => {
       setSearchLoading(true)
       setShowSearchResults(true)
-      fetch(`/admin/api/search?q=${encodeURIComponent(q.trim())}`, { credentials: 'include' })
+      fetch(`/admin/api/search?q=${encodeURIComponent(q.trim())}`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' },
+      })
         .then((res) => {
           if (!res.ok) throw new Error('Failed')
           return res.json()

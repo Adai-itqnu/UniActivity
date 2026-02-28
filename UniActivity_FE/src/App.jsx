@@ -12,6 +12,29 @@ import ClassList from './pages/admin/ClassList'
 import SemesterList from './pages/admin/SemesterList'
 import ActivityList from './pages/admin/ActivityList'
 import UserList from './pages/admin/UserList'
+import AdminNotifications from './pages/admin/AdminNotifications'
+
+// Student
+import StudentLayout from './components/student/StudentLayout'
+import StudentDashboard from './pages/student/Dashboard'
+import MyClass from './pages/student/MyClass'
+import StudentActivities from './pages/student/Activities'
+import MyRegistrations from './pages/student/MyRegistrations'
+import MyScores from './pages/student/MyScores'
+import Checkin from './pages/student/Checkin'
+import StudentNotifications from './pages/student/Notifications'
+import Profile from './pages/student/Profile'
+
+// Manager
+import ManagerLayout from './components/manager/ManagerLayout'
+import ManagerDashboard from './pages/manager/Dashboard'
+import ManagerActivities from './pages/manager/Activities'
+import ActivityDetail from './pages/manager/ActivityDetail'
+import Members from './pages/manager/Members'
+import JoinRequests from './pages/manager/JoinRequests'
+import PointRequests from './pages/manager/PointRequests'
+import Reports from './pages/manager/Reports'
+import ManagerNotifications from './pages/manager/Notifications'
 
 function App() {
   return (
@@ -36,8 +59,37 @@ function App() {
             <Route path="semesters" element={<SemesterList />} />
             <Route path="activities" element={<ActivityList />} />
             <Route path="users" element={<UserList />} />
-            <Route path="notices" element={<PlaceholderPage title="Thông báo" />} />
-            <Route path="settings" element={<PlaceholderPage title="Cài đặt" />} />
+            <Route path="notices" element={<AdminNotifications />} />
+            <Route path="profile" element={<Profile />} />
+          </Route>
+
+          {/* Student routes */}
+          <Route path="/student" element={<StudentLayout />}>
+            <Route index element={<Navigate to="home" replace />} />
+            <Route path="home" element={<StudentDashboard />} />
+            <Route path="my-class" element={<MyClass />} />
+            <Route path="activities" element={<StudentActivities />} />
+            <Route path="my-registrations" element={<MyRegistrations />} />
+            <Route path="my-scores" element={<MyScores />} />
+            <Route path="checkin" element={<Checkin />} />
+            <Route path="checkin/:activityId" element={<Checkin />} />
+            <Route path="notifications" element={<StudentNotifications />} />
+            <Route path="settings" element={<Profile />} />
+            <Route path="help" element={<PlaceholderPage title="Trợ giúp" />} />
+          </Route>
+
+          {/* Manager routes */}
+          <Route path="/manager" element={<ManagerLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<ManagerDashboard />} />
+            <Route path="activities" element={<ManagerActivities />} />
+            <Route path="activities/:activityId" element={<ActivityDetail />} />
+            <Route path="members" element={<Members />} />
+            <Route path="join-requests" element={<JoinRequests />} />
+            <Route path="point-requests" element={<PointRequests />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="notifications" element={<ManagerNotifications />} />
+            <Route path="profile" element={<Profile />} />
           </Route>
 
           {/* Redirect mặc định sang login */}

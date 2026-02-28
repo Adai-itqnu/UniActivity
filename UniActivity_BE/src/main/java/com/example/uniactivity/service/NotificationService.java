@@ -191,6 +191,17 @@ public class NotificationService {
     }
     
     /**
+     * Thông báo cho Manager: Sinh viên đã nộp minh chứng
+     */
+    public void notifyEvidenceSubmitted(User manager, String studentName, String activityName) {
+        create(manager.getId(),
+               NotificationType.EVIDENCE_SUBMITTED,
+               "Minh chứng mới",
+               studentName + " đã nộp minh chứng cho hoạt động: " + activityName,
+               "/manager/activities");
+    }
+
+    /**
      * Thông báo: Có hoạt động mới
      */
     public void notifyNewActivity(User student, String activityName) {

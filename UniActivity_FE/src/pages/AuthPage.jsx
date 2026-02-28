@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useDarkMode } from '../contexts/DarkModeContext'
 import ForgotPasswordModal from './ForgotPasswordModal'
 import bannerImg from '../assets/img/banner_QNU.jpg'
 
 export default function AuthPage({ defaultTab = 'login' }) {
     const { isDark, toggleDarkMode } = useDarkMode()
+    const [searchParams] = useSearchParams()
     const [activeTab, setActiveTab] = useState(defaultTab)
     const [showPassword, setShowPassword] = useState(false)
     const [showRegPassword, setShowRegPassword] = useState(false)
@@ -22,6 +23,17 @@ export default function AuthPage({ defaultTab = 'login' }) {
     const [registerError, setRegisterError] = useState('')
     const [registerSuccess, setRegisterSuccess] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+
+    // Kiểm tra URL params khi redirect từ backend (OAuth2 failure, session error, etc.)
+    useEffect(() => {
+        const error = searchParams.get('error')
+        const message = searchParams.get('message')
+        if (error === 'google') {
+            setLoginError(message || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.')
+        } else if (error === 'session') {
+            setLoginError(message || 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.')
+        }
+    }, [searchParams])
 
     const handleLogin = async (e) => {
         e.preventDefault()

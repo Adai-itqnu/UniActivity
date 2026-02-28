@@ -15,8 +15,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Controller
 @RequestMapping("/admin/activities")
@@ -171,33 +179,30 @@ public class ActivityController {
     // Banner upload API
     @PostMapping("/api/upload-banner")
     @ResponseBody
-    public org.springframework.http.ResponseEntity<?> uploadBanner(
-            @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+    public ResponseEntity<Map<String, String>> uploadBanner(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "File không được để trống"));
+        }
+
         try {
-            if (file.isEmpty()) {
-                return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of("error", "File không được để trống"));
-            }
-            
-            // Save to resources/uploads/activities
             String basePath = System.getProperty("user.dir");
-            java.nio.file.Path uploadPath = java.nio.file.Paths.get(basePath, "src", "main", "resources", "uploads", "activities");
-            java.nio.file.Files.createDirectories(uploadPath);
-            
-            // Generate unique filename
+            Path uploadPath = Paths.get(basePath, "src", "main", "resources", "uploads", "activities");
+            Files.createDirectories(uploadPath);
+
             String originalName = file.getOriginalFilename();
             String extension = "";
             if (originalName != null && originalName.contains(".")) {
                 extension = originalName.substring(originalName.lastIndexOf("."));
             }
-            String fileName = java.util.UUID.randomUUID().toString().substring(0, 8) + extension;
-            java.nio.file.Path filePath = uploadPath.resolve(fileName);
-            
-            java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            
+            String fileName = UUID.randomUUID().toString().substring(0, 8) + extension;
+            Path filePath = uploadPath.resolve(fileName);
+
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
             String bannerUrl = "/uploads/activities/" + fileName;
-            return org.springframework.http.ResponseEntity.ok(java.util.Map.of("bannerUrl", bannerUrl));
-        } catch (Exception e) {
-            return org.springframework.http.ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+            return ResponseEntity.ok(Map.of("bannerUrl", bannerUrl));
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Upload thất bại: " + e.getMessage()));
         }
     }
 }

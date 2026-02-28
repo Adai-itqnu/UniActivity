@@ -12,11 +12,15 @@ export default defineConfig({
       '/login/oauth2': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
       },
       // Proxy POST /login tới Spring Boot backend (chỉ POST, không GET)
       '/login': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
         // Chỉ proxy POST requests (form login), GET /login sẽ do React xử lý
         bypass: (req) => {
           if (req.method === 'GET') {
@@ -28,6 +32,8 @@ export default defineConfig({
       '/register': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
         bypass: (req) => {
           if (req.method === 'GET') {
             return req.url
@@ -39,6 +45,8 @@ export default defineConfig({
       '/admin': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
         bypass: (req) => {
           // Chỉ proxy các request tới API endpoints, không proxy trang HTML
           if (req.method === 'GET' && !req.url.includes('/api')) {
@@ -49,24 +57,53 @@ export default defineConfig({
       '/manager': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
+        bypass: (req) => {
+          // Chỉ proxy API requests, GET trang sẽ do React SPA xử lý
+          if (req.method === 'GET' && !req.url.includes('/api')) {
+            return req.url
+          }
+        },
       },
       '/student': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
+        bypass: (req) => {
+          // Chỉ proxy API requests, GET trang sẽ do React SPA xử lý
+          if (req.method === 'GET' && !req.url.includes('/api')) {
+            return req.url
+          }
+        },
       },
       '/sse': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
       },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
       },
       '/oauth2': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
       },
       '/logout': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
+      },
+      // Proxy uploaded files (banner images, evidence, etc.)
+      '/uploads': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

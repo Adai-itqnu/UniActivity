@@ -14,7 +14,9 @@ const scopeLabels = { SCHOOL: 'Toàn trường', FACULTY: 'Khoa' }
 
 function formatDT(s) {
     if (!s) return '—'
-    return new Date(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const d = new Date(s)
+    const p = n => String(n).padStart(2, '0')
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 export default function ActivityList() {

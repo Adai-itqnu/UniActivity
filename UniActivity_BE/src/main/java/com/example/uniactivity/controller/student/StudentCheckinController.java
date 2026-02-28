@@ -2,10 +2,12 @@ package com.example.uniactivity.controller.student;
 
 import com.example.uniactivity.entity.*;
 import com.example.uniactivity.enums.RegistrationStatus;
+import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.service.ActivityService;
+import com.example.uniactivity.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,6 +29,7 @@ public class StudentCheckinController {
     private final ActivityService activityService;
     private final ActivityRegistrationRepository activityRegistrationRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @GetMapping("/checkin/{activityId}")
     public String checkinPage(@AuthenticationPrincipal CustomUserDetails userDetails,
@@ -78,12 +81,20 @@ public class StudentCheckinController {
     @PostMapping("/api/checkin/{activityId}")
     @ResponseBody
     public ResponseEntity<?> performCheckin(@AuthenticationPrincipal CustomUserDetails userDetails,
-                                             @PathVariable Long activityId) {
+                                             @PathVariable Long activityId,
+                                             @RequestParam(required = false) Long classId) {
         try {
             // Fetch fresh user data from database
             User currentUser = userRepository.findById(userDetails.getUser().getId())
                     .orElse(userDetails.getUser());
             Activity activity = activityService.findActivityById(activityId);
+            
+            // Validate classId if provided (from QR code)
+            if (classId != null && currentUser.getStudentClass() != null) {
+                if (!currentUser.getStudentClass().getId().equals(classId)) {
+                    return ResponseEntity.badRequest().body(Map.of("message", "Mã QR này chỉ dành cho lớp khác. Vui lòng sử dụng mã QR của lớp bạn."));
+                }
+            }
             
             var registration = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
             
@@ -97,9 +108,23 @@ public class StudentCheckinController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Bạn đã check-in rồi"));
             }
             
+            if (reg.getStatus() == RegistrationStatus.CANCELLED) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Đăng ký đã bị hủy, không thể check-in"));
+            }
+            
             // Mark as attended
             reg.setStatus(RegistrationStatus.ATTENDED);
             activityRegistrationRepository.save(reg);
+
+            // Notify manager about check-in
+            try {
+                StudentClass studentClass = currentUser.getStudentClass();
+                if (studentClass != null) {
+                    userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
+                        .ifPresent(manager -> notificationService.notifyStudentCheckedIn(
+                            manager, currentUser.getFullName(), activity.getName()));
+                }
+            } catch (Exception ignored) {}
             
             return ResponseEntity.ok(Map.of(
                 "message", "Check-in thành công! Cảm ơn bạn đã tham gia.",
@@ -192,6 +217,16 @@ public class StudentCheckinController {
             reg.setIsApproved(null); // Pending approval
             reg.setRejectionReason(null); // Clear any previous rejection reason
             activityRegistrationRepository.save(reg);
+
+            // Notify manager about evidence submission
+            try {
+                StudentClass studentClass = currentUser.getStudentClass();
+                if (studentClass != null) {
+                    userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
+                        .ifPresent(manager -> notificationService.notifyEvidenceSubmitted(
+                            manager, currentUser.getFullName(), activity.getName()));
+                }
+            } catch (Exception ignored) {}
             
             return ResponseEntity.ok(Map.of(
                 "message", "Đã nộp " + uploadedUrls.size() + " ảnh minh chứng! Vui lòng chờ xác nhận từ quản lý lớp."

@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
@@ -35,11 +36,12 @@ public class PasswordResetController {
     private PasswordEncoder passwordEncoder;
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> processForgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<Map<String, String>> processForgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         String email = request.getEmail();
+
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("{\"message\": \"Email không tồn tại trong hệ thống.\"}");
+            return ResponseEntity.badRequest().body(Map.of("message", "Email không tồn tại trong hệ thống."));
         }
 
         String otp = String.format("%06d", new Random().nextInt(999999));
@@ -53,14 +55,14 @@ public class PasswordResetController {
         try {
             mailService.sendEmail(email, "Mã OTP khôi phục mật khẩu UniActivity", 
                 "Mã OTP của bạn là: " + otp + "\nMã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ cho ai.");
-            return ResponseEntity.ok("{\"message\": \"Mã OTP đã được gửi đến email của bạn.\"}");
+            return ResponseEntity.ok(Map.of("message", "Mã OTP đã được gửi đến email của bạn."));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("{\"message\": \"Lỗi gửi email, vui lòng thử lại sau.\"}");
+            return ResponseEntity.internalServerError().body(Map.of("message", "Lỗi gửi email, vui lòng thử lại sau."));
         }
     }
 
     @PostMapping("/verify-reset-otp")
-    public ResponseEntity<?> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+    public ResponseEntity<Map<String, String>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
         String email = request.getEmail();
         String otp = request.getOtp();
 
@@ -68,13 +70,13 @@ public class PasswordResetController {
             .findFirstByEmailAndUsedFalseAndExpiryTimeAfterOrderByCreatedAtDesc(email, LocalDateTime.now());
 
         if (tokenOpt.isPresent() && tokenOpt.get().getOtpCode().equals(otp)) {
-            return ResponseEntity.ok("{\"message\": \"OTP hợp lệ.\"}");
+            return ResponseEntity.ok(Map.of("message", "OTP hợp lệ."));
         }
-        return ResponseEntity.badRequest().body("{\"message\": \"Mã OTP không hợp lệ hoặc đã hết hạn.\"}");
+        return ResponseEntity.badRequest().body(Map.of("message", "Mã OTP không hợp lệ hoặc đã hết hạn."));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         String email = request.getEmail();
         String otp = request.getOtp();
         String newPassword = request.getNewPassword();
@@ -93,9 +95,9 @@ public class PasswordResetController {
                 token.setUsed(true);
                 tokenRepository.save(token);
 
-                return ResponseEntity.ok("{\"message\": \"Mật khẩu đã được đặt lại thành công.\"}");
+                return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được đặt lại thành công."));
             }
         }
-        return ResponseEntity.badRequest().body("{\"message\": \"Mã OTP không hợp lệ hoặc đã hết hạn.\"}");
+        return ResponseEntity.badRequest().body(Map.of("message", "Mã OTP không hợp lệ hoặc đã hết hạn."));
     }
 }

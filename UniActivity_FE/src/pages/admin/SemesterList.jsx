@@ -6,7 +6,8 @@ const API = '/admin/semesters/api'
 function formatDate(dateStr) {
     if (!dateStr) return '—'
     const d = new Date(dateStr)
-    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const p = n => String(n).padStart(2, '0')
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`
 }
 
 export default function SemesterList() {

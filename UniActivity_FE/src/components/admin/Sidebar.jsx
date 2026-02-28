@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 
 const menuGroups = [
   {
@@ -30,15 +30,10 @@ const menuGroups = [
       { name: 'Thông báo', icon: 'notifications', path: '/admin/notices' },
     ],
   },
-  {
-    label: 'Cài đặt',
-    items: [
-      { name: 'Cài đặt', icon: 'settings', path: '/admin/settings' },
-    ],
-  },
 ]
 
 export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
+  const navigate = useNavigate()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef(null)
 
@@ -156,18 +151,11 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
             {/* Menu items */}
             <div className="py-1">
               <button
-                onClick={() => setShowUserMenu(false)}
+                onClick={() => { setShowUserMenu(false); navigate('/admin/profile') }}
                 className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
                 <span className="material-symbols-outlined text-lg">person</span>
                 Chỉnh sửa hồ sơ
-              </button>
-              <button
-                onClick={() => setShowUserMenu(false)}
-                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-              >
-                <span className="material-symbols-outlined text-lg">settings</span>
-                Cài đặt tài khoản
               </button>
             </div>
 

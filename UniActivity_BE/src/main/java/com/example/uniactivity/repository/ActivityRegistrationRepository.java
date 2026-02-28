@@ -26,4 +26,7 @@ public interface ActivityRegistrationRepository extends JpaRepository<ActivityRe
     
     @Query("SELECT r FROM ActivityRegistration r WHERE r.student = :student AND r.status = :status")
     List<ActivityRegistration> findByStudentAndStatus(@Param("student") User student, @Param("status") RegistrationStatus status);
+
+    @Query("SELECT COUNT(r) FROM ActivityRegistration r WHERE r.evidenceUrl IS NOT NULL AND r.evidenceUrl <> '' AND r.isApproved IS NULL")
+    long countPendingEvidence();
 }

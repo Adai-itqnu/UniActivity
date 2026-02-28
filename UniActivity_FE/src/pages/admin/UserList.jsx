@@ -15,7 +15,9 @@ const statusConfig = {
 
 function timeAgo(d) {
     if (!d) return '—'
-    return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const dt = new Date(d)
+    const p = n => String(n).padStart(2, '0')
+    return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`
 }
 
 export default function UserList() {

@@ -1,24 +1,29 @@
 import { useState, useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 
 export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
-      .then((res) => {
+    fetch('/api/auth/me', {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    })
+      .then(async (res) => {
         if (res.ok) return res.json()
-        throw new Error('Not authenticated')
+        const text = await res.text().catch(() => '')
+        throw new Error(`Auth check failed: ${res.status} - ${text}`)
       })
       .then(setCurrentUser)
-      .catch(() => {
-        // Nếu chưa đăng nhập, chuyển về trang login
-        window.location.href = '/login'
+      .catch((err) => {
+        console.error('[AdminLayout] Auth error:', err.message)
+        navigate('/login?error=session&message=' + encodeURIComponent(err.message), { replace: true })
       })
-  }, [])
+  }, [navigate])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">

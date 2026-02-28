@@ -69,7 +69,7 @@ public class CustomUserDetails implements UserDetails, OAuth2User {
     public boolean isEnabled() {
         return user.getStatus() == UserStatus.ACTIVE;
     }
-    
+
     public User getUser() {
         return user;
     }

@@ -85,8 +85,40 @@ public class StudentActivityController {
             
             Activity activity = activityService.findActivityById(activityId);
             
-            // Check if already registered
-            if (activityRegistrationRepository.existsByActivityAndStudent(activity, currentUser)) {
+            // Validate activity status – only OPEN activities accept registrations
+            if (activity.getStatus() != com.example.uniactivity.enums.ActivityStatus.OPEN) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Hoạt động chưa mở đăng ký hoặc đã kết thúc"));
+            }
+            
+            // Validate registration deadline
+            if (activity.getRegistrationDeadline() != null
+                    && java.time.LocalDateTime.now().isAfter(activity.getRegistrationDeadline())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Đã hết hạn đăng ký hoạt động này"));
+            }
+            
+            // Check if already registered (allow re-registration for CANCELLED)
+            var existing = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
+            if (existing.isPresent()) {
+                ActivityRegistration existingReg = existing.get();
+                if (existingReg.getStatus() == RegistrationStatus.CANCELLED) {
+                    // Re-activate the cancelled registration
+                    existingReg.setStatus(RegistrationStatus.REGISTERED);
+                    existingReg.setRegisteredAt(java.time.LocalDateTime.now());
+                    existingReg.setEvidenceUrl(null);
+                    existingReg.setIsApproved(null);
+                    existingReg.setRejectionReason(null);
+                    existingReg.setScoreOption(null);
+                    activityRegistrationRepository.save(existingReg);
+                    
+                    // Update slot count
+                    if (existingReg.getActivitySlot() != null) {
+                        ActivitySlot slot = existingReg.getActivitySlot();
+                        slot.setCurrentQuantity(slot.getCurrentQuantity() + 1);
+                        activitySlotRepository.save(slot);
+                    }
+                    
+                    return ResponseEntity.ok(Map.of("message", "Đăng ký lại thành công!", "registrationId", existingReg.getId()));
+                }
                 return ResponseEntity.badRequest().body(Map.of("message", "Bạn đã đăng ký hoạt động này rồi"));
             }
             
@@ -142,14 +174,21 @@ public class StudentActivityController {
             
             ActivityRegistration reg = registration.get();
             
+            // Only allow cancelling REGISTERED status (not ATTENDED, etc.)
+            if (reg.getStatus() != RegistrationStatus.REGISTERED) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Không thể hủy đăng ký ở trạng thái hiện tại"));
+            }
+            
+            // Set status to CANCELLED instead of deleting
+            reg.setStatus(RegistrationStatus.CANCELLED);
+            activityRegistrationRepository.save(reg);
+            
             // Decrease slot count and save
             if (reg.getActivitySlot() != null) {
                 ActivitySlot slot = reg.getActivitySlot();
                 slot.setCurrentQuantity(Math.max(0, slot.getCurrentQuantity() - 1));
                 activitySlotRepository.save(slot);
             }
-            
-            activityRegistrationRepository.delete(reg);
             
             return ResponseEntity.ok(Map.of("message", "Đã hủy đăng ký thành công"));
         } catch (Exception e) {

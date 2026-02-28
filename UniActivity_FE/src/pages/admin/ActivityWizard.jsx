@@ -3,8 +3,18 @@ import { useState, useEffect } from 'react'
 const API = '/admin/activities/api'
 const steps = ['Thông tin', 'Slots', 'Điểm/Giải', 'Xem lại']
 
-function fmt(d) { return d ? new Date(d).toISOString().slice(0, 16) : '' }
-function fmtD(d) { return d ? new Date(d).toLocaleString('vi-VN') : '—' }
+function fmt(d) {
+    if (!d) return ''
+    const dt = new Date(d)
+    const p = n => String(n).padStart(2, '0')
+    return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`
+}
+function fmtD(d) {
+    if (!d) return '—'
+    const dt = new Date(d)
+    const p = n => String(n).padStart(2, '0')
+    return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()} ${p(dt.getHours())}:${p(dt.getMinutes())}`
+}
 
 export default function ActivityWizard({ activity, onClose, onSaved }) {
     const isEdit = !!activity
@@ -44,6 +54,11 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
             setSemesters(sem || [])
             setFaculties(fac || [])
             setClasses(cls || [])
+            // Auto-select current semester for new activities
+            if (!isEdit && sem?.length) {
+                const current = sem.find(s => s.isCurrent || s.current)
+                if (current) setForm(p => ({ ...p, semesterId: String(current.id) }))
+            }
             // Extract AUTO_ACTIVITY categories
             const cats = []
             if (rules?.categories) {

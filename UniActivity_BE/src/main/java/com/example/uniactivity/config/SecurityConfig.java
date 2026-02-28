@@ -1,8 +1,10 @@
 package com.example.uniactivity.config;
 
 import com.example.uniactivity.security.CustomAuthenticationSuccessHandler;
+import com.example.uniactivity.security.CustomOAuth2AuthenticationFailureHandler;
 import com.example.uniactivity.security.CustomOAuth2UserService;
 import com.example.uniactivity.security.CustomUserDetailsService;
+import com.example.uniactivity.security.RestAuthenticationEntryPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,10 +13,8 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -34,6 +34,12 @@ public class SecurityConfig {
 
     @Autowired
     private CustomOAuth2UserService customOAuth2UserService;
+
+    @Autowired
+    private CustomOAuth2AuthenticationFailureHandler customOAuth2FailureHandler;
+
+    @Autowired
+    private RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -84,6 +90,7 @@ public class SecurityConfig {
                     "/manager/api/**",
                     "/student/api/**",
                     "/api/auth/**",
+                    "/api/profile/**",
                     "/sse/**"
                 )
             )
@@ -110,9 +117,15 @@ public class SecurityConfig {
                     .userService(customOAuth2UserService)
                 )
                 .successHandler(customAuthenticationSuccessHandler)
+                // Khi đăng nhập Google thất bại, redirect về React frontend thay vì Thymeleaf
+                .failureHandler(customOAuth2FailureHandler)
+            )
+            // Trả 401 JSON cho API requests thay vì redirect tới /login
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(restAuthenticationEntryPoint)
             )
             .logout(logout -> logout
-                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+                .logoutUrl("/logout")
                 .logoutSuccessUrl("/login?logout")
                 .permitAll()
             );

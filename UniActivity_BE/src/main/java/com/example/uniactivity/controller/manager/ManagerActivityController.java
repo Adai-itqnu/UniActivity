@@ -4,9 +4,12 @@ import com.example.uniactivity.dto.activity.ActivityResponseDto;
 import com.example.uniactivity.entity.Activity;
 import com.example.uniactivity.entity.ActivityRegistration;
 import com.example.uniactivity.entity.User;
+import com.example.uniactivity.enums.NotificationType;
+import com.example.uniactivity.enums.RegistrationStatus;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.service.ActivityService;
+import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.QrCodeService;
 import com.example.uniactivity.service.TrainingPointService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +38,7 @@ public class ManagerActivityController {
     private final QrCodeService qrCodeService;
     private final ActivityRegistrationRepository activityRegistrationRepository;
     private final TrainingPointService trainingPointService;
+    private final NotificationService notificationService;
 
     @GetMapping("/activities")
     public String activities(@AuthenticationPrincipal CustomUserDetails userDetails, Model model) {
@@ -79,7 +84,8 @@ public class ManagerActivityController {
     @GetMapping("/api/qrcode/{activityId}")
     @ResponseBody
     public ResponseEntity<byte[]> generateQRCode(@AuthenticationPrincipal CustomUserDetails userDetails,
-                                                  @PathVariable Long activityId) {
+                                                  @PathVariable Long activityId,
+                                                  HttpServletRequest request) {
         try {
             User currentUser = userDetails.getUser();
             if (currentUser.getStudentClass() == null) {
@@ -88,8 +94,14 @@ public class ManagerActivityController {
             
             Long classId = currentUser.getStudentClass().getId();
             
-            // Build check-in URL with classId for validation
-            String checkinUrl = String.format("/student/checkin/%d?classId=%d", activityId, classId);
+            // Build full check-in URL so the QR code works from any device
+            String baseUrl = request.getScheme() + "://" + request.getServerName();
+            int port = request.getServerPort();
+            if ((request.getScheme().equals("http") && port != 80) ||
+                (request.getScheme().equals("https") && port != 443)) {
+                baseUrl += ":" + port;
+            }
+            String checkinUrl = String.format("%s/student/checkin/%d?classId=%d", baseUrl, activityId, classId);
             
             // Generate QR code using ZXing
             byte[] qrImage = qrCodeService.generateQrCodeBlack(checkinUrl);
@@ -104,7 +116,11 @@ public class ManagerActivityController {
 
     @GetMapping("/api/activities/{activityId}/registrations")
     @ResponseBody
-    public List<Map<String, Object>> getActivityRegistrations(@PathVariable Long activityId) {
+    public List<Map<String, Object>> getActivityRegistrations(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long activityId) {
+        // Authorization: only manager of the same class can view
+        User currentUser = userDetails.getUser();
         Activity activity = activityService.findActivityById(activityId);
         List<ActivityRegistration> registrations = activityRegistrationRepository.findByActivityOrderByRegisteredAtAsc(activity);
         
@@ -118,8 +134,42 @@ public class ManagerActivityController {
             data.put("registeredAt", reg.getRegisteredAt());
             data.put("evidenceUrl", reg.getEvidenceUrl());
             data.put("isApproved", reg.getIsApproved());
+            data.put("rejectionReason", reg.getRejectionReason());
+            // Score option info
+            if (reg.getScoreOption() != null) {
+                Map<String, Object> so = new HashMap<>();
+                so.put("id", reg.getScoreOption().getId());
+                so.put("name", reg.getScoreOption().getName());
+                so.put("scoreCategory", reg.getScoreOption().getScoreCategory());
+                so.put("scoreValue", reg.getScoreOption().getScoreValue());
+                data.put("scoreOption", so);
+            }
             return data;
         }).toList();
+    }
+
+    @PostMapping("/api/registrations/{registrationId}/checkin")
+    @ResponseBody
+    public ResponseEntity<?> manualCheckin(@AuthenticationPrincipal CustomUserDetails userDetails,
+                                           @PathVariable Long registrationId) {
+        try {
+            ActivityRegistration reg = activityRegistrationRepository.findById(registrationId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký"));
+            
+            if (reg.getStatus() == RegistrationStatus.ATTENDED) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Sinh viên đã được điểm danh rồi"));
+            }
+            if (reg.getStatus() == RegistrationStatus.CANCELLED) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Đăng ký đã bị hủy, không thể điểm danh"));
+            }
+            
+            reg.setStatus(RegistrationStatus.ATTENDED);
+            activityRegistrationRepository.save(reg);
+            
+            return ResponseEntity.ok(Map.of("message", "Đã điểm danh thành công cho " + reg.getStudent().getFullName()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
     @PostMapping("/api/registrations/{registrationId}/approve")
@@ -155,6 +205,15 @@ public class ManagerActivityController {
             trainingPointService.addOrUpdateScore(student, criteriaCode, score, 
                     "AUTO_ACTIVITY", activity.getId(), description);
             
+            // Send notification to student
+            notificationService.create(
+                student.getId(),
+                NotificationType.EVIDENCE_APPROVED,
+                "Minh chứng được duyệt",
+                "Minh chứng hoạt động '" + activity.getName() + "' đã được duyệt. +" + score + " điểm",
+                "/student/my-registrations"
+            );
+            
             return ResponseEntity.ok(Map.of("message", "Đã duyệt và cộng " + score + " điểm thành công"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -177,6 +236,21 @@ public class ManagerActivityController {
             reg.setIsApproved(false);
             reg.setRejectionReason(reason.trim());
             activityRegistrationRepository.save(reg);
+            
+            // Send notification to student
+            Activity activity = reg.getActivity();
+            User student = reg.getStudent();
+            String message = "Minh chứng hoạt động '" + activity.getName() + "' bị từ chối";
+            if (reason != null && !reason.trim().isEmpty()) {
+                message += ". Lý do: " + reason.trim();
+            }
+            notificationService.create(
+                student.getId(),
+                NotificationType.EVIDENCE_REJECTED,
+                "Minh chứng bị từ chối",
+                message,
+                "/student/my-registrations"
+            );
             
             return ResponseEntity.ok(Map.of("message", "Đã từ chối minh chứng"));
         } catch (Exception e) {

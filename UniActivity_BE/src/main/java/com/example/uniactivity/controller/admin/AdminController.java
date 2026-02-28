@@ -105,7 +105,7 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 
-    // API thông báo cho admin
+    // API thông báo cho admin (chỉ unread — dùng cho dropdown header)
     @GetMapping("/api/notifications")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getNotifications(
@@ -121,6 +121,43 @@ public class AdminController {
         long unreadCount = notificationService.getUnreadCount(userId);
         result.put("notifications", notifications);
         result.put("unreadCount", unreadCount);
+        return ResponseEntity.ok(result);
+    }
+
+    // API lấy tất cả thông báo (có phân trang) — dùng cho trang thông báo
+    @GetMapping("/api/notifications/all")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getAllNotifications(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (userDetails == null) {
+            result.put("notifications", List.of());
+            result.put("hasMore", false);
+            result.put("unreadCount", 0);
+            return ResponseEntity.ok(result);
+        }
+        Long userId = userDetails.getUser().getId();
+        var notifPage = notificationService.getNotifications(userId, page, size);
+        long unreadCount = notificationService.getUnreadCount(userId);
+        result.put("notifications", notifPage.getContent());
+        result.put("hasMore", notifPage.hasNext());
+        result.put("unreadCount", unreadCount);
+        return ResponseEntity.ok(result);
+    }
+
+    // API đánh dấu 1 thông báo đã đọc
+    @PostMapping("/api/notifications/{id}/read")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> markRead(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (userDetails != null) {
+            notificationService.markAsRead(id, userDetails.getUser().getId());
+        }
+        result.put("success", true);
         return ResponseEntity.ok(result);
     }
 

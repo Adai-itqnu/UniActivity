@@ -40,7 +40,8 @@ function timeAgo(dateStr) {
 function formatDateTime(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const p = n => String(n).padStart(2, '0')
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 const statusIcons = {
@@ -108,7 +109,10 @@ export default function AdminDashboard() {
   const [loadingAll, setLoadingAll] = useState(false)
 
   useEffect(() => {
-    fetch('/admin/api/dashboard-stats', { credentials: 'include' })
+    fetch('/admin/api/dashboard-stats', {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch stats')
         return res.json()
@@ -130,7 +134,10 @@ export default function AdminDashboard() {
       return
     }
     setLoadingAll(true)
-    fetch('/admin/activities/api/list', { credentials: 'include' })
+    fetch('/admin/activities/api/list', {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    })
       .then((res) => {
         if (!res.ok) throw new Error('Failed')
         return res.json()
