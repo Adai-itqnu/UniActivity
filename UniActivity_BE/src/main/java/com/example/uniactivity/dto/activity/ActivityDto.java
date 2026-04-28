@@ -14,6 +14,9 @@ public class ActivityDto {
     private String description;
     private String bannerUrl;
     private String location;
+    private Double latitude;
+    private Double longitude;
+    private Integer checkinRadius; // mét, null = không giới hạn
     
     private String startTime;
     private String endTime;

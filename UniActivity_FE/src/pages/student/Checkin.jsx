@@ -18,6 +18,7 @@ export default function Checkin() {
     const [mode, setMode] = useState(paramActivityId ? 'url' : 'loading') // 'loading' | 'scanner' | 'url' | 'checkin' | 'evidence' | 'done' | 'blocked'
     const [activityId, setActivityId] = useState(paramActivityId || null)
     const [classId, setClassId] = useState(paramClassId || null)
+    const [qrToken, setQrToken] = useState(searchParams.get('token') || null) // Dynamic QR token
     const [loading, setLoading] = useState(!!paramActivityId)
     const [activity, setActivity] = useState(null)
     const [registration, setRegistration] = useState(null)
@@ -121,13 +122,14 @@ export default function Checkin() {
 
     /* ---------- HANDLE QR SCAN RESULT ---------- */
     const handleScanned = (text) => {
-        // QR content: http://host:port/student/checkin/{activityId}?classId={classId}
+        // QR content: http://host:port/student/checkin/{activityId}?classId={classId}&token={token}
         try {
             const url = new URL(text)
             const match = url.pathname.match(/\/student\/checkin\/(\d+)/)
             if (!match) throw new Error('invalid')
             setActivityId(match[1])
             setClassId(url.searchParams.get('classId'))
+            setQrToken(url.searchParams.get('token')) // Extract dynamic token
         } catch {
             // If not a URL, try plain number
             const num = text.trim()
@@ -143,12 +145,55 @@ export default function Checkin() {
     const handleCheckin = async () => {
         setCheckinLoading(true)
         try {
-            const url = classId
-                ? `/student/api/checkin/${activityId}?classId=${classId}`
-                : `/student/api/checkin/${activityId}`
+            // 1. Lấy vị trí GPS trước khi check-in
+            let gpsLat = null, gpsLng = null, gpsAccuracy = null
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) {
+                        reject(new Error('Trình duyệt không hỗ trợ GPS'))
+                        return
+                    }
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 0,
+                    })
+                })
+                gpsLat = pos.coords.latitude
+                gpsLng = pos.coords.longitude
+                gpsAccuracy = pos.coords.accuracy
+            } catch (gpsErr) {
+                // GPS failed — vẫn gửi request (backend sẽ kiểm tra nếu activity yêu cầu GPS)
+                console.warn('GPS unavailable:', gpsErr.message)
+            }
+
+            // 2. Build URL với classId + dynamic token + GPS
+            let url = `/student/api/checkin/${activityId}`
+            const params = new URLSearchParams()
+            if (classId) params.set('classId', classId)
+            if (qrToken) params.set('token', qrToken)
+            if (gpsLat != null) params.set('lat', gpsLat)
+            if (gpsLng != null) params.set('lng', gpsLng)
+            if (gpsAccuracy != null) params.set('accuracy', gpsAccuracy)
+            if (params.toString()) url += '?' + params.toString()
+
             const res = await fetch(url, { method: 'POST', credentials: 'include' })
             const data = await res.json()
-            if (!res.ok) throw new Error(data.message || 'Lỗi check-in')
+            if (!res.ok) {
+                // Handle specific error types
+                if (data.expired) {
+                    setResult({ type: 'error', message: data.message || 'Mã QR đã hết hạn. Vui lòng quét lại mã QR mới.' })
+                } else if (data.gpsRequired) {
+                    setResult({ type: 'error', message: '📍 ' + (data.message || 'Hoạt động này yêu cầu GPS. Vui lòng cấp quyền vị trí.') })
+                } else if (data.gpsInaccurate) {
+                    setResult({ type: 'error', message: '📡 ' + (data.message || 'Tín hiệu GPS không chính xác. Vui lòng thử lại.') })
+                } else if (data.tooFar) {
+                    setResult({ type: 'error', message: '🗺️ ' + (data.message || 'Bạn ở ngoài phạm vi check-in.') })
+                } else {
+                    throw new Error(data.message || 'Lỗi check-in')
+                }
+                return
+            }
             setResult({ type: 'success', message: data.message })
             setCheckinState('already')
             loadScoreOptions()

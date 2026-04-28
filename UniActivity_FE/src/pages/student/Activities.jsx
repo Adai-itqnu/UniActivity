@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useSearchParams } from 'react-router-dom'
 
 export default function Activities() {
+    const [searchParams] = useSearchParams()
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
-    const [search, setSearch] = useState('')
+    const [search, setSearch] = useState(searchParams.get('search') || '')
     const [statusFilter, setStatusFilter] = useState('all')
     const [regFilter, setRegFilter] = useState('all')
     const [actionLoading, setActionLoading] = useState(null)

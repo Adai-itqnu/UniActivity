@@ -7,7 +7,10 @@ import com.example.uniactivity.service.FacultyService;
 import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.SemesterService;
 import com.example.uniactivity.service.StudentClassService;
+import com.example.uniactivity.service.TrainingPointService;
 import com.example.uniactivity.service.UserManagementService;
+import com.example.uniactivity.entity.User;
+import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.dto.activity.ActivityResponseDto;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,8 @@ public class AdminController {
     private final ActivityService activityService;
     private final SemesterService semesterService;
     private final NotificationService notificationService;
+    private final TrainingPointService trainingPointService;
+    private final UserRepository userRepository;
 
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
@@ -88,20 +93,33 @@ public class AdminController {
         return ResponseEntity.ok(stats);
     }
 
-    // API tìm kiếm hoạt động
+    // API tìm kiếm hoạt động + người dùng
     @GetMapping("/api/search")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> searchActivities(@RequestParam("q") String query) {
         Map<String, Object> result = new LinkedHashMap<>();
-        List<ActivityResponseDto> allActivities = activityService.getAllActivities();
         String q = query.toLowerCase().trim();
-        List<ActivityResponseDto> matched = allActivities.stream()
+
+        // Search activities
+        List<ActivityResponseDto> allActivities = activityService.getAllActivities();
+        List<ActivityResponseDto> matchedActivities = allActivities.stream()
                 .filter(a -> (a.getName() != null && a.getName().toLowerCase().contains(q))
                         || (a.getDescription() != null && a.getDescription().toLowerCase().contains(q))
                         || (a.getLocation() != null && a.getLocation().toLowerCase().contains(q)))
-                .limit(10)
+                .limit(5)
                 .toList();
-        result.put("activities", matched);
+        result.put("activities", matchedActivities);
+
+        // Search users
+        var allUsers = userManagementService.getAllUsers();
+        var matchedUsers = allUsers.stream()
+                .filter(u -> (u.getFullName() != null && u.getFullName().toLowerCase().contains(q))
+                        || (u.getUsername() != null && u.getUsername().toLowerCase().contains(q))
+                        || (u.getEmail() != null && u.getEmail().toLowerCase().contains(q)))
+                .limit(5)
+                .toList();
+        result.put("users", matchedUsers);
+
         return ResponseEntity.ok(result);
     }
 
@@ -171,6 +189,47 @@ public class AdminController {
             notificationService.markAllAsRead(userDetails.getUser().getId());
         }
         result.put("success", true);
+        return ResponseEntity.ok(result);
+    }
+
+    // API lấy điểm rèn luyện theo user ID
+    @GetMapping("/api/users/{id}/scores")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getUserScores(@PathVariable Long id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        User user = userOpt.get();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        Map<Integer, Integer> categoryTotals = trainingPointService.getCategoryTotals(user);
+        int totalScore = trainingPointService.getTotalScore(user);
+        String classification = trainingPointService.getClassification(user);
+
+        result.put("categoryTotals", categoryTotals);
+        result.put("totalScore", totalScore);
+        result.put("classification", classification);
+
+        // User info
+        Map<String, Object> userInfo = new LinkedHashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("fullName", user.getFullName());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("email", user.getEmail());
+        userInfo.put("phone", user.getPhone());
+        userInfo.put("role", user.getRole().name());
+        userInfo.put("avatarUrl", user.getAvatarUrl());
+        userInfo.put("status", user.getStatus().name());
+        userInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+        if (user.getStudentClass() != null) {
+            userInfo.put("className", user.getStudentClass().getName());
+            userInfo.put("classCode", user.getStudentClass().getCode());
+            userInfo.put("facultyName", user.getStudentClass().getFaculty() != null
+                    ? user.getStudentClass().getFaculty().getName() : null);
+        }
+        result.put("user", userInfo);
+
         return ResponseEntity.ok(result);
     }
 

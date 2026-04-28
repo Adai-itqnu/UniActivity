@@ -106,3 +106,23 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ===== Responsive Rounded Layout ===== */
+.layout-shell {
+  padding: clamp(6px, 1vw, 16px);
+  min-height: 100dvh;
+}
+
+.layout-card {
+  border-radius: clamp(12px, 2vw, 24px);
+  min-height: calc(100dvh - clamp(12px, 2vw, 32px));
+}
+
+.layout-card > header {
+  border-top-left-radius: clamp(12px, 2vw, 24px);
+  border-top-right-radius: clamp(12px, 2vw, 24px);
+}
+
+.layout-content {
+  padding: clamp(12px, 2vw, 32px);
+}

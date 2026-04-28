@@ -25,6 +25,14 @@ public class Activity {
 
     private String location;
 
+    // GPS coordinates cho check-in theo vị trí
+    private Double latitude;
+    private Double longitude;
+
+    // Bán kính cho phép check-in (mét), null = không giới hạn vị trí
+    @Column(name = "checkin_radius")
+    private Integer checkinRadius;
+
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private LocalDateTime registrationDeadline;

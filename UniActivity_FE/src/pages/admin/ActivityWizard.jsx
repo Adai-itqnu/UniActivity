@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import DateTimeInput from '../../components/common/DateTimeInput'
 
 const API = '/admin/activities/api'
 const steps = ['Thông tin', 'Slots', 'Điểm/Giải', 'Xem lại']
@@ -25,6 +26,7 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
     // Step1: basic info
     const [form, setForm] = useState({
         name: '', description: '', bannerUrl: '', location: '',
+        latitude: '', longitude: '', checkinRadius: '',
         startTime: '', endTime: '', registrationDeadline: '',
         scope: 'SCHOOL', status: 'DRAFT', semesterId: '',
     })
@@ -75,6 +77,8 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
             setForm({
                 name: activity.name || '', description: activity.description || '',
                 bannerUrl: activity.bannerUrl || '', location: activity.location || '',
+                latitude: activity.latitude ?? '', longitude: activity.longitude ?? '',
+                checkinRadius: activity.checkinRadius ?? '',
                 startTime: fmt(activity.startTime), endTime: fmt(activity.endTime),
                 registrationDeadline: fmt(activity.registrationDeadline),
                 scope: activity.scope || 'SCHOOL', status: activity.status || 'DRAFT',
@@ -140,7 +144,13 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
         try {
             // Save activity
             const url = isEdit ? `${API}/${activity.id}` : API
-            const body = { ...form, semesterId: form.semesterId ? Number(form.semesterId) : null }
+            const body = {
+                ...form,
+                semesterId: form.semesterId ? Number(form.semesterId) : null,
+                latitude: form.latitude !== '' ? Number(form.latitude) : null,
+                longitude: form.longitude !== '' ? Number(form.longitude) : null,
+                checkinRadius: form.checkinRadius !== '' ? Number(form.checkinRadius) : null,
+            }
             const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) })
             if (!res.ok) throw new Error('Lưu hoạt động thất bại')
             const saved = await res.json()
@@ -205,10 +215,13 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
                                 </div>
                                 <div className="space-y-1.5"><label className={lbl}>Mô tả</label><textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} className={inp + " h-auto py-2"} placeholder="Mô tả ngắn..." /></div>
                                 <div className="space-y-1.5"><label className={lbl}>Địa điểm</label><input type="text" value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className={inp} placeholder="VD: Hội trường A" /></div>
+
+                                {/* ═══ GPS Location Picker ═══ */}
+                                <GpsLocationPicker form={form} setForm={setForm} setError={setError} inp={inp} lbl={lbl} isEdit={isEdit} />
                                 <div className="grid grid-cols-3 gap-4">
-                                    <div className="space-y-1.5"><label className={lbl}>Bắt đầu</label><input type="datetime-local" value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))} className={inp} /></div>
-                                    <div className="space-y-1.5"><label className={lbl}>Kết thúc</label><input type="datetime-local" value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} className={inp} /></div>
-                                    <div className="space-y-1.5"><label className={lbl}>Hạn đăng ký</label><input type="datetime-local" value={form.registrationDeadline} onChange={e => setForm(p => ({ ...p, registrationDeadline: e.target.value }))} className={inp} /></div>
+                                    <div className="space-y-1.5"><label className={lbl}>Bắt đầu</label><DateTimeInput value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))} className={inp} /></div>
+                                    <div className="space-y-1.5"><label className={lbl}>Kết thúc</label><DateTimeInput value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} className={inp} /></div>
+                                    <div className="space-y-1.5"><label className={lbl}>Hạn đăng ký</label><DateTimeInput value={form.registrationDeadline} onChange={e => setForm(p => ({ ...p, registrationDeadline: e.target.value }))} className={inp} /></div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5"><label className={lbl}>Trạng thái</label><select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className={inp}><option value="DRAFT">📝 Nháp</option><option value="OPEN">✅ Mở đăng ký</option></select></div>
@@ -302,6 +315,9 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
                                             <div className="flex"><span className="w-24 text-gray-400 shrink-0">Tên:</span><span className="font-medium text-gray-700 dark:text-gray-200">{form.name}</span></div>
                                             <div className="flex"><span className="w-24 text-gray-400 shrink-0">Phạm vi:</span><span>{form.scope === 'SCHOOL' ? '🏫 Toàn trường' : '🏛️ Theo khoa'}</span></div>
                                             <div className="flex"><span className="w-24 text-gray-400 shrink-0">Địa điểm:</span><span>{form.location || '—'}</span></div>
+                                            {form.latitude && form.longitude && (
+                                                <div className="flex"><span className="w-24 text-gray-400 shrink-0">GPS:</span><span className="text-emerald-600 dark:text-emerald-400 font-medium">📍 {Number(form.latitude).toFixed(5)}, {Number(form.longitude).toFixed(5)} — Bán kính: {form.checkinRadius || '—'}m</span></div>
+                                            )}
                                             <div className="flex"><span className="w-24 text-gray-400 shrink-0">Bắt đầu:</span><span>{fmtD(form.startTime)}</span></div>
                                             <div className="flex"><span className="w-24 text-gray-400 shrink-0">Trạng thái:</span><span>{form.status === 'DRAFT' ? '📝 Nháp' : '✅ Mở'}</span></div>
                                         </div>
@@ -334,6 +350,366 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+/* ═══════════════════════════════════════════
+   GPS Location Picker Component
+   - Tìm kiếm địa chỉ qua Nominatim (OpenStreetMap)
+   - Lấy vị trí hiện tại (Geolocation API)
+   - Bản đồ Leaflet: click chọn vị trí + reverse geocode
+   - Chọn bán kính check-in
+   ═══════════════════════════════════════════ */
+function GpsLocationPicker({ form, setForm, setError, inp, lbl, isEdit }) {
+    const [showMap, setShowMap] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [searchResults, setSearchResults] = useState([])
+    const [searching, setSearching] = useState(false)
+    const [gettingLocation, setGettingLocation] = useState(false)
+    const [gpsStatus, setGpsStatus] = useState('idle') // 'idle' | 'requesting' | 'granted' | 'denied' | 'error'
+    const mapRef = useRef(null)
+    const mapInstanceRef = useRef(null)
+    const markerRef = useRef(null)
+    const circleRef = useRef(null)
+    const leafletLoadedRef = useRef(false)
+    const autoDetectedRef = useRef(false)
+
+    const hasGps = form.latitude !== '' && form.longitude !== ''
+
+    // === Tự động lấy vị trí khi tạo hoạt động mới ===
+    useEffect(() => {
+        if (!isEdit && !autoDetectedRef.current && !hasGps) {
+            autoDetectedRef.current = true
+            autoDetectLocation()
+        }
+    }, [])
+
+    const autoDetectLocation = () => {
+        if (!navigator.geolocation) {
+            setGpsStatus('error')
+            return
+        }
+        setGpsStatus('requesting')
+        setGettingLocation(true)
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const lat = pos.coords.latitude
+                const lng = pos.coords.longitude
+                setForm(p => ({ ...p, latitude: lat, longitude: lng, checkinRadius: p.checkinRadius || '100' }))
+                setGpsStatus('granted')
+                // Reverse geocode
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=vi`)
+                    const data = await res.json()
+                    if (data.display_name) {
+                        setForm(p => ({ ...p, location: p.location || data.display_name.split(',').slice(0, 3).join(',').trim() }))
+                    }
+                } catch {}
+                setGettingLocation(false)
+            },
+            (err) => {
+                setGpsStatus('denied')
+                setGettingLocation(false)
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        )
+    }
+
+    // === Tìm kiếm địa chỉ qua Nominatim ===
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) return
+        setSearching(true)
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=vn&accept-language=vi`)
+            const data = await res.json()
+            setSearchResults(data)
+        } catch { setError('Lỗi tìm kiếm địa chỉ') }
+        setSearching(false)
+    }
+
+    const selectSearchResult = (item) => {
+        setForm(p => ({
+            ...p,
+            latitude: Number(item.lat),
+            longitude: Number(item.lon),
+            location: item.display_name?.split(',').slice(0, 3).join(',').trim() || p.location,
+        }))
+        setSearchResults([])
+        setSearchQuery('')
+        updateMapView(Number(item.lat), Number(item.lon))
+    }
+
+    // === Lấy vị trí hiện tại (manual button) ===
+    const getMyLocation = () => {
+        if (!navigator.geolocation) { setError('Trình duyệt không hỗ trợ GPS'); return }
+        setGettingLocation(true)
+        setGpsStatus('requesting')
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const lat = pos.coords.latitude
+                const lng = pos.coords.longitude
+                setForm(p => ({ ...p, latitude: lat, longitude: lng, checkinRadius: p.checkinRadius || '100' }))
+                setGpsStatus('granted')
+                // Reverse geocode để lấy tên địa điểm
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=vi`)
+                    const data = await res.json()
+                    if (data.display_name) {
+                        setForm(p => ({ ...p, location: data.display_name.split(',').slice(0, 3).join(',').trim() }))
+                    }
+                } catch {}
+                updateMapView(lat, lng)
+                setGettingLocation(false)
+            },
+            (err) => {
+                setGpsStatus('denied')
+                setError('Không lấy được vị trí: ' + err.message)
+                setGettingLocation(false)
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        )
+    }
+
+    // === Xóa GPS ===
+    const clearGps = () => {
+        setForm(p => ({ ...p, latitude: '', longitude: '', checkinRadius: '' }))
+        if (markerRef.current) { markerRef.current.remove(); markerRef.current = null }
+        if (circleRef.current) { circleRef.current.remove(); circleRef.current = null }
+    }
+
+    // === Load Leaflet CDN & init map ===
+    const loadLeaflet = () => {
+        return new Promise((resolve) => {
+            if (window.L) { resolve(window.L); return }
+            if (leafletLoadedRef.current) {
+                const check = setInterval(() => { if (window.L) { clearInterval(check); resolve(window.L) } }, 100)
+                return
+            }
+            leafletLoadedRef.current = true
+            // CSS
+            const link = document.createElement('link')
+            link.rel = 'stylesheet'
+            link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+            document.head.appendChild(link)
+            // JS
+            const script = document.createElement('script')
+            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+            script.onload = () => resolve(window.L)
+            document.head.appendChild(script)
+        })
+    }
+
+    const initMap = async () => {
+        const L = await loadLeaflet()
+        if (mapInstanceRef.current) return
+
+        const lat = form.latitude || 10.8231
+        const lng = form.longitude || 106.6297
+        const map = L.map(mapRef.current).setView([lat, lng], hasGps ? 16 : 12)
+        mapInstanceRef.current = map
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map)
+
+        // Add marker if GPS exists
+        if (hasGps) {
+            addMarker(L, map, Number(form.latitude), Number(form.longitude))
+        }
+
+        // Click on map to pick location
+        map.on('click', async (e) => {
+            const { lat, lng } = e.latlng
+            setForm(p => ({ ...p, latitude: lat, longitude: lng }))
+            addMarker(L, map, lat, lng)
+            // Reverse geocode
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=vi`)
+                const data = await res.json()
+                if (data.display_name) {
+                    setForm(p => ({ ...p, location: data.display_name.split(',').slice(0, 3).join(',').trim() }))
+                }
+            } catch {}
+        })
+
+        // Fix size after render
+        setTimeout(() => map.invalidateSize(), 200)
+    }
+
+    const addMarker = (L, map, lat, lng) => {
+        if (markerRef.current) markerRef.current.remove()
+        if (circleRef.current) circleRef.current.remove()
+        markerRef.current = L.marker([lat, lng]).addTo(map)
+        const radius = Number(form.checkinRadius) || 100
+        circleRef.current = L.circle([lat, lng], {
+            radius,
+            color: '#10b981',
+            fillColor: '#10b981',
+            fillOpacity: 0.15,
+            weight: 2,
+        }).addTo(map)
+    }
+
+    const updateMapView = (lat, lng) => {
+        if (!mapInstanceRef.current || !window.L) return
+        const L = window.L
+        mapInstanceRef.current.setView([lat, lng], 16)
+        addMarker(L, mapInstanceRef.current, lat, lng)
+    }
+
+    // Update circle when radius changes
+    useEffect(() => {
+        if (circleRef.current && form.checkinRadius) {
+            circleRef.current.setRadius(Number(form.checkinRadius))
+        }
+    }, [form.checkinRadius])
+
+    const toggleMap = () => {
+        if (!showMap) {
+            setShowMap(true)
+            setTimeout(initMap, 100)
+        } else {
+            // Cleanup map
+            if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null }
+            markerRef.current = null
+            circleRef.current = null
+            setShowMap(false)
+        }
+    }
+
+    return (
+        <div className="space-y-3 p-4 rounded-xl border border-dashed border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/10">
+            <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-base">location_on</span>
+                    Vị trí GPS check-in (tùy chọn)
+                </label>
+                {hasGps && (
+                    <button type="button" onClick={clearGps} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">delete</span>Xóa GPS
+                    </button>
+                )}
+            </div>
+
+            {/* GPS Permission Status */}
+            {gpsStatus === 'requesting' && (
+                <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-2.5 rounded-lg animate-pulse">
+                    <div className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-500 rounded-full animate-spin" />
+                    <span>Đang xin quyền vị trí... Vui lòng nhấn <strong>"Cho phép"</strong> trên trình duyệt.</span>
+                </div>
+            )}
+            {gpsStatus === 'denied' && !hasGps && (
+                <div className="flex items-center justify-between gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 rounded-lg">
+                    <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">warning</span>
+                        <span>Quyền GPS bị từ chối. Bạn vẫn có thể nhập địa chỉ hoặc chọn trên bản đồ.</span>
+                    </div>
+                    <button type="button" onClick={getMyLocation} className="shrink-0 px-2 py-1 rounded bg-amber-500 text-white text-[10px] font-medium hover:bg-amber-600">
+                        Thử lại
+                    </button>
+                </div>
+            )}
+            {gpsStatus === 'granted' && hasGps && (
+                <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-100/50 dark:bg-emerald-900/20 px-3 py-2 rounded-lg">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    <span>Đã lấy vị trí tự động. Bạn có thể thay đổi bằng cách tìm địa chỉ hoặc chọn trên bản đồ.</span>
+                </div>
+            )}
+
+            {/* Search bar */}
+            <div className="flex gap-2">
+                <div className="relative flex-1">
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                        className={inp}
+                        placeholder="Tìm địa chỉ (VD: ĐH Bách Khoa TP.HCM)..."
+                    />
+                    {/* Search results dropdown */}
+                    {searchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                            {searchResults.map((item, i) => (
+                                <button key={i} type="button" onClick={() => selectSearchResult(item)}
+                                    className="w-full text-left px-3 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border-b border-gray-100 dark:border-gray-700 last:border-0 flex items-start gap-2">
+                                    <span className="material-symbols-outlined text-emerald-500 text-sm shrink-0 mt-0.5">location_on</span>
+                                    <span className="line-clamp-2">{item.display_name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <button type="button" onClick={handleSearch} disabled={searching}
+                    className="px-3 h-10 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 shrink-0 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-base">search</span>
+                    {searching ? '...' : 'Tìm'}
+                </button>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={getMyLocation} disabled={gettingLocation}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 disabled:opacity-50">
+                    <span className="material-symbols-outlined text-sm">my_location</span>
+                    {gettingLocation ? 'Đang lấy...' : 'Lấy vị trí hiện tại'}
+                </button>
+                <button type="button" onClick={toggleMap}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <span className="material-symbols-outlined text-sm">{showMap ? 'map' : 'map'}</span>
+                    {showMap ? 'Ẩn bản đồ' : 'Mở bản đồ chọn vị trí'}
+                </button>
+            </div>
+
+            {/* Map container */}
+            {showMap && (
+                <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <div ref={mapRef} style={{ height: 300, width: '100%' }} />
+                    <p className="text-[10px] text-gray-400 px-3 py-1.5 bg-gray-50 dark:bg-gray-800">
+                        💡 Nhấn vào bản đồ để chọn vị trí check-in. Vùng tròn xanh = phạm vi cho phép.
+                    </p>
+                </div>
+            )}
+
+            {/* GPS coordinates display + radius */}
+            {hasGps && (
+                <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-medium text-gray-400">Latitude</label>
+                        <input type="number" step="any" readOnly value={Number(form.latitude).toFixed(6)}
+                            className={inp + ' text-xs bg-gray-50 dark:bg-gray-800'} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-medium text-gray-400">Longitude</label>
+                        <input type="number" step="any" readOnly value={Number(form.longitude).toFixed(6)}
+                            className={inp + ' text-xs bg-gray-50 dark:bg-gray-800'} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-medium text-gray-400">Bán kính check-in</label>
+                        <select value={form.checkinRadius} onChange={e => setForm(p => ({ ...p, checkinRadius: e.target.value }))} className={inp}>
+                            <option value="">— Không giới hạn —</option>
+                            <option value="50">50m</option>
+                            <option value="100">100m (khuyên dùng)</option>
+                            <option value="150">150m</option>
+                            <option value="200">200m</option>
+                            <option value="300">300m</option>
+                            <option value="500">500m</option>
+                            <option value="1000">1km</option>
+                        </select>
+                    </div>
+                </div>
+            )}
+
+            {hasGps && (
+                <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20 px-3 py-2 rounded-lg">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    <span>
+                        Vị trí đã thiết lập: <strong>{form.location || `${Number(form.latitude).toFixed(4)}, ${Number(form.longitude).toFixed(4)}`}</strong>
+                        {form.checkinRadius && <> — Bán kính: <strong>{form.checkinRadius}m</strong></>}
+                    </span>
+                </div>
+            )}
         </div>
     )
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import ActivityWizard from './ActivityWizard'
 
 const API = '/admin/activities/api'
@@ -25,7 +25,8 @@ export default function ActivityList() {
     const [semesters, setSemesters] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
-    const [search, setSearch] = useState('')
+    const [urlSearchParams] = useSearchParams()
+    const [search, setSearch] = useState(urlSearchParams.get('search') || '')
     const [filterStatus, setFilterStatus] = useState('ALL')
     const [showFilter, setShowFilter] = useState(false)
     const filterRef = useRef(null)

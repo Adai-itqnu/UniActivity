@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 
 function fmtDate(d) {
@@ -51,14 +51,7 @@ export default function ManagerActivities() {
     const totalRegistered = activities.reduce((s, a) => s + (a.registeredCount || 0), 0)
 
     const openQR = (activityId, activityName) => {
-        setQrModal({ activityId, activityName, loading: true, url: null })
-        fetch(`/manager/api/qrcode/${activityId}`, { credentials: 'include' })
-            .then(r => r.blob())
-            .then(blob => {
-                const url = URL.createObjectURL(blob)
-                setQrModal(prev => ({ ...prev, loading: false, url }))
-            })
-            .catch(() => setQrModal(prev => ({ ...prev, loading: false })))
+        setQrModal({ activityId, activityName })
     }
 
     if (loading) {
@@ -150,7 +143,7 @@ export default function ManagerActivities() {
             )}
 
             {/* ── QR Modal ── */}
-            {qrModal && <QRModal data={qrModal} onClose={() => { if (qrModal.url) URL.revokeObjectURL(qrModal.url); setQrModal(null) }} />}
+            {qrModal && <QRModal data={qrModal} onClose={() => setQrModal(null)} />}
         </div>
     )
 }
@@ -283,6 +276,66 @@ function TableView({ items, openQR }) {
 /* ═══════════════════════════════════════════ */
 
 function QRModal({ data, onClose }) {
+    const [qrData, setQrData] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
+    const [countdown, setCountdown] = useState(60)
+    const [refreshing, setRefreshing] = useState(false)
+    const canvasRef = useRef(null)
+    const countdownRef = useRef(null)
+    const intervalSeconds = useRef(60)
+
+    const fetchDynamicQr = async () => {
+        try {
+            const res = await fetch(`/manager/api/qrcode/dynamic/${data.activityId}`, { credentials: 'include' })
+            if (!res.ok) throw new Error('Không thể tải mã QR')
+            const d = await res.json()
+            setQrData(d)
+            intervalSeconds.current = d.interval || 60
+            setCountdown(d.secondsRemaining || d.interval || 60)
+            setError(null)
+            setRefreshing(true)
+            setTimeout(() => setRefreshing(false), 600)
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchDynamicQr()
+        return () => clearInterval(countdownRef.current)
+    }, [data.activityId])
+
+    useEffect(() => {
+        clearInterval(countdownRef.current)
+        countdownRef.current = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) { fetchDynamicQr(); return intervalSeconds.current }
+                return prev - 1
+            })
+        }, 1000)
+        return () => clearInterval(countdownRef.current)
+    }, [qrData?.token])
+
+    useEffect(() => {
+        if (!qrData?.checkinUrl || !canvasRef.current) return
+        import('qrcode').then(QRCode => {
+            QRCode.toCanvas(canvasRef.current, qrData.checkinUrl, {
+                width: 260, margin: 2,
+                color: { dark: '#000000', light: '#ffffff' },
+                errorCorrectionLevel: 'H',
+            })
+        }).catch(() => setError('Không thể render QR'))
+    }, [qrData?.checkinUrl])
+
+    const interval = intervalSeconds.current
+    const countdownPercent = (countdown / interval) * 100
+    const countdownMm = Math.floor(countdown / 60)
+    const countdownSs = countdown % 60
+    const isWarning = countdown <= 10
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-2xl p-6 max-w-sm w-full mx-4 animate-in" onClick={e => e.stopPropagation()}>
@@ -292,7 +345,10 @@ function QRModal({ data, onClose }) {
                         <div className="size-9 rounded-xl bg-blue-500/10 flex items-center justify-center">
                             <span className="material-symbols-outlined text-blue-500">qr_code_2</span>
                         </div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">QR Check-in</h3>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white">QR Check-in động</h3>
+                            <p className="text-[10px] text-emerald-500 font-medium">Tự đổi mỗi {interval >= 60 ? `${interval / 60} phút` : `${interval} giây`}</p>
+                        </div>
                     </div>
                     <button onClick={onClose} className="size-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors">
                         <span className="material-symbols-outlined text-lg">close</span>
@@ -301,27 +357,43 @@ function QRModal({ data, onClose }) {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 text-center font-medium">{data.activityName}</p>
                 {/* QR */}
                 <div className="flex items-center justify-center p-4 bg-white rounded-xl border border-gray-200 dark:border-gray-700 min-h-[250px]">
-                    {data.loading ? (
+                    {loading ? (
                         <div className="w-8 h-8 border-3 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                    ) : data.url ? (
-                        <img src={data.url} alt="QR Code" className="w-56 h-56 object-contain" />
-                    ) : (
+                    ) : error ? (
                         <div className="text-center">
                             <span className="material-symbols-outlined text-3xl text-red-400 block mb-2">error</span>
-                            <p className="text-sm text-red-500">Lỗi tạo QR Code</p>
+                            <p className="text-sm text-red-500">{error}</p>
+                        </div>
+                    ) : (
+                        <div className={`p-2 bg-white rounded-xl transition-all duration-500 ${
+                            refreshing ? 'ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/20 scale-[1.02]' : ''
+                        }`}>
+                            <canvas ref={canvasRef} className="w-56 h-56 object-contain" />
                         </div>
                     )}
                 </div>
-                {data.url && (
-                    <div className="flex gap-2 mt-4">
-                        <a href={data.url} download={`qr-checkin-${data.activityId}.png`}
-                            className="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl text-center hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
-                            <span className="material-symbols-outlined text-lg">download</span>Tải xuống
-                        </a>
-                        <button onClick={() => { const w = window.open(''); w.document.write(`<img src='${data.url}' />`); w.print() }}
-                            className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
-                            <span className="material-symbols-outlined text-lg">print</span>In
-                        </button>
+                {/* Countdown */}
+                {qrData && (
+                    <div className="mt-4">
+                        <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-medium text-gray-400 flex items-center gap-1">
+                                <span className={`material-symbols-outlined text-xs ${isWarning ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>timer</span>
+                                Mã QR mới sau
+                            </span>
+                            <span className={`text-sm font-bold tabular-nums ${isWarning ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                {countdownMm > 0 ? `${countdownMm}:${String(countdownSs).padStart(2, '0')}` : `${countdownSs}s`}
+                            </span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full rounded-full transition-all duration-1000 ease-linear ${isWarning ? 'bg-red-500' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}
+                                style={{ width: `${countdownPercent}%` }}
+                            />
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-3 justify-center">
+                            <span className="material-symbols-outlined text-sm text-amber-500">shield</span>
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">QR chống gian lận — không thể screenshot gửi từ xa</p>
+                        </div>
                     </div>
                 )}
             </div>

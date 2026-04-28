@@ -193,4 +193,81 @@ public class ManagerDataApiController {
 
         return ResponseEntity.ok(result);
     }
+
+    // ==================== SEARCH ====================
+
+    @GetMapping("/search")
+    public ResponseEntity<?> search(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam("q") String query) {
+
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        String q = query.toLowerCase().trim();
+
+        // Search class members
+        if (currentUser.getStudentClass() != null) {
+            var members = userRepository.findByStudentClass(currentUser.getStudentClass()).stream()
+                    .filter(u -> (u.getFullName() != null && u.getFullName().toLowerCase().contains(q))
+                            || (u.getUsername() != null && u.getUsername().toLowerCase().contains(q))
+                            || (u.getEmail() != null && u.getEmail().toLowerCase().contains(q)))
+                    .limit(8)
+                    .map(u -> {
+                        Map<String, Object> item = new LinkedHashMap<>();
+                        item.put("id", u.getId());
+                        item.put("fullName", u.getFullName());
+                        item.put("username", u.getUsername());
+                        item.put("email", u.getEmail());
+                        item.put("role", u.getRole().name());
+                        item.put("avatarUrl", u.getAvatarUrl());
+                        item.put("status", u.getStatus().name());
+                        item.put("className", u.getStudentClass() != null ? u.getStudentClass().getName() : null);
+                        return item;
+                    })
+                    .collect(Collectors.toList());
+            result.put("users", members);
+        } else {
+            result.put("users", List.of());
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
+    // ==================== USER SCORES ====================
+
+    @GetMapping("/users/{id}/scores")
+    public ResponseEntity<?> getUserScores(@PathVariable Long id) {
+        java.util.Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        User user = userOpt.get();
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("categoryTotals", trainingPointService.getCategoryTotals(user));
+        data.put("totalScore", trainingPointService.getTotalScore(user));
+        data.put("classification", trainingPointService.getClassification(user));
+
+        Map<String, Object> userInfo = new LinkedHashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("fullName", user.getFullName());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("email", user.getEmail());
+        userInfo.put("phone", user.getPhone());
+        userInfo.put("role", user.getRole().name());
+        userInfo.put("avatarUrl", user.getAvatarUrl());
+        userInfo.put("status", user.getStatus().name());
+        userInfo.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+        if (user.getStudentClass() != null) {
+            userInfo.put("className", user.getStudentClass().getName());
+            userInfo.put("classCode", user.getStudentClass().getCode());
+            userInfo.put("facultyName", user.getStudentClass().getFaculty() != null
+                    ? user.getStudentClass().getFaculty().getName() : null);
+        }
+        data.put("user", userInfo);
+
+        return ResponseEntity.ok(data);
+    }
 }

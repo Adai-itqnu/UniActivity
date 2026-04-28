@@ -4,6 +4,7 @@ import com.example.uniactivity.security.CustomAuthenticationSuccessHandler;
 import com.example.uniactivity.security.CustomOAuth2AuthenticationFailureHandler;
 import com.example.uniactivity.security.CustomOAuth2UserService;
 import com.example.uniactivity.security.CustomUserDetailsService;
+import com.example.uniactivity.security.JwtAuthenticationFilter;
 import com.example.uniactivity.security.RestAuthenticationEntryPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -15,6 +16,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -43,6 +45,9 @@ public class SecurityConfig {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -128,9 +133,13 @@ public class SecurityConfig {
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/login?logout")
                 .permitAll()
-            );
+            )
+            // === JWT Filter: chạy TRƯỚC UsernamePasswordAuthenticationFilter ===
+            // Nếu request có header "Authorization: Bearer <token>", JWT filter sẽ
+            // authenticate user và set SecurityContext TRƯỚC KHI session-based auth chạy.
+            // Nếu không có JWT → bỏ qua, session-based auth vẫn hoạt động bình thường.
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }
 }
-

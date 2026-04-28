@@ -10,6 +10,9 @@ public class ActivityResponseDto {
     private String description;
     private String bannerUrl;
     private String location;
+    private Double latitude;
+    private Double longitude;
+    private Integer checkinRadius;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private LocalDateTime registrationDeadline;

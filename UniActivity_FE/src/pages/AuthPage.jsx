@@ -24,10 +24,39 @@ export default function AuthPage({ defaultTab = 'login' }) {
     const [registerSuccess, setRegisterSuccess] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
-    // Kiểm tra URL params khi redirect từ backend (OAuth2 failure, session error, etc.)
+    // Kiểm tra URL params khi redirect từ backend (OAuth2 JWT tokens, OAuth2 failure, etc.)
     useEffect(() => {
         const error = searchParams.get('error')
         const message = searchParams.get('message')
+        const token = searchParams.get('token')
+        const refreshTokenParam = searchParams.get('refreshToken')
+        const userParam = searchParams.get('user')
+
+        // OAuth2 (Google) login thành công → nhận JWT tokens qua URL
+        if (token && refreshTokenParam) {
+            localStorage.setItem('accessToken', token)
+            localStorage.setItem('refreshToken', refreshTokenParam)
+            if (userParam) {
+                try {
+                    const user = JSON.parse(decodeURIComponent(userParam))
+                    localStorage.setItem('user', JSON.stringify(user))
+                    const role = user.role
+                    if (role === 'ADMIN') {
+                        window.location.href = '/admin/dashboard'
+                    } else if (role === 'MANAGER') {
+                        window.location.href = '/manager/dashboard'
+                    } else {
+                        window.location.href = '/student/home'
+                    }
+                } catch {
+                    window.location.href = '/student/home'
+                }
+            } else {
+                window.location.href = '/'
+            }
+            return
+        }
+
         if (error === 'google') {
             setLoginError(message || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.')
         } else if (error === 'session') {
@@ -40,28 +69,34 @@ export default function AuthPage({ defaultTab = 'login' }) {
         setLoginError('')
         setIsLoading(true)
         try {
-            const formData = new URLSearchParams()
-            formData.append('username', loginForm.username)
-            formData.append('password', loginForm.password)
-            const response = await fetch('/login', {
+            const response = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData.toString(),
-                redirect: 'follow',
-                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: loginForm.username,
+                    password: loginForm.password,
+                }),
             })
-            // Kiểm tra nếu redirect đến trang lỗi (/login?error)
-            if (response.redirected) {
-                const redirectUrl = new URL(response.url)
-                if (redirectUrl.searchParams.has('error')) {
-                    setLoginError('Tên đăng nhập hoặc mật khẩu không đúng.')
+            const data = await response.json()
+            if (response.ok && data.accessToken) {
+                // Lưu tokens vào localStorage
+                localStorage.setItem('accessToken', data.accessToken)
+                localStorage.setItem('refreshToken', data.refreshToken)
+                localStorage.setItem('user', JSON.stringify(data.user))
+
+                // Redirect theo role
+                const role = data.user?.role
+                if (role === 'ADMIN') {
+                    window.location.href = '/admin/dashboard'
+                } else if (role === 'MANAGER') {
+                    window.location.href = '/manager/dashboard'
+                } else if (role === 'STUDENT') {
+                    window.location.href = '/student/home'
                 } else {
-                    window.location.href = response.url
+                    window.location.href = '/'
                 }
-            } else if (response.ok) {
-                window.location.href = '/'
             } else {
-                setLoginError('Tên đăng nhập hoặc mật khẩu không đúng.')
+                setLoginError(data.error || 'Tên đăng nhập hoặc mật khẩu không đúng.')
             }
         } catch (error) {
             setLoginError('Có lỗi xảy ra. Vui lòng thử lại.')

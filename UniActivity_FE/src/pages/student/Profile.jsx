@@ -1,8 +1,26 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+const CATEGORY_NAMES = ['', 'Ý thức học tập', 'Ý thức chấp hành', 'Hoạt động CT-XH', 'Quan hệ cộng đồng', 'Phẩm chất công dân', 'Thành tích đặc biệt']
+const CATEGORY_COLORS = ['', '#3b82f6', '#10b981', '#06b6d4', '#f59e0b', '#8b5cf6', '#ef4444']
+
+function getClassColor(cls) {
+    if (!cls) return '#6b7280'
+    const l = cls.toLowerCase()
+    if (l.includes('xuất sắc')) return '#10b981'
+    if (l.includes('tốt')) return '#3b82f6'
+    if (l.includes('khá')) return '#06b6d4'
+    if (l.includes('trung bình')) return '#f59e0b'
+    if (l.includes('yếu')) return '#f97316'
+    if (l.includes('kém')) return '#ef4444'
+    return '#6b7280'
+}
 
 export default function Profile() {
+    const navigate = useNavigate()
     const [profile, setProfile] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [scoreData, setScoreData] = useState(null)
 
     // Edit profile
     const [editMode, setEditMode] = useState(false)
@@ -41,6 +59,14 @@ export default function Profile() {
     }
 
     useEffect(() => { fetchProfile() }, [])
+
+    // Fetch score data
+    useEffect(() => {
+        fetch('/student/api/my-scores', { credentials: 'include' })
+            .then(r => { if (!r.ok) throw new Error(); return r.json() })
+            .then(data => setScoreData(data))
+            .catch(() => {})
+    }, [])
 
     const handleSaveProfile = async () => {
         if (!fullName.trim()) {
@@ -196,6 +222,61 @@ export default function Profile() {
                     )}
                 </div>
             </div>
+
+            {/* ===== Training Score Chart ===== */}
+            {scoreData && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-purple-500">star</span>
+                            <h3 className="font-bold text-gray-900 dark:text-white">Phân phối điểm rèn luyện</h3>
+                        </div>
+                        <span className="text-sm text-gray-400">{scoreData.currentSemester?.name || 'Tổng điểm tích lũy học kỳ này'}</span>
+                    </div>
+                    <div className="p-6">
+                        <div className="flex items-center gap-8">
+                            {/* Donut */}
+                            <div className="shrink-0">
+                                <ScoreDonut categoryTotals={scoreData.categoryTotals} totalScore={scoreData.totalScore} classification={scoreData.classification} />
+                            </div>
+                            {/* Legend + Total */}
+                            <div className="flex-1 min-w-0">
+                                <div className="space-y-2">
+                                    {[1, 2, 3, 4, 5, 6].map(i => (
+                                        <div key={i} className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[i] }} />
+                                                <span className="text-gray-600 dark:text-gray-300 truncate">{CATEGORY_NAMES[i]}</span>
+                                            </div>
+                                            <span className="font-bold text-gray-800 dark:text-white ml-4 tabular-nums">{scoreData.categoryTotals?.[i] || 0}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Total */}
+                                <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700 flex items-end justify-between">
+                                    <div>
+                                        <span className="text-3xl font-black text-gray-900 dark:text-white">{scoreData.totalScore}</span>
+                                        <span className="text-sm font-normal text-gray-400 ml-1">pts</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        {/* Progress bar */}
+                                        <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(scoreData.totalScore, 100)}%`, backgroundColor: getClassColor(scoreData.classification) }} />
+                                        </div>
+                                        <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ color: getClassColor(scoreData.classification), backgroundColor: `${getClassColor(scoreData.classification)}18` }}>
+                                            {scoreData.classification || 'Chưa xếp loại'}
+                                        </span>
+                                    </div>
+                                </div>
+                                {/* Detail link */}
+                                <button onClick={() => navigate('/student/my-scores')} className="mt-3 text-sm text-emerald-500 font-medium hover:underline flex items-center gap-1">
+                                    Chi tiết →
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ===== Edit Info Form ===== */}
             {editMode && (
@@ -502,6 +583,45 @@ function PasswordStrength({ password }) {
                 <div className={`h-full ${level.cls} rounded-full transition-all duration-300`} style={{ width: level.width }} />
             </div>
             <p className="text-xs text-gray-400 mt-1">Độ mạnh: <span className="font-medium">{level.label}</span></p>
+        </div>
+    )
+}
+
+function ScoreDonut({ categoryTotals, totalScore, classification }) {
+    const size = 140
+    const strokeWidth = 14
+    const radius = (size - strokeWidth) / 2
+    const circumference = 2 * Math.PI * radius
+
+    const segments = []
+    let offset = 0
+    for (let i = 1; i <= 6; i++) {
+        const value = categoryTotals?.[i] || 0
+        if (value > 0) {
+            const pct = value / 100
+            segments.push({ color: CATEGORY_COLORS[i], pct, offset })
+            offset += pct
+        }
+    }
+
+    const classColor = getClassColor(classification)
+
+    return (
+        <div className="relative" style={{ width: size, height: size }}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="transform -rotate-90">
+                <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="currentColor" strokeWidth={strokeWidth} className="text-gray-200 dark:text-gray-700" />
+                {segments.map((seg, idx) => (
+                    <circle key={idx} cx={size / 2} cy={size / 2} r={radius} fill="none"
+                        stroke={seg.color} strokeWidth={strokeWidth} strokeLinecap="round"
+                        strokeDasharray={`${seg.pct * circumference} ${circumference}`}
+                        strokeDashoffset={-seg.offset * circumference}
+                        style={{ transition: 'stroke-dasharray 0.8s ease, stroke-dashoffset 0.8s ease' }} />
+                ))}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-xl font-black" style={{ color: classColor }}>{classification || '—'}</span>
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Xếp loại</span>
+            </div>
         </div>
     )
 }

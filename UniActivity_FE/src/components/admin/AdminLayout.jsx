@@ -9,9 +9,14 @@ export default function AdminLayout() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    const headers = { 'Accept': 'application/json' }
+    const accessToken = localStorage.getItem('accessToken')
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`
+    }
     fetch('/api/auth/me', {
       credentials: 'include',
-      headers: { 'Accept': 'application/json' },
+      headers,
     })
       .then(async (res) => {
         if (res.ok) return res.json()
@@ -21,27 +26,30 @@ export default function AdminLayout() {
       .then(setCurrentUser)
       .catch((err) => {
         console.error('[AdminLayout] Auth error:', err.message)
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+        localStorage.removeItem('user')
         navigate('/login?error=session&message=' + encodeURIComponent(err.message), { replace: true })
       })
   }, [navigate])
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
-      {/* Sidebar */}
+    <div className="layout-shell bg-gray-100 dark:bg-gray-950 transition-colors">
       <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} currentUser={currentUser} />
 
-      {/* Main content area — shifts based on sidebar width */}
       <div
-        className={`flex flex-col min-h-screen transition-all duration-300 ${
-          sidebarCollapsed ? 'ml-[72px]' : 'ml-64'
+        className={`flex flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:ml-[80px]' : 'lg:ml-[17rem]'
         }`}
       >
-        <Header />
-
-        {/* Page content */}
-        <main className="flex-1 p-6">
-          <Outlet context={{ currentUser }} />
-        </main>
+        <div className="layout-card flex flex-col flex-1 bg-white dark:bg-gray-900 shadow-sm border border-gray-200/80 dark:border-gray-800 overflow-hidden">
+          <Header />
+          <main className="layout-content flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="max-w-7xl mx-auto">
+              <Outlet context={{ currentUser }} />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   )

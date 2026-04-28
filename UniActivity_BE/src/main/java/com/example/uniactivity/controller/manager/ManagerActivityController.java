@@ -9,6 +9,7 @@ import com.example.uniactivity.enums.RegistrationStatus;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.service.ActivityService;
+import com.example.uniactivity.service.DynamicQrTokenService;
 import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.QrCodeService;
 import com.example.uniactivity.service.TrainingPointService;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +38,7 @@ public class ManagerActivityController {
 
     private final ActivityService activityService;
     private final QrCodeService qrCodeService;
+    private final DynamicQrTokenService dynamicQrTokenService;
     private final ActivityRegistrationRepository activityRegistrationRepository;
     private final TrainingPointService trainingPointService;
     private final NotificationService notificationService;
@@ -81,6 +84,9 @@ public class ManagerActivityController {
         return activityService.getVisibleActivitiesForStudent(currentUser);
     }
 
+    /**
+     * API trả QR image tĩnh (giữ backward-compatible, nhưng giờ embed dynamic token).
+     */
     @GetMapping("/api/qrcode/{activityId}")
     @ResponseBody
     public ResponseEntity<byte[]> generateQRCode(@AuthenticationPrincipal CustomUserDetails userDetails,
@@ -93,24 +99,72 @@ public class ManagerActivityController {
             }
             
             Long classId = currentUser.getStudentClass().getId();
+            String token = dynamicQrTokenService.generateToken(activityId, classId);
             
-            // Build full check-in URL so the QR code works from any device
+            // Build full check-in URL với dynamic token
             String baseUrl = request.getScheme() + "://" + request.getServerName();
             int port = request.getServerPort();
             if ((request.getScheme().equals("http") && port != 80) ||
                 (request.getScheme().equals("https") && port != 443)) {
                 baseUrl += ":" + port;
             }
-            String checkinUrl = String.format("%s/student/checkin/%d?classId=%d", baseUrl, activityId, classId);
+            String checkinUrl = String.format("%s/student/checkin/%d?classId=%d&token=%s",
+                    baseUrl, activityId, classId, token);
             
             // Generate QR code using ZXing
             byte[] qrImage = qrCodeService.generateQrCodeBlack(checkinUrl);
             
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.IMAGE_PNG_VALUE)
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                     .body(qrImage);
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Dynamic QR API — trả JSON để frontend tự render QR + auto-refresh.
+     * Response: { token, activityId, classId, expiresAt, secondsRemaining, interval, checkinUrl }
+     */
+    @GetMapping("/api/qrcode/dynamic/{activityId}")
+    @ResponseBody
+    public ResponseEntity<?> getDynamicQrToken(@AuthenticationPrincipal CustomUserDetails userDetails,
+                                                @PathVariable Long activityId,
+                                                HttpServletRequest request) {
+        try {
+            User currentUser = userDetails.getUser();
+            if (currentUser.getStudentClass() == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Bạn chưa có lớp"));
+            }
+
+            Long classId = currentUser.getStudentClass().getId();
+            String token = dynamicQrTokenService.generateToken(activityId, classId);
+
+            // Build check-in URL
+            String baseUrl = request.getScheme() + "://" + request.getServerName();
+            int port = request.getServerPort();
+            if ((request.getScheme().equals("http") && port != 80) ||
+                (request.getScheme().equals("https") && port != 443)) {
+                baseUrl += ":" + port;
+            }
+            String checkinUrl = String.format("%s/student/checkin/%d?classId=%d&token=%s",
+                    baseUrl, activityId, classId, token);
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("token", token);
+            response.put("activityId", activityId);
+            response.put("classId", classId);
+            response.put("checkinUrl", checkinUrl);
+            response.put("expiresAt", dynamicQrTokenService.getTokenExpiresAt());
+            response.put("secondsRemaining", dynamicQrTokenService.getSecondsRemaining());
+            response.put("interval", dynamicQrTokenService.getIntervalSeconds());
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate")
+                    .body(response);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 

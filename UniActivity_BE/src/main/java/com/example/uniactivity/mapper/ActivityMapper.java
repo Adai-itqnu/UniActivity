@@ -17,6 +17,9 @@ public class ActivityMapper {
         entity.setDescription(dto.getDescription());
         entity.setBannerUrl(dto.getBannerUrl());
         entity.setLocation(dto.getLocation());
+        entity.setLatitude(dto.getLatitude());
+        entity.setLongitude(dto.getLongitude());
+        entity.setCheckinRadius(dto.getCheckinRadius());
         
         if (dto.getStartTime() != null && !dto.getStartTime().isEmpty()) {
             entity.setStartTime(LocalDateTime.parse(dto.getStartTime()));
@@ -41,6 +44,9 @@ public class ActivityMapper {
         entity.setDescription(dto.getDescription());
         entity.setBannerUrl(dto.getBannerUrl());
         entity.setLocation(dto.getLocation());
+        entity.setLatitude(dto.getLatitude());
+        entity.setLongitude(dto.getLongitude());
+        entity.setCheckinRadius(dto.getCheckinRadius());
         
         if (dto.getStartTime() != null && !dto.getStartTime().isEmpty()) {
             entity.setStartTime(LocalDateTime.parse(dto.getStartTime()));
@@ -66,6 +72,9 @@ public class ActivityMapper {
         dto.setDescription(entity.getDescription());
         dto.setBannerUrl(entity.getBannerUrl());
         dto.setLocation(entity.getLocation());
+        dto.setLatitude(entity.getLatitude());
+        dto.setLongitude(entity.getLongitude());
+        dto.setCheckinRadius(entity.getCheckinRadius());
         dto.setStartTime(entity.getStartTime());
         dto.setEndTime(entity.getEndTime());
         dto.setRegistrationDeadline(entity.getRegistrationDeadline());

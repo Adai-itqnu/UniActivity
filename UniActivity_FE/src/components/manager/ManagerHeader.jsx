@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useDarkMode } from '../../contexts/DarkModeContext'
 import { useNavigate } from 'react-router-dom'
+import UserProfileModal from '../common/UserProfileModal'
 
 function timeAgo(dateStr) {
     if (!dateStr) return ''
-    const now = new Date()
-    const d = new Date(dateStr)
-    const diffMs = now - d
-    const mins = Math.floor(diffMs / 60000)
+    const now = new Date(), d = new Date(dateStr), diffMs = now - d, mins = Math.floor(diffMs / 60000)
     if (mins < 1) return 'Vừa xong'
     if (mins < 60) return `${mins} phút trước`
     const hours = Math.floor(mins / 60)
@@ -30,7 +28,14 @@ export default function ManagerHeader() {
     const { isDark, toggleDarkMode } = useDarkMode()
     const navigate = useNavigate()
     const [showNotifications, setShowNotifications] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [searchResults, setSearchResults] = useState({ users: [] })
+    const [showSearchResults, setShowSearchResults] = useState(false)
+    const [searchLoading, setSearchLoading] = useState(false)
+    const [profileUser, setProfileUser] = useState(null)
     const notifRef = useRef(null)
+    const searchRef = useRef(null)
+    const searchTimeoutRef = useRef(null)
     const [notifications, setNotifications] = useState([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [notifLoading, setNotifLoading] = useState(false)
@@ -38,10 +43,26 @@ export default function ManagerHeader() {
     useEffect(() => {
         const handleClick = (e) => {
             if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifications(false)
+            if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearchResults(false)
         }
         document.addEventListener('mousedown', handleClick)
         return () => document.removeEventListener('mousedown', handleClick)
     }, [])
+
+    const handleSearchChange = (e) => {
+        const q = e.target.value
+        setSearchQuery(q)
+        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+        if (q.trim().length < 2) { setSearchResults({ users: [] }); setShowSearchResults(false); return }
+        searchTimeoutRef.current = setTimeout(() => {
+            setSearchLoading(true)
+            setShowSearchResults(true)
+            fetch(`/manager/api/search?q=${encodeURIComponent(q.trim())}`, { credentials: 'include' })
+                .then(r => r.ok ? r.json() : { users: [] })
+                .then(data => { setSearchResults(data); setSearchLoading(false) })
+                .catch(() => { setSearchResults({ users: [] }); setSearchLoading(false) })
+        }, 300)
+    }
 
     const fetchNotifications = useCallback(() => {
         setNotifLoading(true)
@@ -49,19 +70,11 @@ export default function ManagerHeader() {
             fetch('/manager/api/notifications?size=10', { credentials: 'include' }).then(r => r.ok ? r.json() : { notifications: [] }),
             fetch('/manager/api/notifications/unread-count', { credentials: 'include' }).then(r => r.ok ? r.json() : { count: 0 }),
         ])
-            .then(([notifData, countData]) => {
-                setNotifications(notifData.notifications || [])
-                setUnreadCount(countData.count || 0)
-                setNotifLoading(false)
-            })
+            .then(([notifData, countData]) => { setNotifications(notifData.notifications || []); setUnreadCount(countData.count || 0); setNotifLoading(false) })
             .catch(() => { setNotifications([]); setUnreadCount(0); setNotifLoading(false) })
     }, [])
 
-    useEffect(() => {
-        fetchNotifications()
-        const interval = setInterval(fetchNotifications, 30000)
-        return () => clearInterval(interval)
-    }, [fetchNotifications])
+    useEffect(() => { fetchNotifications(); const interval = setInterval(fetchNotifications, 30000); return () => clearInterval(interval) }, [fetchNotifications])
 
     const handleMarkAllRead = () => {
         fetch('/manager/api/notifications/read-all', { method: 'POST', credentials: 'include' })
@@ -69,9 +82,12 @@ export default function ManagerHeader() {
             .catch(() => { })
     }
 
+    const hasResults = (searchResults.users?.length || 0) > 0
+
     return (
-        <header className="h-16 border-b border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between gap-4 shrink-0">
-            {/* Left: Mobile branding */}
+        <>
+        <header className="h-14 sm:h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between gap-3 shrink-0">
+            {/* Left */}
             <div className="flex items-center gap-3">
                 <button className="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                     <span className="material-symbols-outlined">menu</span>
@@ -84,27 +100,61 @@ export default function ManagerHeader() {
                 </div>
             </div>
 
-            {/* Center spacer */}
-            <div className="flex-1" />
+            {/* Center: Search */}
+            <div className="hidden md:flex flex-1 max-w-lg mx-4" ref={searchRef}>
+                <div className="relative w-full group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="material-symbols-outlined text-gray-400 group-focus-within:text-blue-500 transition-colors">search</span>
+                    </div>
+                    <input value={searchQuery} onChange={handleSearchChange}
+                        onFocus={() => { if (hasResults) setShowSearchResults(true) }}
+                        className="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-sm"
+                        placeholder="Tìm thành viên trong lớp..." type="text" />
 
-            {/* Right: Actions */}
+                    {showSearchResults && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                            {searchLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                    <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                                    <span className="ml-2 text-sm text-gray-400">Đang tìm kiếm...</span>
+                                </div>
+                            ) : hasResults ? (
+                                <div className="max-h-80 overflow-y-auto">
+                                    <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/80">👤 Thành viên</div>
+                                    {searchResults.users.map(u => (
+                                        <button key={u.id} onClick={() => { setShowSearchResults(false); setSearchQuery(''); setProfileUser(u) }}
+                                            className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <div className="size-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 overflow-hidden">
+                                                {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-base text-blue-600">person</span>}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{u.fullName}</p>
+                                                <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="px-4 py-4 text-sm text-gray-400 text-center">Không tìm thấy thành viên cho "{searchQuery}"</div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Right */}
             <div className="flex items-center gap-2">
-                {/* Notifications */}
                 <div className="relative" ref={notifRef}>
                     <button onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) fetchNotifications() }}
-                        className="relative size-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        className="relative size-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-colors">
                         <span className="material-symbols-outlined text-xl">notifications</span>
-                        {unreadCount > 0 && (
-                            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 rounded-full border-2 border-white dark:border-gray-900 text-[10px] font-bold text-white px-1">
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                            </span>
-                        )}
+                        {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center bg-red-500 rounded-full border-2 border-white dark:border-gray-900 text-[10px] font-bold text-white px-1">{unreadCount > 99 ? '99+' : unreadCount}</span>}
                     </button>
                     {showNotifications && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in z-50">
+                        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
                             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                                 <h3 className="font-semibold text-gray-800 dark:text-white text-sm">Thông báo {unreadCount > 0 && `(${unreadCount})`}</h3>
-                                {unreadCount > 0 && <button onClick={handleMarkAllRead} className="text-xs text-blue-600 font-medium cursor-pointer hover:underline">Đánh dấu đã đọc</button>}
+                                {unreadCount > 0 && <button onClick={handleMarkAllRead} className="text-xs text-blue-600 font-medium hover:underline">Đánh dấu đã đọc</button>}
                             </div>
                             <div className="max-h-80 overflow-y-auto">
                                 {notifLoading ? (
@@ -114,15 +164,11 @@ export default function ManagerHeader() {
                                         const typeInfo = notifTypeIcons[notif.type] || defaultNotifIcon
                                         return (
                                             <div key={notif.id} className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors ${!notif.isRead ? 'bg-blue-500/5' : ''}`}>
-                                                <div className={`flex items-center justify-center w-9 h-9 rounded-lg shrink-0 ${typeInfo.iconColor}`}>
-                                                    <span className="material-symbols-outlined text-lg">{typeInfo.icon}</span>
-                                                </div>
+                                                <div className={`flex items-center justify-center w-9 h-9 rounded-lg shrink-0 ${typeInfo.iconColor}`}><span className="material-symbols-outlined text-lg">{typeInfo.icon}</span></div>
                                                 <div className="min-w-0">
                                                     <p className="text-sm text-gray-700 dark:text-gray-200 leading-snug">{notif.title}</p>
                                                     {notif.message && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{notif.message}</p>}
-                                                    <p className="text-xs text-blue-500 mt-0.5 flex items-center gap-1">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />{timeAgo(notif.createdAt)}
-                                                    </p>
+                                                    <p className="text-xs text-blue-500 mt-0.5">{timeAgo(notif.createdAt)}</p>
                                                 </div>
                                             </div>
                                         )
@@ -135,20 +181,18 @@ export default function ManagerHeader() {
                                 )}
                             </div>
                             <div className="border-t border-gray-100 dark:border-gray-700 px-4 py-2.5">
-                                <button onClick={() => { setShowNotifications(false); navigate('/manager/notifications') }}
-                                    className="w-full text-center text-sm text-blue-600 font-medium hover:underline">Xem tất cả thông báo →</button>
+                                <button onClick={() => { setShowNotifications(false); navigate('/manager/notifications') }} className="w-full text-center text-sm text-blue-600 font-medium hover:underline">Xem tất cả thông báo →</button>
                             </div>
                         </div>
                     )}
                 </div>
-
-                {/* Dark mode toggle */}
-                <button onClick={toggleDarkMode}
-                    className="size-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    title={isDark ? 'Chế độ sáng' : 'Chế độ tối'}>
+                <button onClick={toggleDarkMode} className="size-10 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-colors" title={isDark ? 'Chế độ sáng' : 'Chế độ tối'}>
                     <span className="material-symbols-outlined text-xl">{isDark ? 'light_mode' : 'dark_mode'}</span>
                 </button>
             </div>
         </header>
+
+        {profileUser && <UserProfileModal user={profileUser} apiBase="/manager" onClose={() => setProfileUser(null)} />}
+        </>
     )
 }
