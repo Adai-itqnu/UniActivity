@@ -64,7 +64,7 @@ public class ClassJoinRequestService {
         
         // Phase 4: Notify manager about new join request
         userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
-            .ifPresent(manager -> notificationService.notifyNewJoinRequest(manager, freshStudent.getFullName()));
+            .forEach(manager -> notificationService.notifyNewJoinRequest(manager, freshStudent.getFullName()));
         
         return saved;
     }

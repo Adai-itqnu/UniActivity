@@ -68,7 +68,7 @@ public class PointRequestService {
         if (studentClass != null) {
             String criteriaName = scoringRulesService.getCriteriaName(criteriaCode);
             userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
-                .ifPresent(manager -> notificationService.notifyNewPointRequest(manager, student.getFullName(), criteriaName));
+                .forEach(manager -> notificationService.notifyNewPointRequest(manager, student.getFullName(), criteriaName));
         }
         
         return saved;

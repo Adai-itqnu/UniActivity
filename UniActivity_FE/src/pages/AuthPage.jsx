@@ -34,12 +34,12 @@ export default function AuthPage({ defaultTab = 'login' }) {
 
         // OAuth2 (Google) login thành công → nhận JWT tokens qua URL
         if (token && refreshTokenParam) {
-            localStorage.setItem('accessToken', token)
-            localStorage.setItem('refreshToken', refreshTokenParam)
+            sessionStorage.setItem('accessToken', token)
+            sessionStorage.setItem('refreshToken', refreshTokenParam)
             if (userParam) {
                 try {
                     const user = JSON.parse(decodeURIComponent(userParam))
-                    localStorage.setItem('user', JSON.stringify(user))
+                    sessionStorage.setItem('user', JSON.stringify(user))
                     const role = user.role
                     if (role === 'ADMIN') {
                         window.location.href = '/admin/dashboard'
@@ -79,10 +79,10 @@ export default function AuthPage({ defaultTab = 'login' }) {
             })
             const data = await response.json()
             if (response.ok && data.accessToken) {
-                // Lưu tokens vào localStorage
-                localStorage.setItem('accessToken', data.accessToken)
-                localStorage.setItem('refreshToken', data.refreshToken)
-                localStorage.setItem('user', JSON.stringify(data.user))
+                // Lưu tokens vào sessionStorage
+                sessionStorage.setItem('accessToken', data.accessToken)
+                sessionStorage.setItem('refreshToken', data.refreshToken)
+                sessionStorage.setItem('user', JSON.stringify(data.user))
 
                 // Redirect theo role
                 const role = data.user?.role

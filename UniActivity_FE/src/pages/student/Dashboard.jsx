@@ -22,8 +22,7 @@ export default function StudentDashboard() {
     const [error, setError] = useState(null)
 
     // Fetch dashboard data từ API backend
-    useEffect(() => {
-        setLoading(true)
+    const fetchDashboardData = useCallback(() => {
         fetch('/student/api/dashboard', { credentials: 'include' })
             .then((res) => {
                 if (!res.ok) throw new Error('Không thể tải dữ liệu')
@@ -38,6 +37,29 @@ export default function StudentDashboard() {
                 setLoading(false)
             })
     }, [])
+
+    useEffect(() => {
+        setLoading(true)
+        fetchDashboardData()
+    }, [fetchDashboardData])
+
+    // Tự động kiểm tra trạng thái duyệt lớp nếu đang chờ duyệt
+    useEffect(() => {
+        if (!data || data.hasClass || !data.hasPendingRequest) return
+
+        const interval = setInterval(() => {
+            fetch('/student/api/dashboard', { credentials: 'include' })
+                .then((res) => res.ok ? res.json() : null)
+                .then((json) => {
+                    if (json && (json.hasClass !== data.hasClass || json.hasPendingRequest !== data.hasPendingRequest)) {
+                        setData(json)
+                    }
+                })
+                .catch(() => {})
+        }, 5000) // 5 giây kiểm tra ngầm 1 lần
+
+        return () => clearInterval(interval)
+    }, [data])
 
     if (loading) {
         return (

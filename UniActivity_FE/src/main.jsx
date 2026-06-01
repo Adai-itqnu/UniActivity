@@ -1,3 +1,6 @@
+// ⚡ Phải import TRƯỚC TIÊN — override window.fetch để tự động gắn JWT token
+import './utils/fetchInterceptor'
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

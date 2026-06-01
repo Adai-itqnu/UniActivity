@@ -25,10 +25,10 @@ const processQueue = (error, token = null) => {
 }
 
 /**
- * Lấy access token từ localStorage
+ * Lấy access token từ sessionStorage
  */
 export function getAccessToken() {
-    return localStorage.getItem('accessToken')
+    return sessionStorage.getItem('accessToken')
 }
 
 /**
@@ -36,7 +36,7 @@ export function getAccessToken() {
  */
 export function getStoredUser() {
     try {
-        const user = localStorage.getItem('user')
+        const user = sessionStorage.getItem('user')
         return user ? JSON.parse(user) : null
     } catch {
         return null
@@ -54,9 +54,9 @@ export function isAuthenticated() {
  * Xóa tokens và redirect về login
  */
 export function logout() {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
+    sessionStorage.removeItem('accessToken')
+    sessionStorage.removeItem('refreshToken')
+    sessionStorage.removeItem('user')
     window.location.href = '/login'
 }
 
@@ -64,7 +64,7 @@ export function logout() {
  * Refresh access token bằng refresh token
  */
 async function refreshAccessToken() {
-    const refreshToken = localStorage.getItem('refreshToken')
+    const refreshToken = sessionStorage.getItem('refreshToken')
     if (!refreshToken) {
         throw new Error('No refresh token')
     }
@@ -80,7 +80,7 @@ async function refreshAccessToken() {
     }
 
     const data = await response.json()
-    localStorage.setItem('accessToken', data.accessToken)
+    sessionStorage.setItem('accessToken', data.accessToken)
     return data.accessToken
 }
 

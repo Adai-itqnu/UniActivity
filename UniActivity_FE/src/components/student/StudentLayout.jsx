@@ -8,15 +8,8 @@ export default function StudentLayout() {
     const [currentUser, setCurrentUser] = useState(null)
 
     useEffect(() => {
-        const headers = { 'Accept': 'application/json' }
-        const accessToken = localStorage.getItem('accessToken')
-        if (accessToken) {
-            headers['Authorization'] = `Bearer ${accessToken}`
-        }
-        fetch('/api/auth/me', {
-            credentials: 'include',
-            headers,
-        })
+        // Interceptor tự động gắn JWT token
+        fetch('/api/auth/me')
             .then(async (res) => {
                 if (res.ok) return res.json()
                 const text = await res.text().catch(() => '')
@@ -25,9 +18,9 @@ export default function StudentLayout() {
             .then(setCurrentUser)
             .catch((err) => {
                 console.error('[StudentLayout] Auth error:', err.message)
-                localStorage.removeItem('accessToken')
-                localStorage.removeItem('refreshToken')
-                localStorage.removeItem('user')
+                sessionStorage.removeItem('accessToken')
+                sessionStorage.removeItem('refreshToken')
+                sessionStorage.removeItem('user')
                 window.location.href = '/login?error=session&message=' + encodeURIComponent(err.message)
             })
     }, [])

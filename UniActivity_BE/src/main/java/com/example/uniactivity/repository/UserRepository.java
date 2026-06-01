@@ -34,7 +34,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByStudentClass(StudentClass studentClass);
     
     // Find manager of a class
-    Optional<User> findByStudentClassAndRole(StudentClass studentClass, Role role);
+    List<User> findByStudentClassAndRole(StudentClass studentClass, Role role);
     
     // Tìm sinh viên theo role có lớp (dùng khi gửi thông báo toàn trường)
     List<User> findByRoleAndStudentClassIsNotNull(Role role);

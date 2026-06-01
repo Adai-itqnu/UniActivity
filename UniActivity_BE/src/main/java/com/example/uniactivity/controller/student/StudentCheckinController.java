@@ -175,7 +175,7 @@ public class StudentCheckinController {
                 StudentClass studentClass = currentUser.getStudentClass();
                 if (studentClass != null) {
                     userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
-                        .ifPresent(manager -> notificationService.notifyStudentCheckedIn(
+                        .forEach(manager -> notificationService.notifyStudentCheckedIn(
                             manager, currentUser.getFullName(), activity.getName()));
                 }
             } catch (Exception ignored) {}
@@ -277,7 +277,7 @@ public class StudentCheckinController {
                 StudentClass studentClass = currentUser.getStudentClass();
                 if (studentClass != null) {
                     userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
-                        .ifPresent(manager -> notificationService.notifyEvidenceSubmitted(
+                        .forEach(manager -> notificationService.notifyEvidenceSubmitted(
                             manager, currentUser.getFullName(), activity.getName()));
                 }
             } catch (Exception ignored) {}

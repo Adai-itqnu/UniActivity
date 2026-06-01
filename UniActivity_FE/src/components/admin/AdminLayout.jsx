@@ -9,15 +9,8 @@ export default function AdminLayout() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const headers = { 'Accept': 'application/json' }
-    const accessToken = localStorage.getItem('accessToken')
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`
-    }
-    fetch('/api/auth/me', {
-      credentials: 'include',
-      headers,
-    })
+    // Interceptor tự động gắn JWT token, không cần set thủ công
+    fetch('/api/auth/me')
       .then(async (res) => {
         if (res.ok) return res.json()
         const text = await res.text().catch(() => '')
@@ -26,9 +19,9 @@ export default function AdminLayout() {
       .then(setCurrentUser)
       .catch((err) => {
         console.error('[AdminLayout] Auth error:', err.message)
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
+        sessionStorage.removeItem('accessToken')
+        sessionStorage.removeItem('refreshToken')
+        sessionStorage.removeItem('user')
         navigate('/login?error=session&message=' + encodeURIComponent(err.message), { replace: true })
       })
   }, [navigate])

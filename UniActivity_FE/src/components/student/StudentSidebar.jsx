@@ -44,9 +44,9 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
             await fetch('/logout', { method: 'POST', credentials: 'include' })
         } catch (_) { /* ignore */ }
         // Clear JWT tokens
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
+        sessionStorage.removeItem('accessToken')
+        sessionStorage.removeItem('refreshToken')
+        sessionStorage.removeItem('user')
         window.location.href = '/login'
     }
 
