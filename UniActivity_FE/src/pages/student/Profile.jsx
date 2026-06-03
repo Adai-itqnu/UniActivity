@@ -54,19 +54,18 @@ export default function Profile() {
                 setFullName(data.fullName || '')
                 setPhone(data.phone || '')
                 setLoading(false)
+
+                // Fetch score data based on role
+                const apiPrefix = data.role === 'MANAGER' ? '/manager/api' : '/student/api'
+                fetch(`${apiPrefix}/my-scores`, { credentials: 'include' })
+                    .then(r => { if (!r.ok) throw new Error(); return r.json() })
+                    .then(setScoreData)
+                    .catch(() => {})
             })
             .catch(() => setLoading(false))
     }
 
     useEffect(() => { fetchProfile() }, [])
-
-    // Fetch score data
-    useEffect(() => {
-        fetch('/student/api/my-scores', { credentials: 'include' })
-            .then(r => { if (!r.ok) throw new Error(); return r.json() })
-            .then(data => setScoreData(data))
-            .catch(() => {})
-    }, [])
 
     const handleSaveProfile = async () => {
         if (!fullName.trim()) {
@@ -269,7 +268,7 @@ export default function Profile() {
                                     </div>
                                 </div>
                                 {/* Detail link */}
-                                <button onClick={() => navigate('/student/my-scores')} className="mt-3 text-sm text-emerald-500 font-medium hover:underline flex items-center gap-1">
+                                <button onClick={() => navigate(profile?.role === 'MANAGER' ? '/manager/my-scores' : '/student/my-scores')} className="mt-3 text-sm text-emerald-500 font-medium hover:underline flex items-center gap-1">
                                     Chi tiết →
                                 </button>
                             </div>

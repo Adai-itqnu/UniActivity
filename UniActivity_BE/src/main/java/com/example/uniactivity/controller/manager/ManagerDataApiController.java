@@ -1,20 +1,25 @@
 package com.example.uniactivity.controller.manager;
 
-import com.example.uniactivity.entity.ClassJoinRequest;
-import com.example.uniactivity.entity.PointRequest;
-import com.example.uniactivity.entity.User;
+import com.example.uniactivity.entity.*;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.repository.UserRepository;
+import com.example.uniactivity.repository.SemesterRepository;
 import com.example.uniactivity.security.CustomUserDetails;
-import com.example.uniactivity.service.ActivityService;
-import com.example.uniactivity.service.ClassJoinRequestService;
-import com.example.uniactivity.service.PointRequestService;
-import com.example.uniactivity.service.TrainingPointService;
+import com.example.uniactivity.service.*;
+import com.example.uniactivity.enums.RegistrationStatus;
+import com.example.uniactivity.enums.EvidenceStatus;
+import com.example.uniactivity.enums.Role;
+import com.example.uniactivity.util.GeoUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,6 +38,12 @@ public class ManagerDataApiController {
     private final ActivityService activityService;
     private final ActivityRegistrationRepository activityRegistrationRepository;
     private final TrainingPointService trainingPointService;
+    private final SemesterRepository semesterRepository;
+    private final ScoringRulesService scoringRulesService;
+    private final FileUploadService fileUploadService;
+    private final DynamicQrTokenService dynamicQrTokenService;
+
+    private static final DateTimeFormatter DTF = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     // ==================== DASHBOARD ====================
 
@@ -269,5 +280,523 @@ public class ManagerDataApiController {
         data.put("user", userInfo);
 
         return ResponseEntity.ok(data);
+    }
+
+    // ===================== MANAGER AS STUDENT SCORES =====================
+
+    @GetMapping("/my-scores")
+    public ResponseEntity<?> getMyScores(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        boolean hasClass = currentUser.getStudentClass() != null;
+        response.put("hasClass", hasClass);
+
+        // User info
+        Map<String, Object> userInfo = new LinkedHashMap<>();
+        userInfo.put("fullName", currentUser.getFullName());
+        userInfo.put("username", currentUser.getUsername());
+        if (currentUser.getStudentClass() != null) {
+            userInfo.put("className", currentUser.getStudentClass().getName());
+            userInfo.put("facultyName", currentUser.getStudentClass().getFaculty() != null
+                    ? currentUser.getStudentClass().getFaculty().getName() : null);
+        }
+        response.put("user", userInfo);
+
+        // Current semester
+        Semester currentSemester = semesterRepository.findByIsCurrentTrue();
+        if (currentSemester != null) {
+            response.put("currentSemester", Map.of(
+                    "id", currentSemester.getId(),
+                    "name", currentSemester.getName()
+            ));
+        }
+
+        // Scores
+        Map<String, Integer> scores = trainingPointService.getScoresByCriteria(currentUser);
+        Map<Integer, Integer> categoryTotals = trainingPointService.getCategoryTotals(currentUser);
+        int totalScore = trainingPointService.getTotalScore(currentUser);
+        String classification = trainingPointService.getClassification(currentUser);
+
+        response.put("scores", scores);
+        response.put("categoryTotals", categoryTotals);
+        response.put("totalScore", totalScore);
+        response.put("classification", classification);
+
+        // Approved activities (điểm từ hoạt động)
+        List<ActivityRegistration> approvedActivities = activityRegistrationRepository
+                .findByStudentOrderByRegisteredAtDesc(currentUser).stream()
+                .filter(r -> Boolean.TRUE.equals(r.getIsApproved()))
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> approvedList = new ArrayList<>();
+        for (ActivityRegistration reg : approvedActivities) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("activityName", reg.getActivity().getName());
+            if (reg.getScoreOption() != null) {
+                item.put("scoreCategory", reg.getScoreOption().getScoreCategory());
+                item.put("scoreValue", reg.getScoreOption().getScoreValue());
+            }
+            approvedList.add(item);
+        }
+        response.put("approvedActivities", approvedList);
+
+        // Point requests
+        List<PointRequest> myRequests = pointRequestService.getStudentPointRequests(currentUser);
+        List<Map<String, Object>> requestList = new ArrayList<>();
+        for (PointRequest req : myRequests) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", req.getId());
+            item.put("criteriaCode", req.getCriteriaCode());
+            item.put("claimedScore", req.getClaimedScore());
+            item.put("description", req.getDescription());
+            item.put("status", req.getStatus() != null ? req.getStatus().name() : null);
+            item.put("reviewComment", req.getReviewComment());
+            item.put("createdAt", req.getCreatedAt() != null ? req.getCreatedAt().format(DTF) : null);
+            requestList.add(item);
+        }
+        response.put("myRequests", requestList);
+
+        // Scoring rules (for the form)
+        JsonNode scoringRules = scoringRulesService.getScoringRules();
+        response.put("scoringRules", scoringRules);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ===================== MANAGER AS STUDENT REGISTRATIONS =====================
+
+    @GetMapping("/my-registrations")
+    public ResponseEntity<?> getMyRegistrations(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+
+        boolean hasClass = currentUser.getStudentClass() != null;
+        List<ActivityRegistration> registrations = activityRegistrationRepository
+                .findByStudentOrderByRegisteredAtDesc(currentUser);
+
+        List<Map<String, Object>> regList = new ArrayList<>();
+        for (ActivityRegistration reg : registrations) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", reg.getId());
+
+            // Activity info
+            Activity a = reg.getActivity();
+            Map<String, Object> actInfo = new LinkedHashMap<>();
+            actInfo.put("id", a.getId());
+            actInfo.put("name", a.getName());
+            actInfo.put("location", a.getLocation());
+            actInfo.put("startTime", a.getStartTime() != null ? a.getStartTime().format(DTF) : null);
+            item.put("activity", actInfo);
+
+            item.put("registeredAt", reg.getRegisteredAt() != null ? reg.getRegisteredAt().format(DTF) : null);
+            item.put("status", reg.getStatus() != null ? reg.getStatus().name() : null);
+            item.put("evidenceUrl", reg.getEvidenceUrl());
+            item.put("isApproved", reg.getIsApproved());
+            item.put("rejectionReason", reg.getRejectionReason());
+
+            // Score option info
+            if (reg.getScoreOption() != null) {
+                Map<String, Object> soInfo = new LinkedHashMap<>();
+                soInfo.put("id", reg.getScoreOption().getId());
+                soInfo.put("name", reg.getScoreOption().getName());
+                soInfo.put("scoreCategory", reg.getScoreOption().getScoreCategory());
+                soInfo.put("scoreValue", reg.getScoreOption().getScoreValue());
+                item.put("scoreOption", soInfo);
+            }
+
+            regList.add(item);
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "hasClass", hasClass,
+                "registrations", regList
+        ));
+    }
+
+    // ===================== MANAGER MANAGEMENT ACTIVITIES =====================
+
+    @GetMapping("/activities")
+    public ResponseEntity<?> getActivities(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+        if (currentUser.getStudentClass() == null) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(activityService.getVisibleActivitiesForStudent(currentUser));
+    }
+
+    // ===================== MANAGER AS STUDENT ACTIVITIES =====================
+
+    @GetMapping("/my-activities")
+    public ResponseEntity<?> getMyActivities(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+
+        boolean hasClass = currentUser.getStudentClass() != null;
+        if (!hasClass) {
+            return ResponseEntity.ok(Map.of(
+                    "hasClass", false,
+                    "activities", List.of(),
+                    "registeredActivityIds", List.of()
+            ));
+        }
+
+        var activities = activityService.getVisibleActivitiesForStudent(currentUser).stream()
+                .filter(a -> !"DRAFT".equals(a.getStatus()))
+                .toList();
+
+        // Registered activity IDs - chỉ tính những đăng ký còn hiệu lực (không phải CANCELLED)
+        Set<Long> registeredIds = new HashSet<>();
+        for (var reg : activityRegistrationRepository.findByStudentOrderByRegisteredAtDesc(currentUser)) {
+            if (reg.getStatus() != RegistrationStatus.CANCELLED) {
+                registeredIds.add(reg.getActivity().getId());
+            }
+        }
+
+        // Build activity list
+        List<Map<String, Object>> activityList = new ArrayList<>();
+        for (var a : activities) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", a.getId());
+            item.put("name", a.getName());
+            item.put("description", a.getDescription());
+            item.put("bannerUrl", a.getBannerUrl());
+            item.put("location", a.getLocation());
+            item.put("startTime", a.getStartTime() != null ? a.getStartTime().format(DTF) : null);
+            item.put("endTime", a.getEndTime() != null ? a.getEndTime().format(DTF) : null);
+            item.put("registrationDeadline", a.getRegistrationDeadline() != null ? a.getRegistrationDeadline().format(DTF) : null);
+            item.put("status", a.getStatus());
+            item.put("maxSlots", a.getMaxSlots() != null ? a.getMaxSlots() : 0);
+            item.put("registeredCount", a.getRegisteredCount() != null ? a.getRegisteredCount() : 0);
+            item.put("isDeadlinePassed", Boolean.TRUE.equals(a.getIsDeadlinePassed()));
+            item.put("isEnded", Boolean.TRUE.equals(a.getIsEnded()));
+            item.put("isRegistered", registeredIds.contains(a.getId()));
+            activityList.add(item);
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "hasClass", true,
+                "activities", activityList,
+                "registeredActivityIds", registeredIds
+        ));
+    }
+
+    // ===================== MANAGER AS STUDENT ACTIVITY REGISTRATION =====================
+
+    @PostMapping("/activities/{activityId}/register")
+    public ResponseEntity<?> registerActivity(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long activityId) {
+        try {
+            User currentUser = userRepository.findById(userDetails.getUser().getId())
+                    .orElse(userDetails.getUser());
+            
+            Map<String, Object> result = activityService.registerStudentForActivity(currentUser, activityId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/activities/{activityId}/register")
+    public ResponseEntity<?> cancelRegistration(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long activityId) {
+        try {
+            User currentUser = userRepository.findById(userDetails.getUser().getId())
+                    .orElse(userDetails.getUser());
+            
+            Map<String, Object> result = activityService.cancelStudentRegistration(currentUser, activityId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // ===================== MANAGER AS STUDENT CHECKIN & EVIDENCE =====================
+
+    @PostMapping("/checkin/{activityId}")
+    public ResponseEntity<?> performCheckin(@AuthenticationPrincipal CustomUserDetails userDetails,
+                                             @PathVariable Long activityId,
+                                             @RequestParam(required = false) Long classId,
+                                             @RequestParam(required = false) String token,
+                                             @RequestParam(required = false) Double lat,
+                                             @RequestParam(required = false) Double lng,
+                                             @RequestParam(required = false) Double accuracy) {
+        try {
+            User currentUser = userRepository.findById(userDetails.getUser().getId())
+                    .orElse(userDetails.getUser());
+            Activity activity = activityService.findActivityById(activityId);
+            
+            // Validate classId if provided (from QR code)
+            if (classId != null && currentUser.getStudentClass() != null) {
+                if (!currentUser.getStudentClass().getId().equals(classId)) {
+                    return ResponseEntity.badRequest().body(Map.of("message", "Mã QR này chỉ dành cho lớp khác. Vui lòng sử dụng mã QR của lớp bạn."));
+                }
+            }
+
+            // Validate Dynamic QR Token
+            if (classId != null && token != null && !token.isBlank()) {
+                if (!dynamicQrTokenService.validateToken(token, activityId, classId)) {
+                    return ResponseEntity.status(403).body(Map.of(
+                        "message", "Mã QR đã hết hạn. Vui lòng quét lại mã QR mới từ Manager.",
+                        "expired", true
+                    ));
+                }
+            }
+
+            // Validate GPS Location
+            if (activity.getLatitude() != null && activity.getLongitude() != null
+                    && activity.getCheckinRadius() != null && activity.getCheckinRadius() > 0) {
+                if (lat == null || lng == null) {
+                    return ResponseEntity.status(403).body(Map.of(
+                        "message", "Hoạt động này yêu cầu xác minh vị trí. Vui lòng cấp quyền GPS để check-in.",
+                        "gpsRequired", true
+                    ));
+                }
+                if (accuracy != null && accuracy > 150) {
+                    return ResponseEntity.status(403).body(Map.of(
+                        "message", String.format("Tín hiệu GPS không chính xác (sai số: %.0fm). Vui lòng ra khu vực thoáng hoặc bật Wi-Fi để tăng độ chính xác.", accuracy),
+                        "gpsInaccurate", true
+                    ));
+                }
+                double distance = GeoUtils.haversineMeters(
+                        activity.getLatitude(), activity.getLongitude(), lat, lng);
+                int radius = activity.getCheckinRadius();
+                if (distance > radius) {
+                    return ResponseEntity.status(403).body(Map.of(
+                        "message", String.format("Bạn cách địa điểm hoạt động khoảng %.0fm. Chỉ được check-in trong phạm vi %dm.", distance, radius),
+                        "tooFar", true,
+                        "distance", Math.round(distance),
+                        "radius", radius
+                    ));
+                }
+            }
+            
+            var registration = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
+            if (registration.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Bạn chưa đăng ký hoạt động này"));
+            }
+            
+            ActivityRegistration reg = registration.get();
+            if (reg.getStatus() == RegistrationStatus.ATTENDED) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Bạn đã check-in rồi"));
+            }
+            if (reg.getStatus() == RegistrationStatus.CANCELLED) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Đăng ký đã bị hủy, không thể check-in"));
+            }
+            
+            reg.setStatus(RegistrationStatus.ATTENDED);
+            activityRegistrationRepository.save(reg);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Check-in thành công! Cảm ơn bạn đã tham gia.",
+                "activityName", activity.getName()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/activities/{activityId}/score-options")
+    public ResponseEntity<?> getScoreOptionsForActivity(@PathVariable Long activityId) {
+        try {
+            return ResponseEntity.ok(activityService.getScoreOptionsByActivity(activityId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Collections.emptyList());
+        }
+    }
+
+    @PostMapping("/activities/{activityId}/evidence")
+    public ResponseEntity<?> uploadEvidence(@AuthenticationPrincipal CustomUserDetails userDetails,
+                                             @PathVariable Long activityId,
+                                             @RequestParam("scoreOptionId") Long scoreOptionId,
+                                             @RequestParam("files") List<MultipartFile> files) {
+        try {
+            User currentUser = userRepository.findById(userDetails.getUser().getId())
+                    .orElse(userDetails.getUser());
+            Activity activity = activityService.findActivityById(activityId);
+            
+            var registration = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
+            if (registration.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Bạn chưa đăng ký hoạt động này"));
+            }
+            
+            ActivityRegistration reg = registration.get();
+            if (reg.getStatus() != RegistrationStatus.ATTENDED) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Bạn cần check-in trước khi nộp minh chứng"));
+            }
+            if (files == null || files.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng chọn ít nhất 1 ảnh"));
+            }
+            if (files.size() > 3) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Tối đa 3 ảnh"));
+            }
+
+            var scoreOption = activityService.findScoreOptionById(scoreOptionId);
+            if (scoreOption == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Mục điểm không hợp lệ"));
+            }
+            reg.setScoreOption(scoreOption);
+            
+            List<String> uploadedUrls = new ArrayList<>();
+            String basePath = System.getProperty("user.dir");
+            java.nio.file.Path uploadPath = java.nio.file.Paths.get(basePath, "src", "main", "resources", "uploads", "evidence");
+            java.nio.file.Files.createDirectories(uploadPath);
+            
+            for (MultipartFile file : files) {
+                if (file.isEmpty()) continue;
+                String originalName = file.getOriginalFilename();
+                if (originalName == null) originalName = "file.jpg";
+                String extension = "";
+                int dotIndex = originalName.lastIndexOf('.');
+                if (dotIndex > 0) {
+                    extension = originalName.substring(dotIndex);
+                }
+                String fileName = UUID.randomUUID().toString().substring(0, 8) + extension;
+                java.nio.file.Path filePath = uploadPath.resolve(fileName);
+                java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                uploadedUrls.add("/uploads/evidence/" + fileName);
+            }
+            
+            reg.setEvidenceUrl(String.join(",", uploadedUrls));
+            reg.setIsApproved(null); // Pending approval
+            reg.setRejectionReason(null);
+            activityRegistrationRepository.save(reg);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Đã nộp " + uploadedUrls.size() + " ảnh minh chứng! Vui lòng chờ xác nhận từ quản lý lớp."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    // ===================== MANAGER AS STUDENT MANUAL POINT REQUESTS =====================
+
+    @PostMapping("/calculate-gpa-score")
+    public ResponseEntity<?> calculateGpaScore(@RequestBody Map<String, Double> body) {
+        try {
+            Double currentGpa = body.get("currentGpa");
+            Double previousGpa = body.get("previousGpa");
+            if (currentGpa == null || previousGpa == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng nhập cả ĐTB hiện tại và kỳ trước"));
+            }
+            int score = scoringRulesService.calculateAcademicScore(currentGpa, previousGpa);
+            return ResponseEntity.ok(Map.of(
+                    "score", score,
+                    "currentGpa", currentGpa,
+                    "previousGpa", previousGpa
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/save-gpa-score")
+    public ResponseEntity<?> saveGpaScore(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, Double> body) {
+        try {
+            User currentUser = userRepository.findById(userDetails.getUser().getId())
+                    .orElse(userDetails.getUser());
+            Double currentGpa = body.get("currentGpa");
+            Double previousGpa = body.get("previousGpa");
+            if (currentGpa == null || previousGpa == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng nhập cả ĐTB hiện tại và kỳ trước"));
+            }
+            int score = scoringRulesService.calculateAcademicScore(currentGpa, previousGpa);
+            trainingPointService.addOrUpdateScore(
+                    currentUser, "1.1", score, "AUTO_GPA", null,
+                    String.format("ĐTB kỳ này: %.2f, ĐTB kỳ trước: %.2f", currentGpa, previousGpa)
+            );
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã lưu điểm mục 1.1 (Kết quả học tập)",
+                    "score", score
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/upload-evidence")
+    public ResponseEntity<?> uploadEvidence(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam("files") MultipartFile[] files) {
+        try {
+            for (MultipartFile file : files) {
+                if (!fileUploadService.isValidImage(file)) {
+                    return ResponseEntity.badRequest().body(Map.of("message", "Chỉ chấp nhận file ảnh (jpg, png, gif, webp)"));
+                }
+                if (file.getSize() > fileUploadService.getMaxFileSize()) {
+                    return ResponseEntity.badRequest().body(Map.of("message", "File không được vượt quá 5MB"));
+                }
+            }
+            List<String> uploadedPaths = fileUploadService.uploadEvidenceImages(files);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã tải lên " + uploadedPaths.size() + " ảnh",
+                    "paths", uploadedPaths
+            ));
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Lỗi khi tải ảnh: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/point-requests")
+    public ResponseEntity<?> submitPointRequest(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, Object> body) {
+        try {
+            User currentUser = userRepository.findById(userDetails.getUser().getId())
+                    .orElse(userDetails.getUser());
+            if (currentUser.getStudentClass() == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Bạn cần tham gia lớp trước khi nhập điểm"));
+            }
+            String criteriaCode = (String) body.get("criteriaCode");
+            Integer claimedScore = body.get("claimedScore") != null ? 
+                    ((Number) body.get("claimedScore")).intValue() : null;
+            String description = (String) body.get("description");
+            
+            @SuppressWarnings("unchecked")
+            List<String> evidenceImages = (List<String>) body.get("evidenceImages");
+            String evidenceImageUrl = evidenceImages != null && !evidenceImages.isEmpty() 
+                    ? String.join(",", evidenceImages) 
+                    : (String) body.get("evidenceImageUrl");
+
+            if (criteriaCode == null || description == null || description.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng điền đầy đủ thông tin"));
+            }
+            if (scoringRulesService.requiresEvidence(criteriaCode) && 
+                (evidenceImageUrl == null || evidenceImageUrl.trim().isEmpty())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Mục này yêu cầu minh chứng (ảnh)"));
+            }
+            PointRequest request = pointRequestService.createPointRequest(
+                    currentUser, criteriaCode, claimedScore, description.trim(), evidenceImageUrl);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã gửi yêu cầu điểm mục " + request.getCriteriaCode(),
+                    "id", request.getId()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/scoring-rules/{categoryCode}")
+    public ResponseEntity<?> getScoringRulesHtml(@PathVariable String categoryCode) {
+        String rulesHtml = scoringRulesService.getRulesHtml(categoryCode);
+        return ResponseEntity.ok(Map.of(
+                "rulesHtml", rulesHtml,
+                "requiresEvidence", scoringRulesService.requiresEvidence(categoryCode),
+                "defaultScore", scoringRulesService.getDefaultScore(categoryCode)
+        ));
     }
 }

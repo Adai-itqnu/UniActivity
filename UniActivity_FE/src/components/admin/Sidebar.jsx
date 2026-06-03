@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 
 const menuGroups = [
   {
@@ -32,10 +32,16 @@ const menuGroups = [
   },
 ]
 
-export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
+export default function Sidebar({ collapsed, setCollapsed, currentUser, mobileOpen, setMobileOpen }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const userMenuRef = useRef(null)
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    if (mobileOpen) setMobileOpen(false)
+  }, [location.pathname])
 
   // Close user menu on outside click
   useEffect(() => {
@@ -70,23 +76,28 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
     .toUpperCase()
     .slice(0, 2)
 
-  return (
-    <aside
-      className={`fixed top-0 left-0 z-40 h-screen flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
-        collapsed ? 'w-[72px]' : 'w-64'
-      }`}
-    >
+  const sidebarContent = (isMobile = false) => (
+    <>
       {/* Logo + Toggle */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-gray-200 dark:border-gray-700 shrink-0">
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-white hover:bg-primary-dark transition-colors shrink-0"
-        >
-          <span className="material-symbols-outlined text-xl">
-            {collapsed ? 'menu' : 'menu_open'}
-          </span>
-        </button>
-        {!collapsed && (
+        {isMobile ? (
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-white hover:bg-primary-dark transition-colors shrink-0"
+          >
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-white hover:bg-primary-dark transition-colors shrink-0"
+          >
+            <span className="material-symbols-outlined text-xl">
+              {collapsed ? 'menu' : 'menu_open'}
+            </span>
+          </button>
+        )}
+        {(!collapsed || isMobile) && (
           <div className="overflow-hidden">
             <h1 className="text-lg font-bold text-gray-800 dark:text-white leading-tight whitespace-nowrap">
               UniActivity
@@ -102,12 +113,12 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 scrollbar-thin">
         {menuGroups.map((group, gi) => (
           <div key={gi} className={gi > 0 ? 'mt-4' : ''}>
-            {group.label && !collapsed && (
+            {group.label && (!collapsed || isMobile) && (
               <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                 {group.label}
               </p>
             )}
-            {group.label && collapsed && gi > 0 && (
+            {group.label && collapsed && !isMobile && gi > 0 && (
               <div className="mx-3 mb-2 border-t border-gray-200 dark:border-gray-700" />
             )}
             {group.items.map((item) => (
@@ -119,14 +130,14 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
                     isActive
                       ? 'bg-primary text-white shadow-md shadow-primary/25'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  } ${collapsed ? 'justify-center' : ''}`
+                  } ${collapsed && !isMobile ? 'justify-center' : ''}`
                 }
-                title={collapsed ? item.name : undefined}
+                title={collapsed && !isMobile ? item.name : undefined}
               >
                 <span className="material-symbols-outlined text-xl shrink-0">
                   {item.icon}
                 </span>
-                {!collapsed && <span className="whitespace-nowrap">{item.name}</span>}
+                {(!collapsed || isMobile) && <span className="whitespace-nowrap">{item.name}</span>}
               </NavLink>
             ))}
           </div>
@@ -139,7 +150,7 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
         {showUserMenu && (
           <div
             className={`absolute bottom-full mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in ${
-              collapsed ? 'left-1/2 -translate-x-1/2 w-48' : 'left-3 right-3'
+              collapsed && !isMobile ? 'left-1/2 -translate-x-1/2 w-48' : 'left-3 right-3'
             }`}
           >
             {/* User info header */}
@@ -180,9 +191,9 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
         <button
           onClick={() => setShowUserMenu(!showUserMenu)}
           className={`flex items-center gap-3 w-full rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-            collapsed ? 'justify-center p-2' : 'px-3 py-2.5'
+            collapsed && !isMobile ? 'justify-center p-2' : 'px-3 py-2.5'
           }`}
-          title={collapsed ? userName : undefined}
+          title={collapsed && !isMobile ? userName : undefined}
         >
           {/* Avatar */}
           {avatarUrl ? (
@@ -197,7 +208,7 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
             </div>
           )}
 
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <>
               <div className="flex-1 text-left min-w-0">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
@@ -214,6 +225,34 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser }) {
           )}
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 z-40 h-screen flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${
+          collapsed ? 'w-[72px]' : 'w-64'
+        } hidden lg:flex`}
+      >
+        {sidebarContent(false)}
+      </aside>
+
+      {/* Mobile Sidebar Overlay */}
+      {mobileOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Mobile Sidebar */}
+          <aside className="fixed top-0 left-0 z-50 h-screen w-64 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-2xl lg:hidden animate-slide-in">
+            {sidebarContent(true)}
+          </aside>
+        </>
+      )}
+    </>
   )
 }

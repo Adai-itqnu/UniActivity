@@ -31,6 +31,14 @@ export default function UserList() {
     const [showFilter, setShowFilter] = useState(false)
     const filterRef = useRef(null)
 
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 50
+
+    // Reset page to 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [search, filterRole])
+
     // Modal
     const [modalOpen, setModalOpen] = useState(false)
     const [modalMode, setModalMode] = useState('create')
@@ -74,6 +82,9 @@ export default function UserList() {
         const mf = filterRole === 'ALL' || u.role === filterRole
         return ms && mf
     })
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
     const openCreate = () => {
         setModalMode('create'); setEditing(null)
@@ -206,7 +217,7 @@ export default function UserList() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                            {filtered.length > 0 ? filtered.map(u => {
+                            {paginated.length > 0 ? paginated.map(u => {
                                 const rc = roleConfig[u.role] || roleConfig.STUDENT
                                 const sc = statusConfig[u.status] || statusConfig.ACTIVE
                                 return (
@@ -252,7 +263,55 @@ export default function UserList() {
                         </tbody>
                     </table>
                 </div>
-                <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800"><p className="text-xs text-gray-400">Hiển thị {filtered.length} / {items.length}</p></div>
+                {/* Pagination Controls */}
+                <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/30">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Hiển thị <span className="font-semibold text-gray-700 dark:text-gray-300">{filtered.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}</span> đến <span className="font-semibold text-gray-700 dark:text-gray-300">{Math.min(filtered.length, currentPage * ITEMS_PER_PAGE)}</span> trong <span className="font-semibold text-gray-700 dark:text-gray-300">{filtered.length}</span> người dùng
+                    </p>
+                    {totalPages > 1 && (
+                        <div className="inline-flex items-center gap-1">
+                            <button
+                                type="button"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(1)}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang đầu"
+                            >
+                                <span className="material-symbols-outlined text-sm">first_page</span>
+                            </button>
+                            <button
+                                type="button"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang trước"
+                            >
+                                <span className="material-symbols-outlined text-sm">chevron_left</span>
+                            </button>
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 px-3">
+                                Trang {currentPage} / {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang sau"
+                            >
+                                <span className="material-symbols-outlined text-sm">chevron_right</span>
+                            </button>
+                            <button
+                                type="button"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(totalPages)}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang cuối"
+                            >
+                                <span className="material-symbols-outlined text-sm">last_page</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Create/Edit Modal */}

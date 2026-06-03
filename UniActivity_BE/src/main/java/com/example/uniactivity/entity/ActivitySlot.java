@@ -31,4 +31,7 @@ public class ActivitySlot {
     private Integer maxQuantity;
 
     private Integer currentQuantity = 0;
+
+    @Version
+    private Long version;
 }

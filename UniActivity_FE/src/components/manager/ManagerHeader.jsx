@@ -24,7 +24,7 @@ const notifTypeIcons = {
 }
 const defaultNotifIcon = { icon: 'notifications', iconColor: 'text-gray-500 bg-gray-100 dark:bg-gray-800' }
 
-export default function ManagerHeader() {
+export default function ManagerHeader({ onMenuToggle }) {
     const { isDark, toggleDarkMode } = useDarkMode()
     const navigate = useNavigate()
     const [showNotifications, setShowNotifications] = useState(false)
@@ -74,7 +74,20 @@ export default function ManagerHeader() {
             .catch(() => { setNotifications([]); setUnreadCount(0); setNotifLoading(false) })
     }, [])
 
-    useEffect(() => { fetchNotifications(); const interval = setInterval(fetchNotifications, 30000); return () => clearInterval(interval) }, [fetchNotifications])
+    useEffect(() => {
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 30000);
+
+        const handleNewNotification = () => {
+            fetchNotifications();
+        };
+        window.addEventListener('new-notification', handleNewNotification);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('new-notification', handleNewNotification);
+        };
+    }, [fetchNotifications])
 
     const handleMarkAllRead = () => {
         fetch('/manager/api/notifications/read-all', { method: 'POST', credentials: 'include' })
@@ -89,7 +102,7 @@ export default function ManagerHeader() {
         <header className="h-14 sm:h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between gap-3 shrink-0">
             {/* Left */}
             <div className="flex items-center gap-3">
-                <button className="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <button onClick={onMenuToggle} className="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                     <span className="material-symbols-outlined">menu</span>
                 </button>
                 <div className="flex items-center gap-2 lg:hidden">

@@ -45,7 +45,7 @@ const roleConfig = {
   STUDENT: { label: 'Sinh viên', bg: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400', icon: 'school' },
 }
 
-export default function Header() {
+export default function Header({ onMenuToggle }) {
   const { isDark, toggleDarkMode } = useDarkMode()
   const navigate = useNavigate()
   const [showNotifications, setShowNotifications] = useState(false)
@@ -81,7 +81,16 @@ export default function Header() {
   useEffect(() => {
     fetchNotifications()
     const interval = setInterval(fetchNotifications, 30000)
-    return () => clearInterval(interval)
+
+    const handleNewNotification = () => {
+      fetchNotifications()
+    }
+    window.addEventListener('new-notification', handleNewNotification)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('new-notification', handleNewNotification)
+    }
   }, [fetchNotifications])
 
   const handleMarkAllRead = () => {
@@ -115,10 +124,18 @@ export default function Header() {
   return (
     <>
     <header className="sticky top-0 z-30 flex items-center h-14 sm:h-16 px-4 sm:px-6 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shrink-0">
-      {/* Left — Logo */}
-      <div className="flex items-center gap-2 mr-4 lg:hidden">
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-white"><span className="material-symbols-outlined text-lg">school</span></div>
-        <span className="font-bold text-gray-800 dark:text-white text-sm">UniActivity</span>
+      {/* Left — Logo & Hamburger */}
+      <div className="flex items-center gap-2 mr-4">
+        <button
+          onClick={onMenuToggle}
+          className="lg:hidden flex items-center justify-center w-10 h-10 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <span className="material-symbols-outlined text-xl">menu</span>
+        </button>
+        <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-white"><span className="material-symbols-outlined text-lg">school</span></div>
+          <span className="font-bold text-gray-800 dark:text-white text-sm">UniActivity</span>
+        </div>
       </div>
 
       {/* Center — Search */}

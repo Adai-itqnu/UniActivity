@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useOutletContext } from 'react-router-dom'
 
 const STATUS_MAP = {
     REGISTERED: { label: 'Chưa check-in', icon: 'schedule', cls: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' },
@@ -15,6 +15,7 @@ const EVIDENCE_STATUS = {
 }
 
 export default function MyRegistrations() {
+    const { currentUser } = useOutletContext()
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState(null)
@@ -30,15 +31,39 @@ export default function MyRegistrations() {
     // View evidence modal
     const [viewEvidence, setViewEvidence] = useState(null)
 
+    const apiPrefix = currentUser?.role === 'MANAGER' ? '/manager/api' : '/student/api'
+    const checkinPath = currentUser?.role === 'MANAGER' ? '/manager/checkin' : '/student/checkin'
+    const activitiesPath = currentUser?.role === 'MANAGER' ? '/manager/my-activities' : '/student/activities'
+
     const fetchData = () => {
         setLoading(true)
-        fetch('/student/api/my-registrations', { credentials: 'include' })
+        fetch(`${apiPrefix}/my-registrations`, { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Lỗi'); return r.json() })
             .then(json => { setData(json); setLoading(false) })
             .catch(() => setLoading(false))
     }
 
-    useEffect(() => { fetchData() }, [])
+    useEffect(() => {
+        if (currentUser) fetchData()
+    }, [currentUser, apiPrefix])
+
+    // Lắng nghe sự kiện SSE để cập nhật lịch sử đăng ký ngầm ngay lập tức khi minh chứng được duyệt/từ chối
+    useEffect(() => {
+        const handleNotification = (e) => {
+            const type = e.detail?.type
+            if (type === 'EVIDENCE_APPROVED' || type === 'EVIDENCE_REJECTED') {
+                console.log('[MyRegistrations] 🔔 Nhận thông báo duyệt minh chứng, cập nhật danh sách ngầm...')
+                fetch(`${apiPrefix}/my-registrations`, { credentials: 'include' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(json => {
+                        if (json) setData(json)
+                    })
+                    .catch(() => {})
+            }
+        }
+        window.addEventListener('new-notification', handleNotification)
+        return () => window.removeEventListener('new-notification', handleNotification)
+    }, [apiPrefix])
 
     const showToast = (type, text) => {
         setToast({ type, text })
@@ -49,7 +74,7 @@ export default function MyRegistrations() {
         if (!confirm('Bạn có chắc muốn hủy đăng ký hoạt động này?')) return
         setActionLoading(activityId)
         try {
-            const res = await fetch(`/student/api/activities/${activityId}/register`, { method: 'DELETE', credentials: 'include' })
+            const res = await fetch(`${apiPrefix}/activities/${activityId}/register`, { method: 'DELETE', credentials: 'include' })
             const json = await res.json()
             if (!res.ok) throw new Error(json.message)
             showToast('success', json.message)
@@ -66,7 +91,7 @@ export default function MyRegistrations() {
         setEvidenceFiles([])
         setSelectedScoreOption('')
         try {
-            const res = await fetch(`/student/api/activities/${reg.activity.id}/score-options`, { credentials: 'include' })
+            const res = await fetch(`${apiPrefix}/activities/${reg.activity.id}/score-options`, { credentials: 'include' })
             if (res.ok) setScoreOptions(await res.json())
         } catch { setScoreOptions([]) }
     }
@@ -85,7 +110,7 @@ export default function MyRegistrations() {
             const fd = new FormData()
             fd.append('scoreOptionId', selectedScoreOption)
             evidenceFiles.forEach(f => fd.append('files', f))
-            const res = await fetch(`/student/api/activities/${evidenceModal.activity.id}/evidence`, {
+            const res = await fetch(`${apiPrefix}/activities/${evidenceModal.activity.id}/evidence`, {
                 method: 'POST', credentials: 'include', body: fd,
             })
             const json = await res.json()
@@ -125,7 +150,7 @@ export default function MyRegistrations() {
                     </div>
                 </div>
                 <NavLink
-                    to="/student/checkin"
+                    to={checkinPath}
                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-sm rounded-xl hover:shadow-lg hover:shadow-emerald-500/30 transition-all shrink-0"
                 >
                     <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
@@ -147,7 +172,7 @@ export default function MyRegistrations() {
                     <span className="material-symbols-outlined text-6xl text-gray-300 dark:text-gray-600 block mb-3">inbox</span>
                     <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-1">Bạn chưa đăng ký hoạt động nào</h3>
                     <p className="text-sm text-gray-400 mb-4">Hãy khám phá và đăng ký các hoạt động.</p>
-                    <NavLink to="/student/activities" className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white font-medium rounded-xl hover:bg-emerald-600 transition-colors text-sm">
+                    <NavLink to={activitiesPath} className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white font-medium rounded-xl hover:bg-emerald-600 transition-colors text-sm">
                         <span className="material-symbols-outlined text-lg">event</span>
                         Xem hoạt động
                     </NavLink>

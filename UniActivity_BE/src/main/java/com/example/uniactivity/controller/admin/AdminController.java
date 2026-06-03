@@ -233,4 +233,47 @@ public class AdminController {
         return ResponseEntity.ok(result);
     }
 
+    /**
+     * API cho Admin gửi thông báo broadcast
+     * Body: { "title": "...", "message": "...", "target": "ALL" | "MANAGER" | "STUDENT" }
+     */
+    @PostMapping("/api/notifications/broadcast")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> broadcastNotification(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, String> body) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        
+        if (userDetails == null) {
+            result.put("success", false);
+            result.put("message", "Unauthorized");
+            return ResponseEntity.status(401).body(result);
+        }
+        
+        String title = body.get("title");
+        String message = body.get("message");
+        String target = body.getOrDefault("target", "ALL");
+        
+        if (title == null || title.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "Tiêu đề không được để trống");
+            return ResponseEntity.badRequest().body(result);
+        }
+        
+        if (message == null || message.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("message", "Nội dung không được để trống");
+            return ResponseEntity.badRequest().body(result);
+        }
+        
+        int count = notificationService.broadcastNotification(title.trim(), message.trim(), target);
+        
+        String targetLabel = "ALL".equals(target) ? "toàn hệ thống" : 
+                             "MANAGER".equals(target) ? "quản lý lớp" : "sinh viên";
+        result.put("success", true);
+        result.put("message", "Đã gửi thông báo đến " + count + " người dùng (" + targetLabel + ")");
+        result.put("recipientCount", count);
+        return ResponseEntity.ok(result);
+    }
+
 }

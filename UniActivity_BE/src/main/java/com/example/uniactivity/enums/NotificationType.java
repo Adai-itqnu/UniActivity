@@ -46,8 +46,22 @@ public enum NotificationType {
     /** Sinh viên đã check-in hoạt động */
     STUDENT_CHECKED_IN,
     
+    /** Có sinh viên đăng ký/hủy hoạt động */
+    ACTIVITY_REGISTRATION,
+    
     // ===== Thông báo chung =====
     
     /** Dashboard cần cập nhật (cho real-time stats) */
-    DASHBOARD_UPDATED
+    DASHBOARD_UPDATED,
+    
+    // ===== Thông báo cho ADMIN =====
+    
+    /** Slot hoạt động đã đầy */
+    ACTIVITY_SLOT_FULL,
+    
+    /** Hoạt động hết hạn đăng ký */
+    ACTIVITY_DEADLINE_PASSED,
+    
+    /** Admin gửi thông báo thủ công (broadcast) */
+    ADMIN_BROADCAST
 }

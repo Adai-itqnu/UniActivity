@@ -1,32 +1,46 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 
 // Menu cấu trúc cho Student Portal — theme xanh lá
 const menuGroups = [
     {
-        label: 'Menu',
+        label: 'Tổng quan',
         items: [
             { name: 'Dashboard', icon: 'dashboard', path: '/student/home' },
-            { name: 'Lớp của tôi', icon: 'school', path: '/student/my-class' },
-            { name: 'Hoạt động', icon: 'event', path: '/student/activities', badge: 'New' },
-            { name: 'Check-in', icon: 'qr_code_scanner', path: '/student/checkin' },
-            { name: 'Lịch sử đăng ký', icon: 'content_paste', path: '/student/my-registrations' },
-            { name: 'Điểm rèn luyện', icon: 'star', path: '/student/my-scores' },
         ],
     },
     {
-        label: 'Hỗ trợ',
+        label: 'Lớp học',
+        items: [
+            { name: 'Lớp của tôi', icon: 'school', path: '/student/my-class' },
+        ],
+    },
+    {
+        label: 'Cá nhân',
+        items: [
+            { name: 'Đăng ký hoạt động', icon: 'event', path: '/student/activities' },
+            { name: 'Check-in', icon: 'qr_code_scanner', path: '/student/checkin' },
+            { name: 'Lịch sử đăng ký', icon: 'content_paste', path: '/student/my-registrations' },
+            { name: 'Điểm rèn luyện cá nhân', icon: 'military_tech', path: '/student/my-scores' },
+        ],
+    },
+    {
+        label: 'Hệ thống',
         items: [
             { name: 'Thông báo', icon: 'notifications', path: '/student/notifications' },
-            { name: 'Cài đặt', icon: 'settings', path: '/student/settings' },
-            { name: 'Trợ giúp', icon: 'help', path: '/student/help' },
         ],
     },
 ]
 
-export default function StudentSidebar({ collapsed, setCollapsed, currentUser }) {
+export default function StudentSidebar({ collapsed, setCollapsed, currentUser, mobileOpen, setMobileOpen }) {
     const [showUserMenu, setShowUserMenu] = useState(false)
     const userMenuRef = useRef(null)
+    const location = useLocation()
+
+    // Đóng mobile sidebar khi chuyển trang
+    useEffect(() => {
+        if (mobileOpen) setMobileOpen(false)
+    }, [location.pathname])
 
     // Đóng user menu khi click bên ngoài
     useEffect(() => {
@@ -60,22 +74,28 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
         .toUpperCase()
         .slice(0, 2)
 
-    return (
-        <aside
-            className={`fixed top-0 left-0 z-40 h-screen flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-72'
-                } hidden lg:flex`}
-        >
+    const sidebarContent = (isMobile = false) => (
+        <>
             {/* Logo + Toggle */}
             <div className="flex items-center gap-3 px-4 h-16 border-b border-gray-200 dark:border-gray-700 shrink-0">
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shrink-0 shadow-lg shadow-emerald-500/30"
-                >
-                    <span className="material-symbols-outlined text-xl">
-                        {collapsed ? 'menu' : 'menu_open'}
-                    </span>
-                </button>
-                {!collapsed && (
+                {isMobile ? (
+                    <button
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shrink-0 shadow-lg shadow-emerald-500/30"
+                    >
+                        <span className="material-symbols-outlined text-xl">close</span>
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-colors shrink-0 shadow-lg shadow-emerald-500/30"
+                    >
+                        <span className="material-symbols-outlined text-xl">
+                            {collapsed ? 'menu' : 'menu_open'}
+                        </span>
+                    </button>
+                )}
+                {(!collapsed || isMobile) && (
                     <div className="overflow-hidden">
                         <h1 className="text-lg font-bold text-slate-900 dark:text-white leading-tight whitespace-nowrap">
                             UniActivity
@@ -91,12 +111,12 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
             <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 scrollbar-thin hide-scrollbar">
                 {menuGroups.map((group, gi) => (
                     <div key={gi} className={gi > 0 ? 'mt-6' : ''}>
-                        {group.label && !collapsed && (
+                        {group.label && (!collapsed || isMobile) && (
                             <p className="px-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                                 {group.label}
                             </p>
                         )}
-                        {group.label && collapsed && gi > 0 && (
+                        {group.label && collapsed && !isMobile && gi > 0 && (
                             <div className="mx-3 mb-2 border-t border-gray-200 dark:border-gray-700" />
                         )}
                         {group.items.map((item) => (
@@ -107,15 +127,15 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
                                     `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${isActive
                                         ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-emerald-600 dark:hover:text-emerald-400'
-                                    } ${collapsed ? 'justify-center' : ''}`
+                                    } ${collapsed && !isMobile ? 'justify-center' : ''}`
                                 }
-                                title={collapsed ? item.name : undefined}
+                                title={collapsed && !isMobile ? item.name : undefined}
                             >
                                 <span className="material-symbols-outlined text-xl shrink-0">
                                     {item.icon}
                                 </span>
-                                {!collapsed && <span className="whitespace-nowrap">{item.name}</span>}
-                                {!collapsed && item.badge && (
+                                {(!collapsed || isMobile) && <span className="whitespace-nowrap">{item.name}</span>}
+                                {(!collapsed || isMobile) && item.badge && (
                                     <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
                                         {item.badge}
                                     </span>
@@ -126,15 +146,12 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
                 ))}
             </nav>
 
-            {/* CTA Card + Logout */}
+            {/* User Profile */}
             <div className="p-3 border-t border-gray-200 dark:border-gray-700 shrink-0">
-
-
-                {/* User Profile */}
                 <div className="relative" ref={userMenuRef}>
                     {showUserMenu && (
                         <div
-                            className={`absolute bottom-full mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in ${collapsed ? 'left-1/2 -translate-x-1/2 w-48' : 'left-0 right-0'
+                            className={`absolute bottom-full mb-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in ${collapsed && !isMobile ? 'left-1/2 -translate-x-1/2 w-48' : 'left-0 right-0'
                                 }`}
                         >
                             <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
@@ -169,9 +186,9 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
 
                     <button
                         onClick={() => setShowUserMenu(!showUserMenu)}
-                        className={`flex items-center gap-3 w-full rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${collapsed ? 'justify-center p-2' : 'px-3 py-2.5'
+                        className={`flex items-center gap-3 w-full rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${collapsed && !isMobile ? 'justify-center p-2' : 'px-3 py-2.5'
                             }`}
-                        title={collapsed ? userName : undefined}
+                        title={collapsed && !isMobile ? userName : undefined}
                     >
                         {avatarUrl ? (
                             <img
@@ -184,7 +201,7 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
                                 {initials}
                             </div>
                         )}
-                        {!collapsed && (
+                        {(!collapsed || isMobile) && (
                             <>
                                 <div className="flex-1 text-left min-w-0">
                                     <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
@@ -202,6 +219,33 @@ export default function StudentSidebar({ collapsed, setCollapsed, currentUser })
                     </button>
                 </div>
             </div>
-        </aside>
+        </>
+    )
+
+    return (
+        <>
+            {/* Desktop Sidebar */}
+            <aside
+                className={`fixed top-0 left-0 z-40 h-screen flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-72'
+                    } hidden lg:flex`}
+            >
+                {sidebarContent(false)}
+            </aside>
+
+            {/* Mobile Sidebar Overlay */}
+            {mobileOpen && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
+                        onClick={() => setMobileOpen(false)}
+                    />
+                    {/* Mobile Sidebar */}
+                    <aside className="fixed top-0 left-0 z-50 h-screen w-72 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 shadow-2xl lg:hidden animate-slide-in">
+                        {sidebarContent(true)}
+                    </aside>
+                </>
+            )}
+        </>
     )
 }

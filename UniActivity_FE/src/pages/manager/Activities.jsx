@@ -30,12 +30,46 @@ export default function ManagerActivities() {
     const [viewMode, setViewMode] = useState('table')
     const [qrModal, setQrModal] = useState(null)
 
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 50
+
+    // Reset page to 1 when search or filter changes
     useEffect(() => {
+        setCurrentPage(1)
+    }, [search, statusFilter])
+
+    const fetchActivities = () => {
         fetch('/manager/api/activities', { credentials: 'include' })
             .then(r => r.ok ? r.json() : [])
             .then(setActivities)
             .catch(() => setActivities([]))
             .finally(() => setLoading(false))
+    }
+
+    useEffect(() => {
+        fetchActivities()
+    }, [])
+
+    // Lắng nghe SSE: khi Admin publish hoạt động mới → tự re-fetch danh sách
+    useEffect(() => {
+        const handleNewActivity = () => {
+            console.log('[ManagerActivities] 🆕 New activity event received, re-fetching...')
+            fetch('/manager/api/activities', { credentials: 'include' })
+                .then(r => r.ok ? r.json() : null)
+                .then(json => { if (json) setActivities(json) })
+                .catch(() => {})
+        }
+        const handleNotification = (e) => {
+            if (e.detail?.type === 'NEW_ACTIVITY') {
+                handleNewActivity()
+            }
+        }
+        window.addEventListener('new-activity', handleNewActivity)
+        window.addEventListener('new-notification', handleNotification)
+        return () => {
+            window.removeEventListener('new-activity', handleNewActivity)
+            window.removeEventListener('new-notification', handleNotification)
+        }
     }, [])
 
     const filtered = activities.filter(a => {
@@ -44,6 +78,9 @@ export default function ManagerActivities() {
         const matchStatus = statusFilter === 'ALL' || a.status === statusFilter
         return matchSearch && matchStatus
     })
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
     /* ── Stat counts ── */
     const countOpen = activities.filter(a => a.status === 'OPEN').length
@@ -137,9 +174,61 @@ export default function ManagerActivities() {
                     <p className="text-gray-400 font-medium">Không tìm thấy hoạt động nào</p>
                 </div>
             ) : viewMode === 'grid' ? (
-                <GridView items={filtered} openQR={openQR} />
+                <GridView items={paginated} openQR={openQR} />
             ) : (
-                <TableView items={filtered} openQR={openQR} />
+                <TableView items={paginated} openQR={openQR} />
+            )}
+
+            {/* Pagination Controls */}
+            {filtered.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 bg-white dark:bg-gray-900 px-6 rounded-2xl border border-gray-100 dark:border-gray-800">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Hiển thị <span className="font-semibold text-gray-700 dark:text-white">{filtered.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}</span> đến <span className="font-semibold text-gray-700 dark:text-white">{Math.min(filtered.length, currentPage * ITEMS_PER_PAGE)}</span> trong <span className="font-semibold text-gray-700 dark:text-white">{filtered.length}</span> hoạt động
+                    </p>
+                    {totalPages > 1 && (
+                        <div className="inline-flex items-center gap-1">
+                            <button
+                                type="button"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(1)}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang đầu"
+                            >
+                                <span className="material-symbols-outlined text-sm">first_page</span>
+                            </button>
+                            <button
+                                type="button"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang trước"
+                            >
+                                <span className="material-symbols-outlined text-sm">chevron_left</span>
+                            </button>
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 px-3">
+                                Trang {currentPage} / {totalPages}
+                            </span>
+                            <button
+                                type="button"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang sau"
+                            >
+                                <span className="material-symbols-outlined text-sm">chevron_right</span>
+                            </button>
+                            <button
+                                type="button"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(totalPages)}
+                                className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                title="Trang cuối"
+                            >
+                                <span className="material-symbols-outlined text-sm">last_page</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
             )}
 
             {/* ── QR Modal ── */}

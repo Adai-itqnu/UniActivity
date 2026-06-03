@@ -7,6 +7,8 @@ export default function MyClass() {
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [searchInput, setSearchInput] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 50
 
     useEffect(() => {
         setLoading(true)
@@ -16,6 +18,10 @@ export default function MyClass() {
             .then(json => { setData(json); setLoading(false) })
             .catch(() => setLoading(false))
     }, [search])
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [data])
 
     const handleSearch = (e) => {
         e.preventDefault()
@@ -39,6 +45,8 @@ export default function MyClass() {
     }
 
     const { studentClass: cls, members = [], memberCount = 0 } = data
+    const totalPages = Math.ceil(members.length / ITEMS_PER_PAGE)
+    const paginated = members.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
     return (
         <div className="space-y-6">
@@ -115,58 +123,109 @@ export default function MyClass() {
                     <span className="text-sm text-gray-400">{members.length} kết quả</span>
                 </div>
 
-                {members.length > 0 ? (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="bg-gray-50 dark:bg-gray-800/50">
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mã SV</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Họ tên</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Vai trò</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {members.map((m, i) => (
-                                    <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{i + 1}</td>
-                                        <td className="px-6 py-4">
-                                            <span className="px-2.5 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg">
-                                                {m.username}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                {m.avatarUrl ? (
-                                                    <img src={m.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                                ) : (
-                                                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-xs font-bold">
-                                                        {m.fullName?.charAt(0) || '?'}
-                                                    </div>
-                                                )}
-                                                <span className="text-sm font-medium text-gray-900 dark:text-white">{m.fullName}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{m.email}</td>
-                                        <td className="px-6 py-4">
-                                            {m.role === 'MANAGER' ? (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full">
-                                                    <span className="material-symbols-outlined text-sm">star</span>
-                                                    Quản lý lớp
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
-                                                    <span className="material-symbols-outlined text-sm">school</span>
-                                                    Sinh viên
-                                                </span>
-                                            )}
-                                        </td>
+                {paginated.length > 0 ? (
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-gray-800/50">
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mã SV</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Họ tên</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Vai trò</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                    {paginated.map((m, i) => (
+                                        <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{(currentPage - 1) * ITEMS_PER_PAGE + i + 1}</td>
+                                            <td className="px-6 py-4">
+                                                <span className="px-2.5 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg">
+                                                    {m.username}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    {m.avatarUrl ? (
+                                                        <img src={m.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-xs font-bold">
+                                                            {m.fullName?.charAt(0) || '?'}
+                                                        </div>
+                                                    )}
+                                                    <span className="text-sm font-medium text-gray-900 dark:text-white">{m.fullName}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{m.email}</td>
+                                            <td className="px-6 py-4">
+                                                {m.role === 'MANAGER' ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full">
+                                                        <span className="material-symbols-outlined text-sm">star</span>
+                                                        Quản lý lớp
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
+                                                        <span className="material-symbols-outlined text-sm">school</span>
+                                                        Sinh viên
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Pagination Controls */}
+                        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/30">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Hiển thị <span className="font-semibold text-gray-700 dark:text-gray-300">{members.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}</span> đến <span className="font-semibold text-gray-700 dark:text-gray-300">{Math.min(members.length, currentPage * ITEMS_PER_PAGE)}</span> trong <span className="font-semibold text-gray-700 dark:text-gray-300">{members.length}</span> thành viên
+                            </p>
+                            {totalPages > 1 && (
+                                <div className="inline-flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(1)}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-emerald-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang đầu"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">first_page</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-emerald-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang trước"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">chevron_left</span>
+                                    </button>
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 px-3">
+                                        Trang {currentPage} / {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-emerald-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang sau"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">chevron_right</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-850 text-gray-500 hover:text-emerald-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang cuối"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">last_page</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </>
                 ) : (
                     <div className="py-12 text-center">
                         <span className="material-symbols-outlined text-5xl text-gray-300 dark:text-gray-600 block mb-2">search_off</span>

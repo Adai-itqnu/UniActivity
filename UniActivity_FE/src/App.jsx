@@ -90,6 +90,12 @@ function App() {
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<ManagerNotifications />} />
             <Route path="profile" element={<Profile />} />
+            {/* Student-like features for Manager */}
+            <Route path="my-activities" element={<StudentActivities />} />
+            <Route path="my-registrations" element={<MyRegistrations />} />
+            <Route path="my-scores" element={<MyScores />} />
+            <Route path="checkin" element={<Checkin />} />
+            <Route path="checkin/:activityId" element={<Checkin />} />
           </Route>
 
           {/* Redirect mặc định sang login */}

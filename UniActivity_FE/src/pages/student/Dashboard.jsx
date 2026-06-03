@@ -39,9 +39,10 @@ export default function StudentDashboard() {
     }, [])
 
     useEffect(() => {
+        if (!currentUser) return
         setLoading(true)
         fetchDashboardData()
-    }, [fetchDashboardData])
+    }, [currentUser, fetchDashboardData])
 
     // Tự động kiểm tra trạng thái duyệt lớp nếu đang chờ duyệt
     useEffect(() => {
@@ -60,6 +61,21 @@ export default function StudentDashboard() {
 
         return () => clearInterval(interval)
     }, [data])
+
+    // Lắng nghe sự kiện SSE thông báo mới để cập nhật số liệu Dashboard ngầm lập tức
+    useEffect(() => {
+        const handleNotification = () => {
+            console.log('[StudentDashboard] 🔔 Nhận thông báo mới, cập nhật Dashboard ngầm...')
+            fetch('/student/api/dashboard', { credentials: 'include' })
+                .then((res) => res.ok ? res.json() : null)
+                .then((json) => {
+                    if (json) setData(json)
+                })
+                .catch(() => {})
+        }
+        window.addEventListener('new-notification', handleNotification)
+        return () => window.removeEventListener('new-notification', handleNotification)
+    }, [])
 
     if (loading) {
         return (

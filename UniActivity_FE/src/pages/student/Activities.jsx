@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { NavLink, useSearchParams } from 'react-router-dom'
+import { NavLink, useSearchParams, useOutletContext } from 'react-router-dom'
 
 export default function Activities() {
+    const { currentUser } = useOutletContext()
     const [searchParams] = useSearchParams()
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -11,15 +12,61 @@ export default function Activities() {
     const [actionLoading, setActionLoading] = useState(null)
     const [toast, setToast] = useState(null)
 
+    const apiPrefix = currentUser?.role === 'MANAGER' ? '/manager/api' : '/student/api'
+    const activitiesUrl = currentUser?.role === 'MANAGER' ? '/manager/api/my-activities' : '/student/api/activities'
+    const homePath = currentUser?.role === 'MANAGER' ? '/manager/dashboard' : '/student/home'
+
     const fetchData = () => {
         setLoading(true)
-        fetch('/student/api/activities', { credentials: 'include' })
+        fetch(activitiesUrl, { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Lỗi'); return r.json() })
             .then(json => { setData(json); setLoading(false) })
             .catch(() => setLoading(false))
     }
 
-    useEffect(() => { fetchData() }, [])
+    const fetchSilent = () => {
+        fetch(activitiesUrl, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(json => { if (json) setData(json) })
+            .catch(() => {})
+    }
+
+    useEffect(() => {
+        if (currentUser) fetchData()
+    }, [currentUser, activitiesUrl])
+
+    // Auto-polling mỗi 3 giây để cập nhật số lượng slot, trạng thái đăng ký
+    useEffect(() => {
+        if (!currentUser) return
+        const interval = setInterval(() => {
+            fetchSilent()
+        }, 2000)
+        return () => clearInterval(interval)
+    }, [currentUser, activitiesUrl])
+
+    // Lắng nghe SSE: khi Admin publish hoạt động mới → tự re-fetch danh sách
+    useEffect(() => {
+        const handleNewActivity = () => {
+            console.log('[Activities] 🆕 New activity event received, re-fetching...')
+            fetchSilent()
+        }
+        const handleNotification = (e) => {
+            const type = e.detail?.type
+            // Cập nhật khi có thông báo liên quan đến hoạt động hoặc đăng ký
+            if (type === 'NEW_ACTIVITY' || type === 'REGISTRATION_UPDATE' || type === 'ACTIVITY_UPDATE') {
+                handleNewActivity()
+            }
+        }
+        window.addEventListener('new-activity', handleNewActivity)
+        window.addEventListener('new-notification', handleNotification)
+        window.addEventListener('registration-update', handleNewActivity)
+        return () => {
+            window.removeEventListener('new-activity', handleNewActivity)
+            window.removeEventListener('new-notification', handleNotification)
+            window.removeEventListener('registration-update', handleNewActivity)
+        }
+    }, [activitiesUrl])
+
 
     const showToast = (type, text) => {
         setToast({ type, text })
@@ -29,7 +76,7 @@ export default function Activities() {
     const handleRegister = async (activityId) => {
         setActionLoading(activityId)
         try {
-            const res = await fetch(`/student/api/activities/${activityId}/register`, {
+            const res = await fetch(`${apiPrefix}/activities/${activityId}/register`, {
                 method: 'POST', credentials: 'include',
             })
             const json = await res.json()
@@ -47,7 +94,7 @@ export default function Activities() {
         if (!confirm('Bạn có chắc muốn hủy đăng ký?')) return
         setActionLoading(activityId)
         try {
-            const res = await fetch(`/student/api/activities/${activityId}/register`, {
+            const res = await fetch(`${apiPrefix}/activities/${activityId}/register`, {
                 method: 'DELETE', credentials: 'include',
             })
             const json = await res.json()
@@ -90,7 +137,7 @@ export default function Activities() {
                     <span className="material-symbols-outlined text-5xl text-amber-500 mb-4 block">warning</span>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Bạn chưa tham gia lớp nào</h3>
                     <p className="text-gray-500 dark:text-gray-400">
-                        Vui lòng vào <NavLink to="/student/home" className="text-emerald-500 font-bold hover:underline">trang chủ</NavLink> để tham gia lớp trước khi xem hoạt động.
+                        Vui lòng vào <NavLink to={homePath} className="text-emerald-500 font-bold hover:underline">trang chủ</NavLink> để tham gia lớp trước khi xem hoạt động.
                     </p>
                 </div>
             </div>
@@ -303,18 +350,23 @@ function ActivityCard({ activity: a, onRegister, onCancel, actionLoading }) {
                             </button>
                         )}
                     </div>
+                ) : a.isDeadlinePassed ? (
+                    <div className="w-full py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1 bg-red-100 dark:bg-red-900/20 text-red-500 dark:text-red-400 cursor-not-allowed">
+                        <span className="material-symbols-outlined text-sm">timer_off</span>
+                        Đã hết hạn đăng ký
+                    </div>
+                ) : isFull ? (
+                    <div className="w-full py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1 bg-gray-100 dark:bg-gray-800 text-gray-500 cursor-not-allowed">
+                        <span className="material-symbols-outlined text-sm">block</span>
+                        Đã đầy
+                    </div>
                 ) : (
                     <button
                         onClick={() => onRegister(a.id)}
-                        disabled={a.isDeadlinePassed || isFull || actionLoading === a.id}
-                        className={`w-full py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1 transition-colors disabled:opacity-50 ${isFull ? 'bg-gray-100 dark:bg-gray-800 text-gray-500' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
+                        disabled={actionLoading === a.id}
+                        className="w-full py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1 transition-colors bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50"
                     >
-                        {actionLoading === a.id ? 'Đang xử lý...' : isFull ? (
-                            <>
-                                <span className="material-symbols-outlined text-sm">block</span>
-                                Đã đầy
-                            </>
-                        ) : (
+                        {actionLoading === a.id ? 'Đang xử lý...' : (
                             <>
                                 <span className="material-symbols-outlined text-sm">person_add</span>
                                 Đăng ký

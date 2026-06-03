@@ -29,6 +29,10 @@ const TYPE_CONFIG = {
     EVIDENCE_REJECTED: { icon: 'unpublished', gradient: 'from-red-400 to-rose-500', border: 'border-l-red-500' },
     NEW_ACTIVITY: { icon: 'celebration', gradient: 'from-pink-400 to-rose-500', border: 'border-l-pink-500' },
     DASHBOARD_UPDATED: { icon: 'dashboard', gradient: 'from-indigo-400 to-blue-600', border: 'border-l-indigo-500' },
+    ACTIVITY_SLOT_FULL: { icon: 'group', gradient: 'from-orange-400 to-red-500', border: 'border-l-orange-500' },
+    ACTIVITY_DEADLINE_PASSED: { icon: 'timer_off', gradient: 'from-red-400 to-rose-600', border: 'border-l-red-600' },
+    ADMIN_BROADCAST: { icon: 'campaign', gradient: 'from-violet-400 to-purple-600', border: 'border-l-violet-500' },
+    ACTIVITY_REGISTRATION: { icon: 'how_to_reg', gradient: 'from-cyan-400 to-blue-500', border: 'border-l-cyan-500' },
 }
 const DEFAULT_TYPE = { icon: 'notifications', gradient: 'from-gray-400 to-gray-500', border: 'border-l-gray-400' }
 
@@ -39,6 +43,14 @@ export default function AdminNotifications() {
     const [page, setPage] = useState(0)
     const [unreadCount, setUnreadCount] = useState(0)
     const loaderRef = useRef(null)
+
+    // Broadcast form state
+    const [showBroadcast, setShowBroadcast] = useState(false)
+    const [bcTitle, setBcTitle] = useState('')
+    const [bcMessage, setBcMessage] = useState('')
+    const [bcTarget, setBcTarget] = useState('ALL')
+    const [bcSending, setBcSending] = useState(false)
+    const [bcToast, setBcToast] = useState(null)
 
     const fetchPage = useCallback((p = 0, append = false) => {
         if (p === 0) setLoading(true)
@@ -80,6 +92,37 @@ export default function AdminNotifications() {
         setUnreadCount(0)
     }
 
+    const handleBroadcast = async () => {
+        if (!bcTitle.trim() || !bcMessage.trim()) {
+            setBcToast({ type: 'error', text: 'Vui lòng nhập đủ tiêu đề và nội dung' })
+            setTimeout(() => setBcToast(null), 3000)
+            return
+        }
+        setBcSending(true)
+        try {
+            const res = await fetch('/admin/api/notifications/broadcast', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: bcTitle.trim(), message: bcMessage.trim(), target: bcTarget }),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.message)
+            setBcToast({ type: 'success', text: data.message })
+            setBcTitle('')
+            setBcMessage('')
+            setBcTarget('ALL')
+            setShowBroadcast(false)
+            // Re-fetch notifications to show the new broadcast
+            setTimeout(() => { setPage(0); fetchPage(0) }, 500)
+        } catch (e) {
+            setBcToast({ type: 'error', text: e.message })
+        } finally {
+            setBcSending(false)
+            setTimeout(() => setBcToast(null), 4000)
+        }
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -95,14 +138,120 @@ export default function AdminNotifications() {
                         </p>
                     </div>
                 </div>
-                {unreadCount > 0 && (
-                    <button onClick={handleMarkAllRead}
-                        className="px-4 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-2 self-start shadow-sm">
-                        <span className="material-symbols-outlined text-lg">done_all</span>
-                        Đánh dấu tất cả đã đọc
+                <div className="flex items-center gap-2 self-start">
+                    <button onClick={() => setShowBroadcast(!showBroadcast)}
+                        className="px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl hover:shadow-lg hover:shadow-purple-500/25 transition-all flex items-center gap-2 shadow-sm">
+                        <span className="material-symbols-outlined text-lg">campaign</span>
+                        Gửi thông báo
                     </button>
-                )}
+                    {unreadCount > 0 && (
+                        <button onClick={handleMarkAllRead}
+                            className="px-4 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-2 shadow-sm">
+                            <span className="material-symbols-outlined text-lg">done_all</span>
+                            Đánh dấu tất cả đã đọc
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* Toast */}
+            {bcToast && (
+                <div className={`px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 shadow-sm ${bcToast.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'}`}>
+                    <span className="material-symbols-outlined text-lg">{bcToast.type === 'success' ? 'check_circle' : 'error'}</span>
+                    {bcToast.text}
+                </div>
+            )}
+
+            {/* Broadcast Form */}
+            {showBroadcast && (
+                <div className="bg-white dark:bg-gray-900 rounded-2xl border border-purple-200 dark:border-purple-800/50 p-6 shadow-sm">
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="size-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-white">campaign</span>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white">Gửi thông báo đến người dùng</h3>
+                            <p className="text-xs text-gray-400">Thông báo sẽ được gửi đến tất cả người dùng theo phạm vi chọn</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {/* Target Selection */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 block">Phạm vi gửi</label>
+                            <div className="flex gap-2">
+                                {[
+                                    { value: 'ALL', label: 'Toàn hệ thống', icon: 'public', color: 'from-blue-500 to-cyan-500' },
+                                    { value: 'MANAGER', label: 'Quản lý lớp', icon: 'manage_accounts', color: 'from-amber-500 to-orange-500' },
+                                    { value: 'STUDENT', label: 'Sinh viên', icon: 'school', color: 'from-emerald-500 to-teal-500' },
+                                ].map(opt => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setBcTarget(opt.value)}
+                                        className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                            bcTarget === opt.value
+                                                ? `bg-gradient-to-r ${opt.color} text-white shadow-sm`
+                                                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        <span className="material-symbols-outlined text-sm">{opt.icon}</span>
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Title */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 block">Tiêu đề</label>
+                            <input
+                                type="text"
+                                value={bcTitle}
+                                onChange={e => setBcTitle(e.target.value)}
+                                placeholder="Nhập tiêu đề thông báo..."
+                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition"
+                                maxLength={100}
+                            />
+                        </div>
+
+                        {/* Message */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 block">Nội dung</label>
+                            <textarea
+                                value={bcMessage}
+                                onChange={e => setBcMessage(e.target.value)}
+                                placeholder="Nhập nội dung thông báo..."
+                                rows={3}
+                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent resize-none transition"
+                                maxLength={500}
+                            />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-2 pt-1">
+                            <button onClick={() => { setShowBroadcast(false); setBcTitle(''); setBcMessage(''); setBcTarget('ALL') }}
+                                className="px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                Hủy
+                            </button>
+                            <button onClick={handleBroadcast}
+                                disabled={bcSending}
+                                className="px-5 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-semibold rounded-xl hover:shadow-lg hover:shadow-purple-500/25 transition-all disabled:opacity-50 flex items-center gap-2">
+                                {bcSending ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Đang gửi...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-lg">send</span>
+                                        Gửi thông báo
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">

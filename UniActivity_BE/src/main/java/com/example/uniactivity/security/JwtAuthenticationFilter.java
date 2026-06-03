@@ -73,13 +73,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Trích xuất JWT từ header: Authorization: Bearer <token>
+     * Trích xuất JWT từ header hoặc query parameter (dành cho EventSource SSE)
      */
     private String extractJwtFromRequest(HttpServletRequest request) {
+        // 1. Lấy từ header Authorization
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }
+
+        // 2. Lấy từ query parameter (hỗ trợ EventSource kết nối SSE)
+        String tokenParam = request.getParameter("token");
+        if (StringUtils.hasText(tokenParam)) {
+            return tokenParam;
+        }
+
         return null;
     }
 }

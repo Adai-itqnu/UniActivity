@@ -69,6 +69,9 @@ public class PointRequestService {
             String criteriaName = scoringRulesService.getCriteriaName(criteriaCode);
             userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
                 .forEach(manager -> notificationService.notifyNewPointRequest(manager, student.getFullName(), criteriaName));
+            
+            // Gửi dashboard_update SSE cho tất cả các manager để cập nhật số lượng yêu cầu duyệt điểm real-time
+            sendDashboardUpdateToClassManagers(studentClass);
         }
         
         return saved;
@@ -140,8 +143,8 @@ public class PointRequestService {
         String criteriaName = scoringRulesService.getCriteriaName(request.getCriteriaCode());
         notificationService.notifyPointRequestApproved(request.getStudent(), criteriaName, request.getClaimedScore());
         
-        // Gửi dashboard_update SSE cho manager để cập nhật stat cards real-time
-        sendDashboardUpdateToManager(manager);
+        // Gửi dashboard_update SSE cho tất cả manager để cập nhật số lượng yêu cầu điểm real-time
+        sendDashboardUpdateToClassManagers(manager.getStudentClass());
     }
 
     /**
@@ -172,27 +175,29 @@ public class PointRequestService {
         String criteriaName = scoringRulesService.getCriteriaName(request.getCriteriaCode());
         notificationService.notifyPointRequestRejected(request.getStudent(), criteriaName, comment);
         
-        // Gửi dashboard_update SSE cho manager
-        sendDashboardUpdateToManager(manager);
+        // Gửi dashboard_update SSE cho tất cả manager
+        sendDashboardUpdateToClassManagers(manager.getStudentClass());
     }
     
     /**
-     * Gửi SSE event cập nhật dashboard cho Manager
-     * Cập nhật real-time stat cards: số yêu cầu điểm đang chờ
+     * Gửi SSE event cập nhật dashboard cho tất cả các Manager thuộc lớp học
      */
-    private void sendDashboardUpdateToManager(User manager) {
+    public void sendDashboardUpdateToClassManagers(StudentClass studentClass) {
         try {
-            if (manager.getStudentClass() == null) return;
+            if (studentClass == null) return;
             
-            long pendingPointRequests = getPendingRequestCount(manager.getStudentClass());
+            long pendingPointRequests = getPendingRequestCount(studentClass);
             
             Map<String, Object> dashboardData = new HashMap<>();
             dashboardData.put("pendingPointRequests", pendingPointRequests);
             
-            sseEmitterService.sendToUser(manager.getId(), "dashboard_update", dashboardData);
-            log.debug("Sent dashboard_update to manager {} after point request processing", manager.getId());
+            userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
+                .forEach(manager -> {
+                    sseEmitterService.sendToUser(manager.getId(), "dashboard_update", dashboardData);
+                });
+            log.debug("Sent dashboard_update to all managers of class {} after point request update", studentClass.getId());
         } catch (Exception e) {
-            log.error("Failed to send dashboard update to manager: {}", e.getMessage());
+            log.error("Failed to send dashboard update to class managers: {}", e.getMessage());
         }
     }
 }

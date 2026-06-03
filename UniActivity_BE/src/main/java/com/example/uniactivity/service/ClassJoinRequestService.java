@@ -66,6 +66,9 @@ public class ClassJoinRequestService {
         userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
             .forEach(manager -> notificationService.notifyNewJoinRequest(manager, freshStudent.getFullName()));
         
+        // Gửi dashboard_update SSE cho tất cả các manager để cập nhật số lượng yêu cầu chờ duyệt real-time
+        sendDashboardUpdateToClassManagers(studentClass);
+        
         return saved;
     }
 
@@ -107,8 +110,8 @@ public class ClassJoinRequestService {
         // Gửi notification real-time cho sinh viên
         notificationService.notifyJoinRequestApproved(student, request.getStudentClass().getName());
         
-        // Gửi dashboard_update SSE cho manager để cập nhật stat cards real-time
-        sendDashboardUpdateToManager(manager);
+        // Gửi dashboard_update SSE cho tất cả manager để cập nhật số lượng thành viên và yêu cầu chờ duyệt real-time
+        sendDashboardUpdateToClassManagers(request.getStudentClass());
     }
 
     /**
@@ -136,8 +139,8 @@ public class ClassJoinRequestService {
         // Gửi notification real-time cho sinh viên
         notificationService.notifyJoinRequestRejected(request.getUser(), request.getStudentClass().getName());
         
-        // Gửi dashboard_update SSE cho manager
-        sendDashboardUpdateToManager(manager);
+        // Gửi dashboard_update SSE cho tất cả manager
+        sendDashboardUpdateToClassManagers(request.getStudentClass());
     }
 
     /**
@@ -158,24 +161,26 @@ public class ClassJoinRequestService {
     }
     
     /**
-     * Gửi SSE event cập nhật dashboard cho Manager
-     * Để stat cards (thành viên lớp, yêu cầu chờ duyệt) cập nhật real-time
+     * Gửi SSE event cập nhật dashboard cho tất cả các Manager thuộc lớp học
      */
-    private void sendDashboardUpdateToManager(User manager) {
+    public void sendDashboardUpdateToClassManagers(StudentClass studentClass) {
         try {
-            if (manager.getStudentClass() == null) return;
+            if (studentClass == null) return;
             
-            long memberCount = userRepository.countByStudentClass(manager.getStudentClass());
-            long pendingJoinRequests = getPendingRequestCount(manager.getStudentClass());
+            long memberCount = userRepository.countByStudentClass(studentClass);
+            long pendingJoinRequests = getPendingRequestCount(studentClass);
             
             Map<String, Object> dashboardData = new HashMap<>();
             dashboardData.put("memberCount", memberCount);
             dashboardData.put("pendingJoinRequests", pendingJoinRequests);
             
-            sseEmitterService.sendToUser(manager.getId(), "dashboard_update", dashboardData);
-            log.debug("Sent dashboard_update to manager {} after join request processing", manager.getId());
+            userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
+                .forEach(manager -> {
+                    sseEmitterService.sendToUser(manager.getId(), "dashboard_update", dashboardData);
+                });
+            log.debug("Sent dashboard_update to all managers of class {} after join request update", studentClass.getId());
         } catch (Exception e) {
-            log.error("Failed to send dashboard update to manager: {}", e.getMessage());
+            log.error("Failed to send dashboard update to class managers: {}", e.getMessage());
         }
     }
 }

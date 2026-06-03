@@ -6,6 +6,13 @@ export default function Members() {
     const [search, setSearch] = useState('')
     const [toast, setToast] = useState(null)
 
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 50
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [members])
+
     const showToast = (type, text) => {
         setToast({ type, text })
         setTimeout(() => setToast(null), 4000)
@@ -40,6 +47,9 @@ export default function Members() {
 
     const managerCount = members.filter(m => m.role === 'MANAGER').length
     const studentCount = members.filter(m => m.role !== 'MANAGER').length
+
+    const totalPages = Math.ceil(members.length / ITEMS_PER_PAGE)
+    const paginated = members.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
     return (
         <div className="space-y-6">
@@ -116,69 +126,120 @@ export default function Members() {
                         </div>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="bg-gray-50 dark:bg-gray-800/50">
-                                    <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">#</th>
-                                    <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thành viên</th>
-                                    <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">MSSV</th>
-                                    <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email</th>
-                                    <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">SĐT</th>
-                                    <th className="text-center px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Vai trò</th>
-                                    <th className="text-center px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                                {members.length > 0 ? members.map((m, i) => {
-                                    const initials = (m.fullName || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-                                    return (
-                                        <tr key={m.id} className="hover:bg-blue-50/40 dark:hover:bg-gray-800/50 transition-colors">
-                                            <td className="px-6 py-3.5 text-gray-400 text-xs">{i + 1}</td>
-                                            <td className="px-6 py-3.5">
-                                                <div className="flex items-center gap-3">
-                                                    {m.avatarUrl ? (
-                                                        <img src={m.avatarUrl} alt={m.fullName} className="w-10 h-10 rounded-xl object-cover" />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center">
-                                                            <span className="text-xs font-bold text-white">{initials}</span>
-                                                        </div>
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="bg-gray-50 dark:bg-gray-800/50">
+                                        <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">#</th>
+                                        <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thành viên</th>
+                                        <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">MSSV</th>
+                                        <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email</th>
+                                        <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">SĐT</th>
+                                        <th className="text-center px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Vai trò</th>
+                                        <th className="text-center px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                                    {paginated.length > 0 ? paginated.map((m, i) => {
+                                        const initials = (m.fullName || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+                                        return (
+                                            <tr key={m.id} className="hover:bg-blue-50/40 dark:hover:bg-gray-800/50 transition-colors">
+                                                <td className="px-6 py-3.5 text-gray-400 text-xs">{(currentPage - 1) * ITEMS_PER_PAGE + i + 1}</td>
+                                                <td className="px-6 py-3.5">
+                                                    <div className="flex items-center gap-3">
+                                                        {m.avatarUrl ? (
+                                                            <img src={m.avatarUrl} alt={m.fullName} className="w-10 h-10 rounded-xl object-cover" />
+                                                        ) : (
+                                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center">
+                                                                <span className="text-xs font-bold text-white">{initials}</span>
+                                                            </div>
+                                                        )}
+                                                        <span className="font-medium text-gray-900 dark:text-white">{m.fullName}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-3.5 text-gray-500 dark:text-gray-400 font-mono text-xs">{m.username}</td>
+                                                <td className="px-6 py-3.5 text-gray-500 dark:text-gray-400 text-sm">{m.email}</td>
+                                                <td className="px-6 py-3.5 text-gray-500 dark:text-gray-400 text-sm">{m.phone || '—'}</td>
+                                                <td className="px-6 py-3.5 text-center">
+                                                    <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full ${m.role === 'MANAGER'
+                                                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                                                        {m.role === 'MANAGER' ? 'Quản lý' : 'Sinh viên'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-3.5 text-center">
+                                                    {m.role !== 'MANAGER' && (
+                                                        <button onClick={() => handleRemove(m.id, m.fullName)}
+                                                            className="size-8 inline-flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                                                            title="Xóa khỏi lớp">
+                                                            <span className="material-symbols-outlined text-lg">person_remove</span>
+                                                        </button>
                                                     )}
-                                                    <span className="font-medium text-gray-900 dark:text-white">{m.fullName}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-3.5 text-gray-500 dark:text-gray-400 font-mono text-xs">{m.username}</td>
-                                            <td className="px-6 py-3.5 text-gray-500 dark:text-gray-400 text-sm">{m.email}</td>
-                                            <td className="px-6 py-3.5 text-gray-500 dark:text-gray-400 text-sm">{m.phone || '—'}</td>
-                                            <td className="px-6 py-3.5 text-center">
-                                                <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full ${m.role === 'MANAGER'
-                                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
-                                                    {m.role === 'MANAGER' ? 'Quản lý' : 'Sinh viên'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-3.5 text-center">
-                                                {m.role !== 'MANAGER' && (
-                                                    <button onClick={() => handleRemove(m.id, m.fullName)}
-                                                        className="size-8 inline-flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                                                        title="Xóa khỏi lớp">
-                                                        <span className="material-symbols-outlined text-lg">person_remove</span>
-                                                    </button>
-                                                )}
+                                                </td>
+                                            </tr>
+                                        )
+                                    }) : (
+                                        <tr>
+                                            <td colSpan={7} className="px-6 py-16 text-center">
+                                                <span className="material-symbols-outlined text-5xl text-gray-300 dark:text-gray-600 block mb-3">group_off</span>
+                                                <p className="text-gray-400 font-medium">Không tìm thấy thành viên nào</p>
                                             </td>
                                         </tr>
-                                    )
-                                }) : (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-16 text-center">
-                                            <span className="material-symbols-outlined text-5xl text-gray-300 dark:text-gray-600 block mb-3">group_off</span>
-                                            <p className="text-gray-400 font-medium">Không tìm thấy thành viên nào</p>
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Pagination Controls */}
+                        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/30">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                Hiển thị <span className="font-semibold text-gray-700 dark:text-gray-300">{members.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}</span> đến <span className="font-semibold text-gray-700 dark:text-gray-300">{Math.min(members.length, currentPage * ITEMS_PER_PAGE)}</span> trong <span className="font-semibold text-gray-700 dark:text-gray-300">{members.length}</span> thành viên
+                            </p>
+                            {totalPages > 1 && (
+                                <div className="inline-flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(1)}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang đầu"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">first_page</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === 1}
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang trước"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">chevron_left</span>
+                                    </button>
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 px-3">
+                                        Trang {currentPage} / {totalPages}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang sau"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">chevron_right</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
+                                        title="Trang cuối"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">last_page</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
         </div>

@@ -1,6 +1,7 @@
 package com.example.uniactivity.controller.manager;
 
 import com.example.uniactivity.entity.ClassJoinRequest;
+import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.repository.StudentClassRepository;
 import com.example.uniactivity.repository.UserRepository;
@@ -109,12 +110,16 @@ public class ManagerMemberController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Không có quyền xóa thành viên này"));
             }
             
-            String className = member.getStudentClass().getName();
+            StudentClass studentClass = member.getStudentClass();
+            String className = studentClass.getName();
             member.setStudentClass(null);
             userRepository.save(member);
             
             // Notify student about removal
             notificationService.notifyRemovedFromClass(member, className);
+            
+            // Gửi dashboard_update SSE cho tất cả manager để cập nhật sĩ số thành viên lớp real-time
+            classJoinRequestService.sendDashboardUpdateToClassManagers(studentClass);
             
             return ResponseEntity.ok(Map.of("message", "Đã xóa khỏi lớp"));
         } catch (Exception e) {

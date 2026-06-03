@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 function timeAgo(dateStr) {
     if (!dateStr) return ''
@@ -26,16 +26,38 @@ export default function PointRequests() {
         setTimeout(() => setToast(null), 4000)
     }
 
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         setLoading(true)
         fetch('/manager/api/point-requests', { credentials: 'include' })
             .then(r => r.ok ? r.json() : [])
             .then(setRequests)
             .catch(() => setRequests([]))
             .finally(() => setLoading(false))
-    }
+    }, [])
 
-    useEffect(() => { fetchData() }, [])
+    useEffect(() => { fetchData() }, [fetchData])
+
+    // Lắng nghe sự kiện SSE để cập nhật danh sách yêu cầu điểm ngầm lập tức
+    useEffect(() => {
+        const handleRefresh = (e) => {
+            // Làm mới nếu nhận sự kiện dashboard-update hoặc thông báo yêu cầu điểm mới
+            if (e.type === 'dashboard-update' || e.detail?.type === 'POINT_REQUEST_SUBMITTED') {
+                console.log('[PointRequests] 📊 Nhận tín hiệu SSE, cập nhật danh sách yêu cầu ngầm...')
+                fetch('/manager/api/point-requests', { credentials: 'include' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(d => {
+                        if (d) setRequests(d)
+                    })
+                    .catch(() => {})
+            }
+        }
+        window.addEventListener('dashboard-update', handleRefresh)
+        window.addEventListener('new-notification', handleRefresh)
+        return () => {
+            window.removeEventListener('dashboard-update', handleRefresh)
+            window.removeEventListener('new-notification', handleRefresh)
+        }
+    }, [])
 
     const handleAction = async () => {
         if (!actionModal) return

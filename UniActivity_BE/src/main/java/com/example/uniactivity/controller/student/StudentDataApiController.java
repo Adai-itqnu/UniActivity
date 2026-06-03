@@ -2,6 +2,7 @@ package com.example.uniactivity.controller.student;
 
 import com.example.uniactivity.entity.*;
 import com.example.uniactivity.enums.EvidenceStatus;
+import com.example.uniactivity.enums.RegistrationStatus;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.repository.SemesterRepository;
 import com.example.uniactivity.repository.UserRepository;
@@ -253,10 +254,12 @@ public class StudentDataApiController {
                 .filter(a -> !"DRAFT".equals(a.getStatus()))
                 .toList();
 
-        // Registered activity IDs
+        // Registered activity IDs - chỉ tính những đăng ký còn hiệu lực (không phải CANCELLED)
         Set<Long> registeredIds = new HashSet<>();
         for (var reg : activityRegistrationRepository.findByStudentOrderByRegisteredAtDesc(currentUser)) {
-            registeredIds.add(reg.getActivity().getId());
+            if (reg.getStatus() != RegistrationStatus.CANCELLED) {
+                registeredIds.add(reg.getActivity().getId());
+            }
         }
 
         // Build activity list

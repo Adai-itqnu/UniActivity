@@ -3,6 +3,7 @@ package com.example.uniactivity.service;
 import com.example.uniactivity.entity.Notification;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.NotificationType;
+import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.repository.NotificationRepository;
 import com.example.uniactivity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -202,7 +203,7 @@ public class NotificationService {
     }
 
     /**
-     * Thông báo: Có hoạt động mới
+     * Thông báo: Có hoạt động mới (cho Student)
      */
     public void notifyNewActivity(User student, String activityName) {
         create(student.getId(),
@@ -210,6 +211,29 @@ public class NotificationService {
                "Hoạt động mới",
                "Hoạt động mới: " + activityName,
                "/student/activities");
+    }
+
+    /**
+     * Thông báo: Có hoạt động mới liên quan đến lớp (cho Manager)
+     */
+    public void notifyNewActivityForManager(User manager, String activityName) {
+        create(manager.getId(),
+               NotificationType.NEW_ACTIVITY,
+               "Hoạt động mới liên quan đến lớp",
+               "Hoạt động mới: " + activityName + " có liên quan đến lớp bạn quản lý",
+               "/manager/activities");
+    }
+
+    /**
+     * Thông báo cho Manager: Sinh viên đăng ký/hủy hoạt động
+     */
+    public void notifyActivityRegistration(User manager, String studentName, String activityName, boolean isRegister) {
+        String action = isRegister ? "đã đăng ký" : "đã hủy đăng ký";
+        create(manager.getId(),
+               NotificationType.ACTIVITY_REGISTRATION,
+               isRegister ? "Đăng ký hoạt động mới" : "Hủy đăng ký hoạt động",
+               studentName + " " + action + " hoạt động: " + activityName,
+               "/manager/activities");
     }
     
     /**
@@ -269,5 +293,66 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public long getTotalCount(Long userId) {
         return notificationRepository.countByUserId(userId);
+    }
+    
+    // ===== Admin Notification Methods =====
+    
+    /**
+     * Thông báo cho tất cả Admin: Slot hoạt động đã đầy
+     */
+    public void notifyAdminsSlotFull(String activityName, String slotInfo) {
+        List<User> admins = userRepository.findByRole(Role.ADMIN);
+        for (User admin : admins) {
+            create(admin.getId(),
+                   NotificationType.ACTIVITY_SLOT_FULL,
+                   "Slot hoạt động đã đầy",
+                   "Hoạt động \"" + activityName + "\" - " + slotInfo + " đã đủ số lượng đăng ký",
+                   "/admin/activities");
+        }
+        log.info("Notified {} admins about slot full for activity: {}", admins.size(), activityName);
+    }
+    
+    /**
+     * Thông báo cho tất cả Admin: Hoạt động hết hạn đăng ký
+     */
+    public void notifyAdminsDeadlinePassed(String activityName, Long activityId) {
+        List<User> admins = userRepository.findByRole(Role.ADMIN);
+        for (User admin : admins) {
+            create(admin.getId(),
+                   NotificationType.ACTIVITY_DEADLINE_PASSED,
+                   "Hoạt động hết hạn đăng ký",
+                   "Hoạt động \"" + activityName + "\" đã hết hạn đăng ký",
+                   "/admin/activities");
+        }
+        log.info("Notified {} admins about deadline passed for activity: {}", admins.size(), activityName);
+    }
+    
+    /**
+     * Admin gửi thông báo broadcast đến toàn bộ người dùng hoặc theo vai trò
+     * @param target "ALL" = toàn hệ thống, "MANAGER" = chỉ manager, "STUDENT" = chỉ student
+     */
+    public int broadcastNotification(String title, String message, String target) {
+        List<User> recipients;
+        switch (target.toUpperCase()) {
+            case "MANAGER":
+                recipients = userRepository.findByRole(Role.MANAGER);
+                break;
+            case "STUDENT":
+                recipients = userRepository.findByRole(Role.STUDENT);
+                break;
+            default: // "ALL"
+                recipients = userRepository.findAll();
+                break;
+        }
+        
+        for (User user : recipients) {
+            create(user.getId(),
+                   NotificationType.ADMIN_BROADCAST,
+                   title,
+                   message,
+                   null);
+        }
+        log.info("Broadcast notification to {} {} users: {}", recipients.size(), target, title);
+        return recipients.size();
     }
 }

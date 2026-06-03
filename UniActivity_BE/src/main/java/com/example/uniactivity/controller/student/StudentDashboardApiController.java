@@ -1,6 +1,7 @@
 package com.example.uniactivity.controller.student;
 
 import com.example.uniactivity.entity.*;
+import com.example.uniactivity.enums.RegistrationStatus;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.security.CustomUserDetails;
@@ -140,10 +141,12 @@ public class StudentDashboardApiController {
                     .limit(6)
                     .toList();
 
-            // Đã đăng ký IDs
+            // Đã đăng ký IDs - chỉ tính những đăng ký còn hiệu lực (không phải CANCELLED)
             Set<Long> registeredIds = new HashSet<>();
             for (var reg : activityRegistrationRepository.findByStudentOrderByRegisteredAtDesc(currentUser)) {
-                registeredIds.add(reg.getActivity().getId());
+                if (reg.getStatus() != RegistrationStatus.CANCELLED) {
+                    registeredIds.add(reg.getActivity().getId());
+                }
             }
             response.put("registeredActivityIds", registeredIds);
 

@@ -49,6 +49,50 @@ export default function ActivityDetail() {
 
     useEffect(() => { fetchData() }, [activityId])
 
+    // Lắng nghe SSE: khi sinh viên đăng ký/hủy → tự re-fetch danh sách registrations
+    useEffect(() => {
+        const handleRegistrationUpdate = (e) => {
+            const detail = e.detail
+            // Only re-fetch if this event is for the current activity
+            if (detail?.activityId && String(detail.activityId) === String(activityId)) {
+                console.log('[ActivityDetail] 📝 Registration update received, re-fetching...')
+                Promise.all([
+                    fetch('/manager/api/activities', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+                    fetch(`/manager/api/activities/${activityId}/registrations`, { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+                ])
+                    .then(([activities, regs]) => {
+                        const act = activities.find(a => String(a.id) === String(activityId))
+                        if (act) setActivity(act)
+                        setRegistrations(regs)
+                    })
+                    .catch(() => {})
+            }
+        }
+        // Lắng nghe notification minh chứng → re-fetch
+        const handleNotification = (e) => {
+            const type = e.detail?.type
+            if (type === 'EVIDENCE_SUBMITTED' || type === 'EVIDENCE_APPROVED' || type === 'EVIDENCE_REJECTED') {
+                console.log('[ActivityDetail] 🔔 Evidence notification received, re-fetching...')
+                Promise.all([
+                    fetch('/manager/api/activities', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+                    fetch(`/manager/api/activities/${activityId}/registrations`, { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+                ])
+                    .then(([activities, regs]) => {
+                        const act = activities.find(a => String(a.id) === String(activityId))
+                        if (act) setActivity(act)
+                        setRegistrations(regs)
+                    })
+                    .catch(() => {})
+            }
+        }
+        window.addEventListener('activity-registration-update', handleRegistrationUpdate)
+        window.addEventListener('new-notification', handleNotification)
+        return () => {
+            window.removeEventListener('activity-registration-update', handleRegistrationUpdate)
+            window.removeEventListener('new-notification', handleNotification)
+        }
+    }, [activityId])
+
     const handleApprove = async (regId) => {
         try {
             const res = await fetch(`/manager/api/registrations/${regId}/approve`, { method: 'POST', credentials: 'include' })

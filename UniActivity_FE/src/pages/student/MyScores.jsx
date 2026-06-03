@@ -39,15 +39,42 @@ export default function MyScores() {
     const [previousGpa, setPreviousGpa] = useState('')
     const [gpaScore, setGpaScore] = useState(null)
 
+    const apiPrefix = currentUser?.role === 'MANAGER' ? '/manager/api' : '/student/api'
+
     const fetchData = () => {
         setLoading(true)
-        fetch('/student/api/my-scores', { credentials: 'include' })
+        fetch(`${apiPrefix}/my-scores`, { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Lỗi'); return r.json() })
             .then(json => { setData(json); setLoading(false) })
             .catch(() => setLoading(false))
     }
 
-    useEffect(() => { fetchData() }, [])
+    useEffect(() => {
+        if (currentUser) fetchData()
+    }, [currentUser, apiPrefix])
+
+    // Lắng nghe sự kiện SSE để cập nhật điểm ngầm ngay lập tức khi có thông báo duyệt điểm hoặc minh chứng
+    useEffect(() => {
+        const handleNotification = (e) => {
+            const type = e.detail?.type
+            if (
+                type === 'POINT_REQUEST_APPROVED' || 
+                type === 'POINT_REQUEST_REJECTED' || 
+                type === 'EVIDENCE_APPROVED' || 
+                type === 'EVIDENCE_REJECTED'
+            ) {
+                console.log('[MyScores] 🔔 Nhận thông báo duyệt điểm/minh chứng, cập nhật điểm số ngầm...')
+                fetch(`${apiPrefix}/my-scores`, { credentials: 'include' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(json => {
+                        if (json) setData(json)
+                    })
+                    .catch(() => {})
+            }
+        }
+        window.addEventListener('new-notification', handleNotification)
+        return () => window.removeEventListener('new-notification', handleNotification)
+    }, [apiPrefix])
 
     const showToast = (type, text) => {
         setToast({ type, text })
@@ -61,7 +88,7 @@ export default function MyScores() {
         setGpaScore(null)
         if (!code) { setCriteriaInfo(null); return }
         try {
-            const res = await fetch(`/student/api/scoring-rules/${code}`, { credentials: 'include' })
+            const res = await fetch(`${apiPrefix}/scoring-rules/${code}`, { credentials: 'include' })
             if (res.ok) setCriteriaInfo(await res.json())
         } catch { setCriteriaInfo(null) }
     }
@@ -70,7 +97,7 @@ export default function MyScores() {
     const handleCalcGpa = async () => {
         if (!currentGpa || !previousGpa) return
         try {
-            const res = await fetch('/student/api/calculate-gpa-score', {
+            const res = await fetch(`${apiPrefix}/calculate-gpa-score`, {
                 method: 'POST', credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ currentGpa: parseFloat(currentGpa), previousGpa: parseFloat(previousGpa) }),
@@ -97,7 +124,7 @@ export default function MyScores() {
             if (evidenceFiles.length > 0) {
                 const fd = new FormData()
                 evidenceFiles.forEach(f => fd.append('files', f))
-                const uploadRes = await fetch('/student/api/upload-evidence', {
+                const uploadRes = await fetch(`${apiPrefix}/upload-evidence`, {
                     method: 'POST', credentials: 'include', body: fd,
                 })
                 const uploadJson = await uploadRes.json()
@@ -107,7 +134,7 @@ export default function MyScores() {
 
             // If 1.1 with GPA, save via dedicated endpoint
             if (selectedCriteria === '1.1' && currentGpa && previousGpa) {
-                const res = await fetch('/student/api/save-gpa-score', {
+                const res = await fetch(`${apiPrefix}/save-gpa-score`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ currentGpa: parseFloat(currentGpa), previousGpa: parseFloat(previousGpa) }),
@@ -117,7 +144,7 @@ export default function MyScores() {
                 showToast('success', json.message)
             } else {
                 // Normal point request
-                const res = await fetch('/student/api/point-requests', {
+                const res = await fetch(`${apiPrefix}/point-requests`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

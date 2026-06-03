@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useSearchParams, NavLink } from 'react-router-dom'
-import { Html5Qrcode } from 'html5-qrcode'
+import { useParams, useSearchParams, NavLink, useOutletContext } from 'react-router-dom'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 
 /* ===========================================
    CHECKIN PAGE — 2 chế độ:
@@ -10,9 +10,16 @@ import { Html5Qrcode } from 'html5-qrcode'
    =========================================== */
 
 export default function Checkin() {
+    const { currentUser } = useOutletContext()
     const { activityId: paramActivityId } = useParams()
     const [searchParams] = useSearchParams()
     const paramClassId = searchParams.get('classId')
+
+    const apiPrefix = currentUser?.role === 'MANAGER' ? '/manager/api' : '/student/api'
+    const activitiesUrl = currentUser?.role === 'MANAGER' ? '/manager/api/my-activities' : '/student/api/activities'
+    const myRegistrationsPath = currentUser?.role === 'MANAGER' ? '/manager/my-registrations' : '/student/my-registrations'
+    const activitiesPath = currentUser?.role === 'MANAGER' ? '/manager/my-activities' : '/student/activities'
+    const homePath = currentUser?.role === 'MANAGER' ? '/manager/dashboard' : '/student/home'
 
     /* ---------- STATE ---------- */
     const [mode, setMode] = useState(paramActivityId ? 'url' : 'loading') // 'loading' | 'scanner' | 'url' | 'checkin' | 'evidence' | 'done' | 'blocked'
@@ -39,9 +46,10 @@ export default function Checkin() {
     /* ---------- PRE-CHECK: verify class + registrations before showing scanner ---------- */
     useEffect(() => {
         if (paramActivityId) return // skip if coming from URL with activityId
+        if (!currentUser) return
         const preCheck = async () => {
             try {
-                const res = await fetch('/student/api/my-registrations', { credentials: 'include' })
+                const res = await fetch(`${apiPrefix}/my-registrations`, { credentials: 'include' })
                 if (!res.ok) throw new Error('Lỗi tải dữ liệu')
                 const data = await res.json()
 
@@ -79,17 +87,17 @@ export default function Checkin() {
             }
         }
         preCheck()
-    }, [paramActivityId])
+    }, [paramActivityId, currentUser, apiPrefix])
 
     /* ---------- LOAD DATA (khi có activityId) ---------- */
     useEffect(() => {
-        if (!activityId) return
+        if (!activityId || !currentUser) return
         const init = async () => {
             setLoading(true)
             try {
                 const [actRes, regRes] = await Promise.all([
-                    fetch('/student/api/activities', { credentials: 'include' }),
-                    fetch('/student/api/my-registrations', { credentials: 'include' }),
+                    fetch(activitiesUrl, { credentials: 'include' }),
+                    fetch(`${apiPrefix}/my-registrations`, { credentials: 'include' }),
                 ])
                 if (!actRes.ok || !regRes.ok) throw new Error('Không thể tải dữ liệu')
                 const actData = await actRes.json()
@@ -118,7 +126,7 @@ export default function Checkin() {
             }
         }
         init()
-    }, [activityId])
+    }, [activityId, currentUser, apiPrefix, activitiesUrl])
 
     /* ---------- HANDLE QR SCAN RESULT ---------- */
     const handleScanned = (text) => {
@@ -168,7 +176,7 @@ export default function Checkin() {
             }
 
             // 2. Build URL với classId + dynamic token + GPS
-            let url = `/student/api/checkin/${activityId}`
+            let url = `${apiPrefix}/checkin/${activityId}`
             const params = new URLSearchParams()
             if (classId) params.set('classId', classId)
             if (qrToken) params.set('token', qrToken)
@@ -207,7 +215,7 @@ export default function Checkin() {
     /* ---------- LOAD SCORE OPTIONS ---------- */
     const loadScoreOptions = async () => {
         try {
-            const res = await fetch(`/student/api/activities/${activityId}/score-options`, { credentials: 'include' })
+            const res = await fetch(`${apiPrefix}/activities/${activityId}/score-options`, { credentials: 'include' })
             if (res.ok) setScoreOptions(await res.json())
         } catch { setScoreOptions([]) }
     }
@@ -243,7 +251,7 @@ export default function Checkin() {
             const fd = new FormData()
             fd.append('scoreOptionId', selectedScoreOption)
             evidenceFiles.forEach(f => fd.append('files', f))
-            const res = await fetch(`/student/api/activities/${activityId}/evidence`, {
+            const res = await fetch(`${apiPrefix}/activities/${activityId}/evidence`, {
                 method: 'POST', credentials: 'include', body: fd,
             })
             const json = await res.json()
@@ -296,12 +304,12 @@ export default function Checkin() {
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">{blockReason.message}</p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         {blockReason.type === 'no_class' && (
-                            <NavLink to="/student/home" className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors">
+                            <NavLink to={homePath} className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors">
                                 <span className="material-symbols-outlined text-lg">home</span> Tham gia lớp
                             </NavLink>
                         )}
                         {blockReason.type === 'no_registration' && (
-                            <NavLink to="/student/activities" className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors">
+                            <NavLink to={activitiesPath} className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors">
                                 <span className="material-symbols-outlined text-lg">event</span> Đăng ký hoạt động
                             </NavLink>
                         )}
@@ -415,7 +423,7 @@ export default function Checkin() {
                                 <StateIcon icon="warning" color="amber" />
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Bạn chưa đăng ký</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Bạn cần đăng ký hoạt động này trước khi check-in.</p>
-                                <NavLink to="/student/activities" className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors">
+                                <NavLink to={activitiesPath} className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors">
                                     <span className="material-symbols-outlined text-lg">event</span> Xem hoạt động
                                 </NavLink>
                             </>
@@ -434,7 +442,7 @@ export default function Checkin() {
                                 <StateIcon icon="school" color="amber" />
                                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Bạn chưa tham gia lớp</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Vui lòng tham gia lớp trước khi check-in hoạt động.</p>
-                                <NavLink to="/student/home" className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl">
+                                <NavLink to={homePath} className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl">
                                     <span className="material-symbols-outlined text-lg">home</span> Về trang chủ
                                 </NavLink>
                             </>
@@ -578,14 +586,14 @@ export default function Checkin() {
                     {evidenceResult && <Toast result={evidenceResult} />}
                     <div className="flex flex-col sm:flex-row gap-3 mt-6 justify-center">
                         <NavLink
-                            to="/student/my-registrations"
+                            to={myRegistrationsPath}
                             className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors"
                         >
                             <span className="material-symbols-outlined text-lg">list_alt</span>
                             Xem lịch sử đăng ký
                         </NavLink>
                         <NavLink
-                            to="/student/home"
+                            to={homePath}
                             className="inline-flex items-center justify-center gap-2 px-5 py-3 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                         >
                             <span className="material-symbols-outlined text-lg">home</span>
@@ -597,7 +605,7 @@ export default function Checkin() {
 
             {/* Back link */}
             <div className="text-center">
-                <NavLink to="/student/my-registrations" className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center gap-1 justify-center">
+                <NavLink to={myRegistrationsPath} className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center gap-1 justify-center">
                     <span className="material-symbols-outlined text-base">arrow_back</span>
                     Quay lại Lịch sử đăng ký
                 </NavLink>
@@ -686,10 +694,16 @@ function QrScannerCard({ onScanned }) {
     const scannerRef = useRef(null)
     const mountedRef = useRef(false)
 
+    // Camera list & selection states
+    const [devices, setDevices] = useState([])
+    const [selectedDeviceId, setSelectedDeviceId] = useState('')
+    const activeDeviceIdRef = useRef('')
+
     const startScanner = () => {
         setActive(true)
         setError(null)
     }
+
 
     useEffect(() => {
         if (!active) return
@@ -708,6 +722,7 @@ function QrScannerCard({ onScanned }) {
                 console.log('[QR-Checkin] Enumerating cameras...')
                 const cameras = await Html5Qrcode.getCameras()
                 console.log('[QR-Checkin] Found cameras:', cameras.map(c => `${c.label} (${c.id})`))
+                setDevices(cameras)
 
                 if (!cameras.length) {
                     setError('Không tìm thấy camera nào.')
@@ -716,19 +731,45 @@ function QrScannerCard({ onScanned }) {
                 }
                 if (!mountedRef.current) return
 
-                // Step 2: Pick camera - prefer back camera on mobile
-                let cameraId = cameras[0].id
-                const backCam = cameras.find(c => /back|rear|environment/i.test(c.label))
-                if (backCam) cameraId = backCam.id
-                console.log('[QR-Checkin] Using camera:', cameraId)
+                // Step 2: Pick camera - prefer selected, virtual webcams (Camo, Iriun), or back camera on mobile
+                let cameraId = selectedDeviceId
+                if (!cameraId) {
+                    const virtualCam = cameras.find(c => /camo|iriun|droidcam|virtual/i.test(c.label))
+                    const backCam = cameras.find(c => /back|rear|environment/i.test(c.label))
+                    if (virtualCam) cameraId = virtualCam.id
+                    else if (backCam) cameraId = backCam.id
+                    else cameraId = cameras[0].id
+                }
 
-                // Step 3: Create scanner and start with camera ID
-                html5Qr = new Html5Qrcode(el.id, { verbose: false })
+                // If this camera is already active, don't restart
+                if (activeDeviceIdRef.current === cameraId && scannerRef.current?.isScanning) {
+                    return
+                }
+
+                activeDeviceIdRef.current = cameraId
+                console.log('[QR-Checkin] Starting camera:', cameraId)
+
+                // Step 3: Create scanner and start with camera ID, restricting format to QR_CODE only for maximum speed
+                html5Qr = new Html5Qrcode(el.id, {
+                    verbose: false,
+                    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE]
+                })
                 scannerRef.current = html5Qr
 
                 await html5Qr.start(
                     cameraId,
-                    { fps: 10, qrbox: 250, disableFlip: false },
+                    {
+                        fps: 20, // Increase frame rate for speed and sensitivity (default is 10)
+                        qrbox: (viewfinderWidth, viewfinderHeight) => {
+                            const minEdge = Math.min(viewfinderWidth, viewfinderHeight)
+                            const size = Math.floor(minEdge * 0.7) // 70% of viewfinder
+                            return { width: size, height: size }
+                        },
+                        disableFlip: false,
+                        experimentalFeatures: {
+                            useBarCodeDetectorIfSupported: true // Use hardware-accelerated GPU scanner if supported
+                        }
+                    },
                     (decodedText) => {
                         if (!mountedRef.current) return
                         mountedRef.current = false
@@ -742,6 +783,8 @@ function QrScannerCard({ onScanned }) {
                     },
                     () => {} // per-frame error (ignore)
                 )
+                
+                setSelectedDeviceId(cameraId)
                 console.log('[QR-Checkin] ✅ Scanner running, waiting for QR code...')
             } catch (err) {
                 console.error('[QR-Checkin] ❌ Error:', err)
@@ -761,8 +804,9 @@ function QrScannerCard({ onScanned }) {
             if (s) {
                 try { if (s.isScanning) s.stop().catch(() => {}) } catch {}
             }
+            activeDeviceIdRef.current = ''
         }
-    }, [active]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [active, selectedDeviceId]) // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!active) {
         return (
@@ -793,11 +837,55 @@ function QrScannerCard({ onScanned }) {
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="p-4">
-                <div ref={containerRef} id="activity-qr-reader" className="w-full rounded-xl overflow-hidden bg-black" style={{ minHeight: 300 }} />
+                <div className="relative overflow-hidden rounded-xl">
+                    <div ref={containerRef} id="activity-qr-reader" className="w-full rounded-xl overflow-hidden bg-black" style={{ minHeight: 300 }} />
+                    {/* Laser Scanning Overlay Target */}
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div className="w-56 h-56 border border-emerald-500/25 rounded-2xl relative">
+                            {/* Target Corners */}
+                            <div className="absolute -top-1 -left-1 w-5 h-5 border-t-4 border-l-4 border-emerald-500 rounded-tl-lg" />
+                            <div className="absolute -top-1 -right-1 w-5 h-5 border-t-4 border-r-4 border-emerald-500 rounded-tr-lg" />
+                            <div className="absolute -bottom-1 -left-1 w-5 h-5 border-b-4 border-l-4 border-emerald-500 rounded-bl-lg" />
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 border-b-4 border-r-4 border-emerald-500 rounded-br-lg" />
+                            {/* Scanning Laser Line */}
+                            <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent absolute left-0 animate-scanner-laser shadow-md shadow-emerald-400/50" />
+                        </div>
+                    </div>
+                </div>
+                {error && (
+                    <div className="mt-3 px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm text-center">
+                        {error}
+                    </div>
+                )}
                 <p className="text-xs text-gray-400 text-center mt-3">
                     Hướng camera vào mã QR check-in hoạt động
                 </p>
+                <p className="text-[11px] text-amber-500 dark:text-amber-400 font-semibold text-center mt-2 flex items-center justify-center gap-1 max-w-sm mx-auto">
+                    <span className="material-symbols-outlined text-sm shrink-0">info</span>
+                    Mẹo: Hãy đưa điện thoại ra xa camera một chút (khoảng 20-30cm). Khi để xa, camera mới có thể lấy nét rõ ràng, giúp quét được mã ngay lập tức.
+                </p>
             </div>
+
+            {/* Camera source selector */}
+            {devices.length > 1 && (
+                <div className="px-4 pb-3">
+                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm">photo_camera</span> Chọn nguồn Camera:
+                    </label>
+                    <select
+                        value={selectedDeviceId}
+                        onChange={(e) => setSelectedDeviceId(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-colors"
+                    >
+                        {devices.map(d => (
+                            <option key={d.id} value={d.id}>
+                                {d.label || `Camera ${d.id.slice(0, 5)}...`}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
             <div className="px-4 pb-4">
                 <button
                     onClick={() => setActive(false)}

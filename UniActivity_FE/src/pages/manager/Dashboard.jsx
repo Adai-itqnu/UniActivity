@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 
 /* ── Quick actions config ── */
@@ -15,13 +15,28 @@ export default function ManagerDashboard() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
-    useEffect(() => {
+    const fetchDashboardData = useCallback((silent = false) => {
+        if (!silent) setLoading(true)
         fetch('/manager/api/dashboard', { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Không thể tải dữ liệu'); return r.json() })
             .then(setData)
-            .catch(err => setError(err.message))
-            .finally(() => setLoading(false))
+            .catch(err => { if (!silent) setError(err.message) })
+            .finally(() => { if (!silent) setLoading(false) })
     }, [])
+
+    useEffect(() => {
+        fetchDashboardData(false)
+    }, [fetchDashboardData])
+
+    // Lắng nghe sự kiện SSE để cập nhật số liệu Dashboard ngầm lập tức
+    useEffect(() => {
+        const handleDashboardUpdate = () => {
+            console.log('[ManagerDashboard] 📊 Nhận tín hiệu SSE, cập nhật số liệu ngầm...');
+            fetchDashboardData(true)
+        }
+        window.addEventListener('dashboard-update', handleDashboardUpdate)
+        return () => window.removeEventListener('dashboard-update', handleDashboardUpdate)
+    }, [fetchDashboardData])
 
     if (loading) return <Loading />
 

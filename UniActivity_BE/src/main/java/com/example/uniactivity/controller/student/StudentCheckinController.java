@@ -9,6 +9,7 @@ import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.service.ActivityService;
 import com.example.uniactivity.service.DynamicQrTokenService;
 import com.example.uniactivity.service.NotificationService;
+import com.example.uniactivity.service.SseEmitterService;
 import com.example.uniactivity.util.GeoUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,7 @@ public class StudentCheckinController {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final DynamicQrTokenService dynamicQrTokenService;
+    private final SseEmitterService sseEmitterService;
 
     @GetMapping("/checkin/{activityId}")
     public String checkinPage(@AuthenticationPrincipal CustomUserDetails userDetails,
@@ -272,13 +274,25 @@ public class StudentCheckinController {
             reg.setRejectionReason(null); // Clear any previous rejection reason
             activityRegistrationRepository.save(reg);
 
-            // Notify manager about evidence submission
+            // Notify manager about evidence submission + SSE real-time update
             try {
                 StudentClass studentClass = currentUser.getStudentClass();
                 if (studentClass != null) {
-                    userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
-                        .forEach(manager -> notificationService.notifyEvidenceSubmitted(
+                    List<User> managers = userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER);
+                    managers.forEach(manager -> notificationService.notifyEvidenceSubmitted(
                             manager, currentUser.getFullName(), activity.getName()));
+                    
+                    // Gửi SSE event để Manager ActivityDetail tự re-fetch
+                    Set<Long> managerIds = new HashSet<>();
+                    managers.forEach(m -> managerIds.add(m.getId()));
+                    if (!managerIds.isEmpty()) {
+                        Map<String, Object> ssePayload = new HashMap<>();
+                        ssePayload.put("activityId", activityId);
+                        ssePayload.put("activityName", activity.getName());
+                        ssePayload.put("studentName", currentUser.getFullName());
+                        ssePayload.put("action", "evidence_submitted");
+                        sseEmitterService.sendToUsers(managerIds, "activity_registration_update", ssePayload);
+                    }
                 }
             } catch (Exception ignored) {}
             

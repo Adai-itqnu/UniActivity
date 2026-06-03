@@ -98,6 +98,19 @@ body {
   animation: fadeSlideIn 0.2s ease-out;
 }
 
+/* ===== Mobile sidebar slide-in ===== */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.animate-slide-in {
+  animation: slideInLeft 0.25s ease-out;
+}
+
 /* ===== Hide Scrollbar ===== */
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
@@ -125,4 +138,17 @@ body {
 
 .layout-content {
   padding: clamp(12px, 2vw, 32px);
+}
+
+/* ===== QR Scanner Laser Animation ===== */
+@keyframes laser {
+  0%, 100% {
+    top: 0%;
+  }
+  50% {
+    top: 100%;
+  }
+}
+.animate-scanner-laser {
+  animation: laser 2.5s infinite linear;
 }

@@ -71,18 +71,17 @@ public class ManagerActivityController {
         return "manager/activity-detail";
     }
 
-    // ========== Manager Activities API ==========
-
-    @GetMapping("/api/activities")
-    @ResponseBody
-    public List<ActivityResponseDto> getActivities(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        User currentUser = userDetails.getUser();
-        if (currentUser.getStudentClass() == null) {
-            return List.of();
-        }
-        // Return activities visible to manager's class (CLASS or FACULTY scope)
-        return activityService.getVisibleActivitiesForStudent(currentUser);
-    }
+    // ========== Manager Activities API (Moved to ManagerDataApiController for React frontend compatibility) ==========
+    // @GetMapping("/api/activities")
+    // @ResponseBody
+    // public List<ActivityResponseDto> getActivities(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    //     User currentUser = userDetails.getUser();
+    //     if (currentUser.getStudentClass() == null) {
+    //         return List.of();
+    //     }
+    //     // Return activities visible to manager's class (CLASS or FACULTY scope)
+    //     return activityService.getVisibleActivitiesForStudent(currentUser);
+    // }
 
     /**
      * API trả QR image tĩnh (giữ backward-compatible, nhưng giờ embed dynamic token).

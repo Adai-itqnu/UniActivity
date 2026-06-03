@@ -37,6 +37,28 @@ export default function JoinRequests() {
 
     useEffect(() => { fetchData() }, [fetchData])
 
+    // Lắng nghe sự kiện SSE để cập nhật danh sách yêu cầu tham gia ngầm lập tức
+    useEffect(() => {
+        const handleRefresh = (e) => {
+            // Làm mới nếu nhận sự kiện dashboard-update hoặc thông báo nộp yêu cầu tham gia mới
+            if (e.type === 'dashboard-update' || e.detail?.type === 'JOIN_REQUEST_SUBMITTED') {
+                console.log('[JoinRequests] 📊 Nhận tín hiệu SSE, cập nhật danh sách yêu cầu ngầm...')
+                fetch('/manager/api/join-requests', { credentials: 'include' })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(d => {
+                        if (d) setData(d)
+                    })
+                    .catch(() => {})
+            }
+        }
+        window.addEventListener('dashboard-update', handleRefresh)
+        window.addEventListener('new-notification', handleRefresh)
+        return () => {
+            window.removeEventListener('dashboard-update', handleRefresh)
+            window.removeEventListener('new-notification', handleRefresh)
+        }
+    }, [])
+
     const handleApprove = async (id) => {
         try {
             const res = await fetch(`/manager/api/join-requests/${id}/approve`, { method: 'POST', credentials: 'include' })
