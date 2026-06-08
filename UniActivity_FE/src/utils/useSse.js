@@ -1,11 +1,6 @@
 import { useEffect } from 'react'
 import { showToast } from './toast'
 
-/**
- * Custom hook to manage real-time Server-Sent Events (SSE) subscriptions.
- * Establishes a persistent EventSource connection, handles auth query param,
- * listens to incoming events, displays Toast alerts, and fires custom browser events.
- */
 export function useSseConnection(role) {
     useEffect(() => {
         const accessToken = sessionStorage.getItem('accessToken');

@@ -1,16 +1,3 @@
-/**
- * Global Fetch Interceptor — Tự động gắn JWT token vào MỌI request.
- * 
- * Cách hoạt động:
- * - Override window.fetch() toàn cục
- * - Với mỗi request, tự động thêm header Authorization: Bearer <token>
- * - Nếu nhận 401, thử refresh token rồi retry
- * - Nếu refresh cũng thất bại → redirect về /login
- * 
- * Import file này 1 lần duy nhất ở main.jsx là đủ.
- * Không cần sửa bất kỳ file nào khác.
- */
-
 const originalFetch = window.fetch
 
 // Các URL KHÔNG cần gắn token (public endpoints)

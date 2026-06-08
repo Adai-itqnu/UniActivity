@@ -1,15 +1,3 @@
-/**
- * API Helper — Tự động gắn JWT token vào mọi request.
- * 
- * Thay vì dùng fetch() trực tiếp với credentials: 'include' (session cookie),
- * dùng apiFetch() để gắn Authorization: Bearer header.
- * 
- * Features:
- * - Tự động gắn accessToken vào header
- * - Tự động refresh token khi nhận 401
- * - Redirect về /login khi refresh token cũng hết hạn
- */
-
 let isRefreshing = false
 let failedQueue = []
 
@@ -84,19 +72,7 @@ async function refreshAccessToken() {
     return data.accessToken
 }
 
-/**
- * Wrapper fetch() tự động gắn JWT token.
- * 
- * Sử dụng giống fetch() bình thường:
- *   const res = await apiFetch('/api/auth/me')
- *   const data = await res.json()
- * 
- * Hoặc:
- *   const res = await apiFetch('/admin/activities/api', {
- *     method: 'POST',
- *     body: JSON.stringify(data),
- *   })
- */
+
 export async function apiFetch(url, options = {}) {
     const accessToken = getAccessToken()
 

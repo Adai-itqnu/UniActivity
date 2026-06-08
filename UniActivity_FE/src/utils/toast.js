@@ -1,7 +1,3 @@
-/**
- * Sleek, premium, glassmorphism Toast notifications utility.
- * Renders beautiful alerts with micro-animations and dark-mode support.
- */
 export function showToast(title, message, type = 'info') {
     // 1. Create container if it doesn't exist
     let container = document.getElementById('toast-container');
