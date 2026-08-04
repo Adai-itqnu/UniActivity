@@ -47,6 +47,7 @@ public class ProfileController {
         profile.put("role", user.getRole().name());
         profile.put("avatarUrl", user.getAvatarUrl());
         profile.put("provider", user.getProvider());
+        profile.put("emailVerified", user.isEmailVerified());
         profile.put("status", user.getStatus().name());
         profile.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
 

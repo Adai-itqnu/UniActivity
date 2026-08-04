@@ -19,6 +19,10 @@ public class PasswordResetToken {
     @Column(nullable = false)
     private String otpCode;
 
+    // "PASSWORD_RESET" hoặc "EMAIL_VERIFY"
+    @Column(nullable = false)
+    private String type = "PASSWORD_RESET";
+
     @Column(nullable = false)
     private LocalDateTime expiryTime;
 

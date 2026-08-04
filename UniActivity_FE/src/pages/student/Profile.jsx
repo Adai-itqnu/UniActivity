@@ -40,9 +40,67 @@ export default function Profile() {
     // Toast
     const [toast, setToast] = useState(null)
 
+    // Email verification
+    const [showVerifyModal, setShowVerifyModal] = useState(false)
+    const [verifyOtp, setVerifyOtp] = useState('')
+    const [sendingVerify, setSendingVerify] = useState(false)
+    const [verifying, setVerifying] = useState(false)
+    const [verifyCooldown, setVerifyCooldown] = useState(0)
+
     const showToast = (type, text) => {
         setToast({ type, text })
         setTimeout(() => setToast(null), 4000)
+    }
+
+    // Countdown timer cho nút gửi lại OTP
+    useEffect(() => {
+        if (verifyCooldown <= 0) return
+        const timer = setTimeout(() => setVerifyCooldown(verifyCooldown - 1), 1000)
+        return () => clearTimeout(timer)
+    }, [verifyCooldown])
+
+    const handleSendVerifyEmail = async () => {
+        if (!profile?.email) return
+        setSendingVerify(true)
+        try {
+            const res = await fetch('/api/auth/send-verification-email', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: profile.email }),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.message)
+            showToast('success', data.message)
+            setShowVerifyModal(true)
+            setVerifyOtp('')
+            setVerifyCooldown(60)
+        } catch (e) {
+            showToast('error', e.message)
+        } finally {
+            setSendingVerify(false)
+        }
+    }
+
+    const handleVerifyEmail = async () => {
+        if (!verifyOtp.trim()) { showToast('error', 'Vui lòng nhập mã OTP'); return }
+        setVerifying(true)
+        try {
+            const res = await fetch('/api/auth/verify-email', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: profile.email, otp: verifyOtp.trim() }),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.message)
+            showToast('success', data.message)
+            setShowVerifyModal(false)
+            setVerifyOtp('')
+            fetchProfile()
+        } catch (e) {
+            showToast('error', e.message)
+        } finally {
+            setVerifying(false)
+        }
     }
 
     const fetchProfile = () => {
@@ -159,6 +217,81 @@ export default function Profile() {
                 </div>
             )}
 
+            {/* ===== Email Verification Modal ===== */}
+            {showVerifyModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowVerifyModal(false)}>
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                                <span className="material-symbols-outlined text-emerald-500">mark_email_read</span>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Xác thực Email</h3>
+                                <p className="text-xs text-gray-400">Mã OTP đã được gửi đến {profile.email}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                    Nhập mã OTP (6 chữ số)
+                                </label>
+                                <input
+                                    type="text"
+                                    maxLength={6}
+                                    value={verifyOtp}
+                                    onChange={e => setVerifyOtp(e.target.value.replace(/\D/g, ''))}
+                                    className="w-full px-4 py-3 text-center text-2xl font-mono font-bold tracking-[0.5em] rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
+                                    placeholder="000000"
+                                    autoFocus
+                                    onKeyDown={e => e.key === 'Enter' && verifyOtp.length === 6 && handleVerifyEmail()}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleVerifyEmail}
+                                    disabled={verifying || verifyOtp.length !== 6}
+                                    className="flex-1 px-5 py-2.5 bg-emerald-500 text-white font-bold rounded-xl text-sm hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {verifying ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Đang xác thực...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="material-symbols-outlined text-lg">verified</span>
+                                            Xác thực
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => setShowVerifyModal(false)}
+                                    className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 font-medium rounded-xl text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                >
+                                    Đóng
+                                </button>
+                            </div>
+
+                            <div className="text-center">
+                                {verifyCooldown > 0 ? (
+                                    <p className="text-xs text-gray-400">Gửi lại mã sau <span className="font-bold text-emerald-500">{verifyCooldown}s</span></p>
+                                ) : (
+                                    <button
+                                        onClick={handleSendVerifyEmail}
+                                        disabled={sendingVerify}
+                                        className="text-xs text-emerald-500 font-medium hover:underline disabled:opacity-50"
+                                    >
+                                        {sendingVerify ? 'Đang gửi...' : 'Gửi lại mã OTP'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ===== Profile Card ===== */}
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
                 {/* Banner */}
@@ -198,7 +331,30 @@ export default function Profile() {
                     {/* Info Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <InfoField icon="badge" label="Tên đăng nhập" value={profile.username} />
-                        <InfoField icon="mail" label="Email" value={profile.email} />
+                        <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                            <div className="size-9 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center shrink-0 border border-gray-200 dark:border-gray-600">
+                                <span className="material-symbols-outlined text-gray-500 dark:text-gray-400 text-lg">mail</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs text-gray-400 uppercase tracking-wider">Email</p>
+                                <p className="text-sm font-medium mt-0.5 text-gray-900 dark:text-white truncate">{profile.email}</p>
+                                {profile.emailVerified ? (
+                                    <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
+                                        <span className="material-symbols-outlined text-xs">verified</span>
+                                        Đã xác thực
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={handleSendVerifyEmail}
+                                        disabled={sendingVerify}
+                                        className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer disabled:opacity-50"
+                                    >
+                                        <span className="material-symbols-outlined text-xs">warning</span>
+                                        {sendingVerify ? 'Đang gửi...' : 'Chưa xác thực — Nhấn để xác thực'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                         <InfoField icon="phone" label="Số điện thoại" value={profile.phone || 'Chưa cập nhật'} muted={!profile.phone} />
                         <InfoField icon="calendar_today" label="Ngày tạo tài khoản" value={profile.createdAt ? (() => { const d = new Date(profile.createdAt), p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}` })() : 'N/A'} />
                         {profile.studentClass && (

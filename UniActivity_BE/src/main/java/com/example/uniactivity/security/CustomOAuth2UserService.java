@@ -77,6 +77,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             if (user.getAvatarUrl() == null && avatarUrl != null) {
                 user.setAvatarUrl(avatarUrl);
             }
+            // Google đã xác thực email → auto verified
+            user.setEmailVerified(true);
             userRepository.save(user);
             log.info("Cập nhật user hiện tại: {} (role: {})", user.getUsername(), user.getRole());
         } else {
@@ -91,6 +93,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user.setProvider("GOOGLE");
             user.setAvatarUrl(avatarUrl);
             user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+            // Google đã xác thực email → auto verified
+            user.setEmailVerified(true);
             userRepository.save(user);
             log.info("Tạo user mới từ Google: {} (email: {})", user.getUsername(), email);
         }

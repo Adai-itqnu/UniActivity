@@ -46,8 +46,9 @@ public class RegistrationApiController {
         }
 
         try {
-            userService.registerUser(dto);
+            var user = userService.registerUser(dto);
             response.put("message", "Đăng ký thành công!");
+            response.put("username", user.getUsername());
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             response.put("error", e.getMessage());

@@ -10,8 +10,7 @@ public class UserRegistrationDto {
     @NotBlank(message = "Họ và tên không được để trống")
     private String fullName;
 
-    @NotBlank(message = "Tên đăng nhập không được để trống")
-    @Size(min = 4, max = 20, message = "Tên đăng nhập phải từ 4 đến 20 ký tự")
+    // Username (mã sinh viên) — tự sinh bởi hệ thống, không cần nhập
     private String username;
 
     @NotBlank(message = "Email không được để trống")

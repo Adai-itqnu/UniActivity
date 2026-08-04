@@ -49,6 +49,10 @@ public class User {
     @Column(nullable = false)
     private String provider = "LOCAL";
 
+    // Email đã xác thực chưa (cần verify trước khi dùng Quên mật khẩu)
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

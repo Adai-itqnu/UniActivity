@@ -67,6 +67,7 @@ CREATE TABLE users (
     status VARCHAR(20) DEFAULT 'ACTIVE',
     google_id VARCHAR(255),
     provider VARCHAR(50) DEFAULT 'LOCAL',
+    email_verified BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (class_id) REFERENCES classes(id),
     INDEX idx_users_class_id (class_id),

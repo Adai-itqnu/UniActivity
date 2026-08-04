@@ -15,7 +15,7 @@ export default function AuthPage({ defaultTab = 'login' }) {
 
     const [loginForm, setLoginForm] = useState({ username: '', password: '' })
     const [registerForm, setRegisterForm] = useState({
-        fullName: '', username: '', email: '', phone: '',
+        fullName: '', email: '', phone: '',
         password: '', confirmPassword: '', termsAccepted: false,
     })
 
@@ -127,7 +127,6 @@ export default function AuthPage({ defaultTab = 'login' }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     fullName: registerForm.fullName,
-                    username: registerForm.username,
                     email: registerForm.email,
                     phone: registerForm.phone,
                     password: registerForm.password,
@@ -138,9 +137,10 @@ export default function AuthPage({ defaultTab = 'login' }) {
             })
             const data = await response.json()
             if (response.ok) {
-                setRegisterSuccess('Đăng ký thành công! Vui lòng đăng nhập.')
+                const generatedUsername = data.username || ''
+                setRegisterSuccess(`Đăng ký thành công! Mã sinh viên của bạn là: ${generatedUsername}. Hãy ghi nhớ mã này để đăng nhập.`)
                 setActiveTab('login')
-                setRegisterForm({ fullName: '', username: '', email: '', phone: '', password: '', confirmPassword: '', termsAccepted: false })
+                setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '', termsAccepted: false })
             } else {
                 setRegisterError(data.error || 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.')
             }
@@ -369,21 +369,12 @@ export default function AuthPage({ defaultTab = 'login' }) {
                                     )}
 
                                     <form className="space-y-3" onSubmit={handleRegister}>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className={labelCls} htmlFor="reg-name">Họ và tên</label>
-                                                <input className={inputClsSmall()} id="reg-name" type="text" placeholder="Nguyễn Văn A"
-                                                    value={registerForm.fullName}
-                                                    onChange={(e) => setRegisterForm({ ...registerForm, fullName: e.target.value })}
-                                                    required />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className={labelCls} htmlFor="reg-id">Mã sinh viên</label>
-                                                <input className={inputClsSmall()} id="reg-id" type="text" placeholder="45511900XX"
-                                                    value={registerForm.username}
-                                                    onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                                                    required />
-                                            </div>
+                                        <div className="space-y-1">
+                                            <label className={labelCls} htmlFor="reg-name">Họ và tên</label>
+                                            <input className={inputClsSmall()} id="reg-name" type="text" placeholder="Nguyễn Văn A"
+                                                value={registerForm.fullName}
+                                                onChange={(e) => setRegisterForm({ ...registerForm, fullName: e.target.value })}
+                                                required />
                                         </div>
 
                                         <div className="space-y-1">
@@ -400,12 +391,12 @@ export default function AuthPage({ defaultTab = 'login' }) {
                                         </div>
 
                                         <div className="space-y-1">
-                                            <label className={labelCls} htmlFor="reg-phone">Số điện thoại</label>
+                                            <label className={labelCls} htmlFor="reg-phone">Số điện thoại <span className={`text-xs font-normal ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>(không bắt buộc)</span></label>
                                             <div className="relative group">
                                                 <span className={`absolute left-3 top-2.5 ${isDark ? 'text-slate-500' : 'text-slate-400'} group-focus-within:text-indigo-500 transition-colors`}>
                                                     <span className="material-symbols-outlined text-[20px]">phone</span>
                                                 </span>
-                                                <input className={inputClsSmall(true)} id="reg-phone" type="text" placeholder="0987654321"
+                                                <input className={inputClsSmall(true)} id="reg-phone" type="text" placeholder="Có thể bỏ qua, điền sau cũng được"
                                                     value={registerForm.phone}
                                                     onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })} />
                                             </div>
