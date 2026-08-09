@@ -643,23 +643,31 @@ public class ManagerDataApiController {
     @PostMapping("/save-gpa-score")
     public ResponseEntity<?> saveGpaScore(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestBody Map<String, Double> body) {
+            @RequestBody Map<String, Object> body) {
         try {
             User currentUser = userRepository.findById(userDetails.getUser().getId())
                     .orElse(userDetails.getUser());
-            Double currentGpa = body.get("currentGpa");
-            Double previousGpa = body.get("previousGpa");
-            if (currentGpa == null || previousGpa == null) {
+            Number currentValue = (Number) body.get("currentGpa");
+            Number previousValue = (Number) body.get("previousGpa");
+            String description = (String) body.get("description");
+            String evidenceImageUrl = (String) body.get("evidenceImageUrl");
+            if (currentValue == null || previousValue == null) {
                 return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng nhập cả ĐTB hiện tại và kỳ trước"));
             }
+            if (description == null || description.isBlank()
+                    || evidenceImageUrl == null || evidenceImageUrl.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Yêu cầu điểm GPA phải có mô tả và minh chứng"));
+            }
+            double currentGpa = currentValue.doubleValue();
+            double previousGpa = previousValue.doubleValue();
             int score = scoringRulesService.calculateAcademicScore(currentGpa, previousGpa);
-            trainingPointService.addOrUpdateScore(
-                    currentUser, "1.1", score, "AUTO_GPA", null,
-                    String.format("ĐTB kỳ này: %.2f, ĐTB kỳ trước: %.2f", currentGpa, previousGpa)
-            );
+            PointRequest request = pointRequestService.createPointRequest(
+                    currentUser, "1.1", score, description.trim(), evidenceImageUrl);
             return ResponseEntity.ok(Map.of(
-                    "message", "Đã lưu điểm mục 1.1 (Kết quả học tập)",
-                    "score", score
+                    "message", "Đã gửi yêu cầu điểm GPA để quản lý lớp duyệt",
+                    "score", score,
+                    "id", request.getId()
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

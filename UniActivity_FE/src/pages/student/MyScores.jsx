@@ -137,7 +137,12 @@ export default function MyScores() {
                 const res = await fetch(`${apiPrefix}/save-gpa-score`, {
                     method: 'POST', credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ currentGpa: parseFloat(currentGpa), previousGpa: parseFloat(previousGpa) }),
+                    body: JSON.stringify({
+                        currentGpa: parseFloat(currentGpa),
+                        previousGpa: parseFloat(previousGpa),
+                        description: description.trim(),
+                        evidenceImageUrl: evidenceImageUrl || null,
+                    }),
                 })
                 const json = await res.json()
                 if (!res.ok) throw new Error(json.message)

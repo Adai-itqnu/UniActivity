@@ -45,6 +45,11 @@ public class PointRequestService {
         if (!scoringRulesService.isValidCriteriaCode(criteriaCode)) {
             throw new ValidationException("Mã mục điểm không hợp lệ: " + criteriaCode);
         }
+        int maximum = scoringRulesService.getMaximumClaimedScore(criteriaCode);
+        if (claimedScore == null || claimedScore < 0 || claimedScore > maximum) {
+            throw new ValidationException(
+                    "Điểm đề xuất phải trong khoảng 0 đến " + maximum);
+        }
 
         // Get current semester
         Semester currentSemester = semesterRepository.findByIsCurrentTrue();

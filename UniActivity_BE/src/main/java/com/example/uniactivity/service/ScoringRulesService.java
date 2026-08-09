@@ -1,5 +1,6 @@
 package com.example.uniactivity.service;
 
+import com.example.uniactivity.exception.ValidationException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -42,9 +43,34 @@ public class ScoringRulesService {
      * Calculate academic score (1.1) based on current and previous GPA
      */
     public int calculateAcademicScore(double currentGpa, double previousGpa) {
+        validateGpa(currentGpa, previousGpa);
         int baseScore = calculateBaseScore(currentGpa);
         int adjustScore = calculateGpaChangeScore(currentGpa, previousGpa);
         return baseScore + adjustScore;
+    }
+
+    public void validateGpa(double currentGpa, double previousGpa) {
+        if (!Double.isFinite(currentGpa) || !Double.isFinite(previousGpa)
+                || currentGpa < 0 || currentGpa > 10
+                || previousGpa < 0 || previousGpa > 10) {
+            throw new ValidationException("ĐTB phải là số hữu hạn trong khoảng 0 đến 10");
+        }
+    }
+
+    public int getMaximumClaimedScore(String criteriaCode) {
+        return switch (criteriaCode) {
+            case "1.1" -> 22;
+            case "1.3" -> 5;
+            case "1.4" -> 4;
+            case "2.1" -> 20;
+            case "2.2" -> 5;
+            case "2.3", "3.3" -> 0;
+            case "5.1" -> 7;
+            case "5.3" -> 3;
+            case "6.1" -> 10;
+            default -> throw new ValidationException(
+                    "Mục điểm không cho phép sinh viên tự đề xuất điểm");
+        };
     }
     
     /**
