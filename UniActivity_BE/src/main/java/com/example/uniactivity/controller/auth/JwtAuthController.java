@@ -1,8 +1,11 @@
 package com.example.uniactivity.controller.auth;
 
 import com.example.uniactivity.entity.User;
+import com.example.uniactivity.enums.UserStatus;
 import com.example.uniactivity.repository.UserRepository;
+import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.security.JwtTokenProvider;
+import com.example.uniactivity.service.OAuthExchangeCodeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +24,7 @@ import java.util.Map;
  * 
  * - POST /api/auth/login       → Đăng nhập, trả về accessToken + refreshToken
  * - POST /api/auth/refresh     → Dùng refreshToken để lấy accessToken mới
- * - POST /api/auth/logout-jwt  → Logout (client-side xóa token)
+ * - POST /api/auth/logout-jwt  → Thu hồi toàn bộ token hiện tại của người dùng
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -32,6 +35,7 @@ public class JwtAuthController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final OAuthExchangeCodeService exchangeCodeService;
 
     /**
      * POST /api/auth/login
@@ -59,9 +63,9 @@ public class JwtAuthController {
 
             // Generate tokens
             String accessToken = jwtTokenProvider.generateAccessToken(
-                    user.getId(), user.getUsername(), user.getRole().name()
+                    user.getId(), user.getUsername(), user.getRole().name(), user.getTokenVersion()
             );
-            String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+            String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getTokenVersion());
 
             // Build response
             Map<String, Object> response = new LinkedHashMap<>();
@@ -118,16 +122,27 @@ public class JwtAuthController {
         }
 
         // Lấy user
-        Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+        Long userId;
+        long tokenVersion;
+        try {
+            userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+            tokenVersion = jwtTokenProvider.getTokenVersion(refreshToken);
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid refresh token claims."));
+        }
         User user = userRepository.findById(userId).orElse(null);
 
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Người dùng không tồn tại."));
         }
 
+        if (user.getStatus() != UserStatus.ACTIVE || user.getTokenVersion() != tokenVersion) {
+            return ResponseEntity.status(401).body(Map.of("error", "Refresh token revoked or account locked."));
+        }
+
         // Generate new access token
         String newAccessToken = jwtTokenProvider.generateAccessToken(
-                user.getId(), user.getUsername(), user.getRole().name()
+                user.getId(), user.getUsername(), user.getRole().name(), user.getTokenVersion()
         );
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -140,12 +155,64 @@ public class JwtAuthController {
     }
 
     /**
+     * Exchanges a short-lived, single-use Google OAuth code for normal JWT credentials.
+     */
+    @PostMapping("/oauth2/exchange")
+    public ResponseEntity<?> exchangeOAuthCode(@RequestBody Map<String, String> request) {
+        String code = request.get("code");
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "OAuth exchange code is required."));
+        }
+
+        User user = exchangeCodeService.consume(code).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "OAuth exchange code is invalid or expired."));
+        }
+
+        return ResponseEntity.ok(buildJwtResponse(user));
+    }
+
+    private Map<String, Object> buildJwtResponse(User user) {
+        String accessToken = jwtTokenProvider.generateAccessToken(
+                user.getId(), user.getUsername(), user.getRole().name(), user.getTokenVersion()
+        );
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getTokenVersion());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("accessToken", accessToken);
+        response.put("refreshToken", refreshToken);
+        response.put("tokenType", "Bearer");
+        response.put("expiresIn", jwtTokenProvider.getAccessTokenExpirationMs() / 1000);
+
+        Map<String, Object> userInfo = new LinkedHashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("fullName", user.getFullName());
+        userInfo.put("email", user.getEmail());
+        userInfo.put("phone", user.getPhone());
+        userInfo.put("role", user.getRole().name());
+        userInfo.put("avatarUrl", user.getAvatarUrl());
+        userInfo.put("provider", user.getProvider());
+        userInfo.put("status", user.getStatus().name());
+        response.put("user", userInfo);
+        return response;
+    }
+
+    /**
      * POST /api/auth/logout-jwt
-     * JWT logout là client-side (xóa token khỏi localStorage).
-     * Endpoint này chỉ để frontend có thể gọi cho consistency.
+     * Thu hồi toàn bộ access/refresh token đã phát bằng cách tăng tokenVersion.
      */
     @PostMapping("/logout-jwt")
-    public ResponseEntity<?> logoutJwt() {
+    public ResponseEntity<?> logoutJwt(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthenticated."));
+        }
+
+        int updatedRows = userRepository.incrementTokenVersionById(userDetails.getUser().getId());
+        if (updatedRows != 1) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unable to revoke token."));
+        }
+
         return ResponseEntity.ok(Map.of("message", "Đăng xuất thành công."));
     }
 }

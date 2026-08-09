@@ -104,8 +104,16 @@ public class SecurityConfig {
                 .maximumSessions(-1)
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/register", "/login", "/css/**", "/js/**", "/images/**", "/api/auth/**", "/oauth2/**", "/error", "/terms").permitAll()
-                .requestMatchers("/sse/**").authenticated()
+                .requestMatchers(
+                    "/register", "/login", "/css/**", "/js/**", "/images/**",
+                    "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/oauth2/exchange",
+                    "/api/auth/send-verification-email", "/api/auth/verify-email",
+                    "/api/auth/forgot-password", "/api/auth/verify-reset-otp", "/api/auth/reset-password",
+                    "/oauth2/**", "/error", "/terms"
+                ).permitAll()
+                .requestMatchers("/api/auth/logout-jwt", "/api/auth/me").authenticated()
+                .requestMatchers("/sse/subscribe").permitAll()
+                .requestMatchers("/sse/ticket", "/sse/status").authenticated()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/manager/**").hasRole("MANAGER")
                 .requestMatchers("/student/**").hasRole("STUDENT")

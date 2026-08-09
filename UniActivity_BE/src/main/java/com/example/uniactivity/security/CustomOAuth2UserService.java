@@ -51,8 +51,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     /**
      * Xử lý thông tin OAuth2 user: tìm hoặc tạo user trong database.
      */
-    private OAuth2User processOAuth2User(OAuth2User oAuth2User) {
+    OAuth2User processOAuth2User(OAuth2User oAuth2User) {
         String email = oAuth2User.getAttribute("email");
+        Boolean emailVerified = oAuth2User.getAttribute("email_verified");
         String name = oAuth2User.getAttribute("name");
         String googleId = oAuth2User.getAttribute("sub");
         String avatarUrl = oAuth2User.getAttribute("picture");
@@ -60,6 +61,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (email == null) {
             throw new OAuth2AuthenticationException(
                     new OAuth2Error("email_not_found", "Không tìm thấy email từ tài khoản Google", null)
+            );
+        }
+
+        if (!Boolean.TRUE.equals(emailVerified)) {
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("email_not_verified", "Google email must be verified", null)
             );
         }
 

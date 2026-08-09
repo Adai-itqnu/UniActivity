@@ -68,6 +68,7 @@ CREATE TABLE users (
     google_id VARCHAR(255),
     provider VARCHAR(50) DEFAULT 'LOCAL',
     email_verified BOOLEAN DEFAULT FALSE,
+    token_version BIGINT NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (class_id) REFERENCES classes(id),
     INDEX idx_users_class_id (class_id),
@@ -120,6 +121,19 @@ CREATE TABLE password_reset_tokens (
     used BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_password_reset_email (email)
+);
+
+-- OAuth login one-time exchange codes (only SHA-256 digests are stored)
+CREATE TABLE oauth_exchange_codes (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    code_hash CHAR(64) NOT NULL UNIQUE,
+    user_id BIGINT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    consumed_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_oauth_exchange_user_id (user_id),
+    INDEX idx_oauth_exchange_expires_at (expires_at)
 );
 
 -- -------------------------------------------------------

@@ -1,85 +1,94 @@
 import { useEffect } from 'react'
 import { showToast } from './toast'
+import { requestSseTicket, sseSubscribeUrl } from './sseTicket'
+
+const RETRY_DELAY_MS = 5000
+
+function bindEventHandlers(eventSource, role) {
+    eventSource.addEventListener('notification', (event) => {
+        try {
+            const payload = JSON.parse(event.data)
+            showToast(payload.title || 'Thông báo mới', payload.message || '', 'success')
+            window.dispatchEvent(new CustomEvent('new-notification', { detail: payload }))
+        } catch (error) {
+            console.error('[SSE] Failed to parse notification payload:', error)
+        }
+    })
+
+    if (role === 'MANAGER') {
+        eventSource.addEventListener('dashboard_update', (event) => {
+            try {
+                const payload = JSON.parse(event.data)
+                window.dispatchEvent(new CustomEvent('dashboard-update', { detail: payload }))
+            } catch (error) {
+                console.error('[SSE] Failed to parse dashboard_update payload:', error)
+            }
+        })
+    }
+
+    eventSource.addEventListener('new_activity', (event) => {
+        try {
+            const payload = JSON.parse(event.data)
+            window.dispatchEvent(new CustomEvent('new-activity', { detail: payload }))
+        } catch (error) {
+            console.error('[SSE] Failed to parse new_activity payload:', error)
+        }
+    })
+
+    eventSource.addEventListener('activity_registration_update', (event) => {
+        try {
+            const payload = JSON.parse(event.data)
+            window.dispatchEvent(new CustomEvent('activity-registration-update', { detail: payload }))
+        } catch (error) {
+            console.error('[SSE] Failed to parse activity_registration_update payload:', error)
+        }
+    })
+}
 
 export function useSseConnection(role) {
     useEffect(() => {
-        const accessToken = sessionStorage.getItem('accessToken');
-        if (!accessToken) return;
+        if (!sessionStorage.getItem('accessToken')) return undefined
 
-        console.log(`[SSE] 🔌 Connecting to SSE subscription for role: ${role}`);
-        const eventSource = new EventSource(`/sse/subscribe?token=${accessToken}`);
+        let stopped = false
+        let eventSource = null
+        let retryTimer = null
 
-        eventSource.onopen = () => {
-            console.log(`[SSE] 🟢 Connected to SSE subscription successfully`);
-        };
-
-        eventSource.onerror = (err) => {
-            console.warn('[SSE] ⚠️ SSE connection closed or error occurred. Reconnecting...', err);
-        };
-
-        // 1. Listen to generic notifications
-        eventSource.addEventListener('notification', (e) => {
-            try {
-                const payload = JSON.parse(e.data);
-                console.log('[SSE] 🔔 Received real-time notification:', payload);
-                
-                // Show floating glassmorphism toast
-                showToast(payload.title || 'Thông báo mới', payload.message || '', 'success');
-
-                // Dispatch global custom event for layout headers to fetch unread count/list
-                window.dispatchEvent(new CustomEvent('new-notification', { detail: payload }));
-            } catch (err) {
-                console.error('[SSE] Failed to parse notification payload:', err);
+        const scheduleReconnect = () => {
+            if (!stopped) {
+                retryTimer = window.setTimeout(connect, RETRY_DELAY_MS)
             }
-        });
-
-        // 2. Listen to dashboard updates (only for MANAGERS)
-        if (role === 'MANAGER') {
-            eventSource.addEventListener('dashboard_update', (e) => {
-                try {
-                    const payload = JSON.parse(e.data);
-                    console.log('[SSE] 📊 Received real-time dashboard update:', payload);
-
-                    // Dispatch global custom event for manager dashboard to trigger silent re-fetch
-                    window.dispatchEvent(new CustomEvent('dashboard-update', { detail: payload }));
-                } catch (err) {
-                    console.error('[SSE] Failed to parse dashboard_update payload:', err);
-                }
-            });
         }
 
-        // 3. Listen to new activity events (for STUDENT and MANAGER)
-        eventSource.addEventListener('new_activity', (e) => {
+        const connect = async () => {
             try {
-                const payload = JSON.parse(e.data);
-                console.log('[SSE] 🆕 Received new activity event:', payload);
+                const ticket = await requestSseTicket()
+                if (stopped) return
 
-                // Dispatch global custom event for activities pages to re-fetch
-                window.dispatchEvent(new CustomEvent('new-activity', { detail: payload }));
-            } catch (err) {
-                console.error('[SSE] Failed to parse new_activity payload:', err);
+                eventSource = new EventSource(sseSubscribeUrl(ticket))
+                eventSource.onopen = () => {
+                    console.log(`[SSE] Connected for role: ${role}`)
+                }
+                eventSource.onerror = (error) => {
+                    console.warn('[SSE] Connection closed; requesting a fresh ticket.', error)
+                    eventSource?.close()
+                    eventSource = null
+                    scheduleReconnect()
+                }
+                bindEventHandlers(eventSource, role)
+            } catch (error) {
+                console.warn('[SSE] Unable to obtain purpose ticket.', error)
+                scheduleReconnect()
             }
-        });
+        }
 
-        // 4. Listen to activity registration updates (for MANAGERS)
-        eventSource.addEventListener('activity_registration_update', (e) => {
-            try {
-                const payload = JSON.parse(e.data);
-                console.log('[SSE] 📝 Received activity registration update:', payload);
+        connect()
 
-                // Dispatch global custom event for manager activity detail to re-fetch registrations
-                window.dispatchEvent(new CustomEvent('activity-registration-update', { detail: payload }));
-            } catch (err) {
-                console.error('[SSE] Failed to parse activity_registration_update payload:', err);
-            }
-        });
-
-        // Cleanup connection on unmount
         return () => {
-            console.log(`[SSE] 🔌 Closing SSE connection for role: ${role}`);
-            eventSource.close();
-        };
-    }, [role]);
+            stopped = true
+            if (retryTimer !== null) window.clearTimeout(retryTimer)
+            eventSource?.close()
+        }
+    }, [role])
 }
 
-export default useSseConnection;
+export default useSseConnection

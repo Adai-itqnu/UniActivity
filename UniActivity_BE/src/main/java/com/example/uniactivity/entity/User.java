@@ -53,6 +53,9 @@ public class User {
     @Column(nullable = false)
     private boolean emailVerified = false;
 
+    @Column(nullable = false)
+    private long tokenVersion = 0L;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

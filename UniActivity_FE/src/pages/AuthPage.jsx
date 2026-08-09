@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useDarkMode } from '../contexts/DarkModeContext'
 import ForgotPasswordModal from './ForgotPasswordModal'
 import bannerImg from '../assets/img/banner_QNU.jpg'
+import { exchangeOAuthCodeOnce, homePathForRole } from '../utils/oauthExchange'
 
 export default function AuthPage({ defaultTab = 'login' }) {
     const { isDark, toggleDarkMode } = useDarkMode()
@@ -24,43 +25,43 @@ export default function AuthPage({ defaultTab = 'login' }) {
     const [registerSuccess, setRegisterSuccess] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
-    // Kiểm tra URL params khi redirect từ backend (OAuth2 JWT tokens, OAuth2 failure, etc.)
+    // Đổi one-time code từ Google OAuth và xử lý lỗi callback.
     useEffect(() => {
         const error = searchParams.get('error')
         const message = searchParams.get('message')
-        const token = searchParams.get('token')
-        const refreshTokenParam = searchParams.get('refreshToken')
-        const userParam = searchParams.get('user')
+        const code = searchParams.get('code')
+        let cancelled = false
 
-        // OAuth2 (Google) login thành công → nhận JWT tokens qua URL
-        if (token && refreshTokenParam) {
-            sessionStorage.setItem('accessToken', token)
-            sessionStorage.setItem('refreshToken', refreshTokenParam)
-            if (userParam) {
-                try {
-                    const user = JSON.parse(decodeURIComponent(userParam))
-                    sessionStorage.setItem('user', JSON.stringify(user))
-                    const role = user.role
-                    if (role === 'ADMIN') {
-                        window.location.href = '/admin/dashboard'
-                    } else if (role === 'MANAGER') {
-                        window.location.href = '/manager/dashboard'
-                    } else {
-                        window.location.href = '/student/home'
+        if (code) {
+            // Xóa code khỏi browser history ngay; code cũng chỉ dùng được một lần ở backend.
+            window.history.replaceState({}, document.title, window.location.pathname)
+            setIsLoading(true)
+            exchangeOAuthCodeOnce(code)
+                .then((data) => {
+                    if (cancelled) return
+                    sessionStorage.setItem('accessToken', data.accessToken)
+                    sessionStorage.setItem('refreshToken', data.refreshToken)
+                    sessionStorage.setItem('user', JSON.stringify(data.user))
+                    window.location.href = homePathForRole(data.user.role)
+                })
+                .catch((exchangeError) => {
+                    if (!cancelled) {
+                        setLoginError(exchangeError.message || 'Đăng nhập bằng Google thất bại.')
                     }
-                } catch {
-                    window.location.href = '/student/home'
-                }
-            } else {
-                window.location.href = '/'
-            }
-            return
+                })
+                .finally(() => {
+                    if (!cancelled) setIsLoading(false)
+                })
         }
 
         if (error === 'google') {
             setLoginError(message || 'Đăng nhập bằng Google thất bại. Vui lòng thử lại.')
         } else if (error === 'session') {
             setLoginError(message || 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.')
+        }
+
+        return () => {
+            cancelled = true
         }
     }, [searchParams])
 
@@ -98,7 +99,7 @@ export default function AuthPage({ defaultTab = 'login' }) {
             } else {
                 setLoginError(data.error || 'Tên đăng nhập hoặc mật khẩu không đúng.')
             }
-        } catch (error) {
+        } catch {
             setLoginError('Có lỗi xảy ra. Vui lòng thử lại.')
         } finally {
             setIsLoading(false)
@@ -144,7 +145,7 @@ export default function AuthPage({ defaultTab = 'login' }) {
             } else {
                 setRegisterError(data.error || 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.')
             }
-        } catch (error) {
+        } catch {
             setRegisterError('Có lỗi xảy ra. Vui lòng thử lại.')
         } finally {
             setIsLoading(false)

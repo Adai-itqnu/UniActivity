@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
     '/api/auth/login',
     '/api/auth/register',
     '/api/auth/refresh',
+    '/api/auth/oauth2/exchange',
 ]
 
 function isPublicPath(url) {

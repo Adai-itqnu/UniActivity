@@ -1,6 +1,7 @@
 package com.example.uniactivity.security;
 
 import com.example.uniactivity.entity.User;
+import com.example.uniactivity.enums.UserStatus;
 import com.example.uniactivity.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,12 +19,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Filter chạy trước mọi request, kiểm tra JWT token trong header Authorization.
- * Nếu token hợp lệ → set Authentication vào SecurityContext.
- * Nếu không có token hoặc token không hợp lệ → bỏ qua (cho Session-based auth xử lý).
- * 
- * Đây là cơ chế "JWT-first, fallback-to-session" giúp backward-compatible
- * trong giai đoạn chuyển đổi.
+ * Authenticates bearer JWTs from the Authorization header.
+ * API and SSE routes never fall back to a form/OAuth session principal;
+ * legacy MVC routes may continue using their existing session authentication.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,12 +36,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        // API endpoints are bearer-only. Never let a form/OAuth session principal
+        // bypass JWT type, status, or token-version checks.
+        if (isBearerOnlyApiRequest(request)) {
+            SecurityContextHolder.clearContext();
+        }
+
         try {
             String jwt = extractJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
                 // Không cho phép refresh token để truy cập API
-                if (jwtTokenProvider.isRefreshToken(jwt)) {
+                if (!jwtTokenProvider.isAccessToken(jwt)) {
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -51,7 +55,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Long userId = jwtTokenProvider.getUserIdFromToken(jwt);
 
                 User user = userRepository.findById(userId).orElse(null);
-                if (user != null) {
+                if (user != null
+                        && user.getStatus() == UserStatus.ACTIVE
+                        && user.getTokenVersion() == jwtTokenProvider.getTokenVersion(jwt)) {
                     CustomUserDetails userDetails = new CustomUserDetails(user);
 
                     UsernamePasswordAuthenticationToken authentication =
@@ -72,20 +78,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Trích xuất JWT từ header hoặc query parameter (dành cho EventSource SSE)
-     */
+    /** Trích xuất access token chỉ từ header Authorization. */
+    private boolean isBearerOnlyApiRequest(HttpServletRequest request) {
+        String path = request.getServletPath();
+        if (!StringUtils.hasText(path)) {
+            path = request.getRequestURI();
+        }
+        if (!StringUtils.hasText(path)) {
+            return false;
+        }
+
+        return path.equals("/api")
+                || path.startsWith("/api/")
+                || path.endsWith("/api")
+                || path.contains("/api/")
+                || path.equals("/sse")
+                || path.startsWith("/sse/");
+    }
+
     private String extractJwtFromRequest(HttpServletRequest request) {
         // 1. Lấy từ header Authorization
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
-        }
-
-        // 2. Lấy từ query parameter (hỗ trợ EventSource kết nối SSE)
-        String tokenParam = request.getParameter("token");
-        if (StringUtils.hasText(tokenParam)) {
-            return tokenParam;
         }
 
         return null;

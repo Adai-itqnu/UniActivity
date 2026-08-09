@@ -1,6 +1,6 @@
 package com.example.uniactivity.service;
 
-import com.example.uniactivity.security.JwtTokenProvider;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +10,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
@@ -28,8 +29,18 @@ import java.util.Base64;
 @Slf4j
 public class DynamicQrTokenService {
 
-    @Value("${app.jwt.secret:UniActivitySecretKeyMustBeAtLeast32CharactersLong2026}")
+    @Value("${app.qr.secret}")
     private String secretKey;
+
+    @PostConstruct
+    public void init() {
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException("QR secret must be configured");
+        }
+        if (secretKey.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("QR secret must contain at least 32 UTF-8 bytes");
+        }
+    }
 
     /** QR đổi mỗi 60 giây (1 phút) */
     private static final int INTERVAL_SECONDS = 60;
@@ -78,7 +89,9 @@ public class DynamicQrTokenService {
         // Kiểm tra window hiện tại VÀ các window gần đó (tolerance)
         for (int offset = -TOLERANCE_WINDOWS; offset <= 0; offset++) {
             String expected = computeHmac(activityId, classId, currentWindow + offset);
-            if (token.equals(expected)) {
+            if (MessageDigest.isEqual(
+                    token.getBytes(StandardCharsets.US_ASCII),
+                    expected.getBytes(StandardCharsets.US_ASCII))) {
                 return true;
             }
         }

@@ -40,12 +40,9 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(registrationDto.getPassword()));
         user.setStatus(UserStatus.ACTIVE);
 
-        // Logic: Người đầu tiên là ADMIN, sau đó là STUDENT
-        if (userRepository.count() == 0) {
-            user.setRole(Role.ADMIN);
-        } else {
-            user.setRole(Role.STUDENT);
-        }
+        // Đăng ký công khai không bao giờ được cấp quyền đặc biệt.
+        // ADMIN và MANAGER chỉ được tạo qua luồng quản trị có xác thực.
+        user.setRole(Role.STUDENT);
 
         userRepository.save(user);
         return user;

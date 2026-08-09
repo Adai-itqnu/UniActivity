@@ -5,7 +5,11 @@ import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.enums.UserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +22,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
     long count();
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("update User u set u.tokenVersion = u.tokenVersion + 1 where u.id = :userId")
+    int incrementTokenVersionById(@Param("userId") Long userId);
     
     // Filter methods
     List<User> findByRole(Role role);
