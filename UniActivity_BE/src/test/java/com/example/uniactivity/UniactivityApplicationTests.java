@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 		"spring.datasource.username=sa",
 		"spring.datasource.password=",
 		"spring.datasource.driver-class-name=org.h2.Driver",
+		"spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
 		"spring.jpa.hibernate.ddl-auto=create-drop",
 		"spring.security.oauth2.client.registration.google.client-id=test-google-client",
 		"spring.security.oauth2.client.registration.google.client-secret=test-google-secret"
