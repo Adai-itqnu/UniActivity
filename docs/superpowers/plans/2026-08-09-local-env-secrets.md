@@ -31,7 +31,7 @@
 - [ ] **Step 1: Run a non-disclosing failing validation**
 
 ```bash
-bash -c 'set -a; source UniActivity_BE/.env; set +a; test -n "${JWT_SECRET:-}" && test -n "${QR_SECRET:-}" && test "${#JWT_SECRET}" -ge 32 && test "${#QR_SECRET}" -ge 32 && test "$JWT_SECRET" != "$QR_SECRET"'
+awk -F= '{line=$0; sub(/\r$/, "", line); if (line ~ /^JWT_SECRET=/) jwt=substr(line,index(line,"=")+1); if (line ~ /^QR_SECRET=/) qr=substr(line,index(line,"=")+1)} END {exit !(length(jwt)>=32 && length(qr)>=32 && jwt != qr)}' UniActivity_BE/.env
 ```
 
 Expected: non-zero exit because the two local variables are currently missing.
@@ -70,7 +70,7 @@ Append exactly one `JWT_SECRET=` assignment and one `QR_SECRET=` assignment to `
 - [ ] **Step 3: Run the non-disclosing validation again**
 
 ```bash
-bash -c 'set -a; source UniActivity_BE/.env; set +a; test -n "${JWT_SECRET:-}" && test -n "${QR_SECRET:-}" && test "${#JWT_SECRET}" -ge 32 && test "${#QR_SECRET}" -ge 32 && test "$JWT_SECRET" != "$QR_SECRET"'
+awk -F= '{line=$0; sub(/\r$/, "", line); if (line ~ /^JWT_SECRET=/) jwt=substr(line,index(line,"=")+1); if (line ~ /^QR_SECRET=/) qr=substr(line,index(line,"=")+1)} END {exit !(length(jwt)>=32 && length(qr)>=32 && jwt != qr)}' UniActivity_BE/.env
 ```
 
 Expected: exit 0 with no output.
