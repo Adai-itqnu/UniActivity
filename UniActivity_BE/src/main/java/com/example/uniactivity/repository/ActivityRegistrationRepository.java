@@ -18,6 +18,11 @@ public interface ActivityRegistrationRepository extends JpaRepository<ActivityRe
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM ActivityRegistration r WHERE r.id = :id")
     Optional<ActivityRegistration> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM ActivityRegistration r WHERE r.activity = :activity AND r.student = :student")
+    Optional<ActivityRegistration> findByActivityAndStudentForUpdate(
+            @Param("activity") Activity activity, @Param("student") User student);
     
     List<ActivityRegistration> findByStudentOrderByRegisteredAtDesc(User student);
     

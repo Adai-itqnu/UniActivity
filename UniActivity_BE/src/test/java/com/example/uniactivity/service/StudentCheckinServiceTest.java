@@ -134,6 +134,7 @@ class StudentCheckinServiceTest {
                 service.checkIn(student, 20L, 10L, "token", null, null, null);
 
         assertEquals(RegistrationStatus.ATTENDED, result.getStatus());
+        verify(registrationRepository).findByActivityAndStudentForUpdate(activity, student);
         verify(registrationRepository).save(registration);
     }
 
@@ -146,7 +147,7 @@ class StudentCheckinServiceTest {
 
     private void stubSuccessfulPreconditions() {
         stubActivityAndToken(true);
-        when(registrationRepository.findByActivityAndStudent(activity, student))
+        when(registrationRepository.findByActivityAndStudentForUpdate(activity, student))
                 .thenReturn(Optional.of(registration));
     }
 

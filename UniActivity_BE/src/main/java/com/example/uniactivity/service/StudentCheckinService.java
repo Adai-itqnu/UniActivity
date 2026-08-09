@@ -49,7 +49,7 @@ public class StudentCheckinService {
         validateLocation(activity, latitude, longitude, accuracy);
 
         ActivityRegistration registration = registrationRepository
-                .findByActivityAndStudent(activity, student)
+                .findByActivityAndStudentForUpdate(activity, student)
                 .orElseThrow(() -> new ValidationException("Bạn chưa đăng ký hoạt động này"));
         if (registration.getStatus() != RegistrationStatus.REGISTERED) {
             throw new ValidationException("Đăng ký không ở trạng thái có thể check-in");
