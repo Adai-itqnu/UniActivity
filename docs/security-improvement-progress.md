@@ -1,6 +1,6 @@
 # Tiến độ cải thiện an toàn và ổn định
 
-Ngày cập nhật: 2026-08-04
+Ngày cập nhật: 2026-08-09
 
 Quy ước:
 
@@ -21,7 +21,7 @@ Quy ước:
 - [x] Public registration luôn tạo `STUDENT`; không còn cơ chế “tài khoản đầu tiên là ADMIN”.
 - [x] Các điểm phát token của local login và Google OAuth đã dùng token version hiện tại.
 - [x] JWT filter chỉ đọc access token từ header; không còn đọc bearer credential từ query string.
-- [ ] Cấu hình `JWT_SECRET` và `QR_SECRET` local riêng, khác nhau trong `UniActivity_BE/.env` trước khi chạy ứng dụng. Không đưa các giá trị này vào Git.
+- [x] Đã cấu hình `JWT_SECRET` và `QR_SECRET` local riêng, khác nhau trong `UniActivity_BE/.env`; file vẫn bị Git bỏ qua.
 
 Test P0-A hiện có: `JwtTokenProviderTest`, `UserServiceTest`, `JwtAuthenticationFilterTest`, `JwtAuthControllerTest`.
 
@@ -38,14 +38,16 @@ Test P0-A hiện có: `JwtTokenProviderTest`, `UserServiceTest`, `JwtAuthenticat
 - [x] Session form/OAuth không thể xác thực các route API/SSE; các route này luôn phải qua access JWT hoặc purpose-bound SSE ticket.
 - [x] OAuth exchange single-flight chống gọi lặp trong React StrictMode nhưng giải phóng cache sau khi request hoàn tất để có thể retry lỗi tạm thời.
 
-Xác minh P0-A/P0-B: 38 backend tests, 7 frontend Node tests, backend package và frontend production build.
+Xác minh P0-A/P0-B/P0-C đã triển khai: 73 backend tests, 7 frontend Node tests, backend context bằng H2 cô lập, frontend production build và `npm audit`.
 
-### P0-C trở đi — Chưa triển khai
+### P0-C — Phân quyền, check-in và toàn vẹn điểm
 
-- [ ] Kiểm tra quyền sở hữu/thuộc lớp ở mọi API manager, student, profile và tài nguyên tải xuống.
-- [ ] Check-in bắt buộc QR hợp lệ, đúng activity/class, đúng cửa sổ thời gian và chống replay.
-- [ ] Duyệt/từ chối minh chứng idempotent; không cộng/trừ điểm lặp lại khi request retry hoặc chạy đồng thời.
-- [ ] Đăng ký/hủy hoạt động theo transaction và ràng buộc unique để chống vượt số lượng hoặc đăng ký trùng.
+- [~] Đã chặn IDOR theo lớp cho activity, registration, evidence, user score và profile điểm; tài nguyên upload/download cần được siết tiếp trong batch upload.
+- [x] Check-in bắt buộc QR hợp lệ, đúng activity/class, đúng cửa sổ thời gian, GPS hữu hạn/đúng miền, độ chính xác cho phép và registration hợp lệ.
+- [x] Duyệt/từ chối minh chứng và yêu cầu điểm có pessimistic lock, idempotent theo nguồn/reference; retry hoặc chạy đồng thời không cộng điểm lặp.
+- [x] Đăng ký/hủy hoạt động chạy trong transaction riêng cho từng lần optimistic retry và có unique `(student_id, activity_id)` chống đăng ký trùng.
+- [x] GPA và điểm tự đề xuất không còn ghi thẳng vào sổ điểm; phải tạo yêu cầu chờ manager duyệt và bị giới hạn theo tiêu chí.
+- [x] Sổ điểm giữ từng contribution theo source/reference, chống ghi trùng và cộng đúng nhiều hoạt động cùng tiêu chí.
 - [ ] Loại bỏ đường XSS khi render nội dung do người dùng nhập.
 - [ ] OTP/reset password: hash OTP, giới hạn lần thử, cooldown/rate-limit và thu hồi token sau đổi mật khẩu.
 - [ ] Upload: allowlist MIME thực, magic-byte validation, tên file ngẫu nhiên, giới hạn kích thước và chặn path traversal.
@@ -53,7 +55,7 @@ Xác minh P0-A/P0-B: 38 backend tests, 7 frontend Node tests, backend package v�
 
 ## P1 — Độ ổn định và khả năng kiểm thử
 
-- [~] Test context đã dùng JWT/QR secret giả riêng, không đọc secret thật; database test độc lập vẫn chưa hoàn tất.
+- [x] Test context dùng JWT/QR secret giả và H2 in-memory độc lập, không đọc `.env` hoặc MySQL thật.
 - [ ] Chuyển Karate sang khởi động app trên random port và lấy JWT động; bỏ tài khoản/localhost hard-code.
 - [ ] Chuẩn hóa response lỗi và validation cho toàn bộ REST API.
 - [ ] Bổ sung audit log cho thay đổi điểm, duyệt minh chứng, khóa user và thao tác admin.
@@ -68,6 +70,6 @@ Xác minh P0-A/P0-B: 38 backend tests, 7 frontend Node tests, backend package v�
 - [ ] Dùng DTO response thay vì trả entity/map tùy ý.
 - [ ] Thêm pagination, index và giới hạn truy vấn ở danh sách lớn.
 - [ ] Metrics/health/log correlation và cảnh báo lỗi xác thực hoặc thao tác điểm bất thường.
-- [ ] Dependency/security scanning trong CI và lịch xoay secret.
+- [~] Frontend runtime dependencies hiện `npm audit` = 0 vulnerability; chưa tự động hóa dependency/security scanning trong CI và lịch xoay secret.
 - [ ] Tài liệu hóa state machine cho activity, registration, evidence và score ledger.
 - [ ] E2E test các luồng người dùng chính trên frontend.
