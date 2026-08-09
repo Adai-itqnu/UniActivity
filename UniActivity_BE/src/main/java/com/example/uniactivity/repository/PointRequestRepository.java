@@ -5,15 +5,22 @@ import com.example.uniactivity.entity.Semester;
 import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.EvidenceStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PointRequestRepository extends JpaRepository<PointRequest, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT pr FROM PointRequest pr WHERE pr.id = :id")
+    Optional<PointRequest> findByIdForUpdate(@Param("id") Long id);
     
     List<PointRequest> findByStudent(User student);
     

@@ -115,7 +115,7 @@ public class PointRequestService {
      */
     @Transactional
     public void approveRequest(Long requestId, User manager, String comment) {
-        PointRequest request = pointRequestRepository.findById(requestId)
+        PointRequest request = pointRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new NotFoundException("Yêu cầu điểm", requestId));
 
         if (request.getStatus() != EvidenceStatus.PENDING) {
@@ -135,11 +135,11 @@ public class PointRequestService {
         pointRequestRepository.save(request);
         
         // Sync score to StudentTrainingPoint
-        trainingPointService.addOrUpdateScore(
+        trainingPointService.addScoreOnce(
                 request.getStudent(),
                 request.getCriteriaCode(),
                 request.getClaimedScore(),
-                "MANUAL",
+                "POINT_REQUEST",
                 request.getId(),
                 request.getDescription()
         );
@@ -157,7 +157,7 @@ public class PointRequestService {
      */
     @Transactional
     public void rejectRequest(Long requestId, User manager, String comment) {
-        PointRequest request = pointRequestRepository.findById(requestId)
+        PointRequest request = pointRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new NotFoundException("Yêu cầu điểm", requestId));
 
         if (request.getStatus() != EvidenceStatus.PENDING) {
