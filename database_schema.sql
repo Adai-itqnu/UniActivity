@@ -333,6 +333,8 @@ CREATE TABLE training_point_details (
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (student_training_point_id) REFERENCES student_training_points(id),
+    UNIQUE KEY uk_tp_detail_source_reference
+        (student_training_point_id, criteria_code, source_type, reference_id),
     INDEX idx_tp_details_stp_id (student_training_point_id)
 );
 

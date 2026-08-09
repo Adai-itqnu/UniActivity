@@ -5,7 +5,16 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "training_point_details")
+@Table(
+        name = "training_point_details",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_tp_detail_source_reference",
+                columnNames = {
+                        "student_training_point_id",
+                        "criteria_code",
+                        "source_type",
+                        "reference_id"
+                }))
 @Data
 public class TrainingPointDetail {
     @Id

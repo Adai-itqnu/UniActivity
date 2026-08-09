@@ -6,7 +6,11 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "activity_registrations")
+@Table(
+        name = "activity_registrations",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_activity_regs_student_activity",
+                columnNames = {"student_id", "activity_id"}))
 @Data
 public class ActivityRegistration {
     @Id

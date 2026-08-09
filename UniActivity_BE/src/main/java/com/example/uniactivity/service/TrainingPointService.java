@@ -164,7 +164,7 @@ public class TrainingPointService {
         
         Map<String, Integer> scores = new HashMap<>();
         for (TrainingPointDetail detail : details) {
-            scores.put(detail.getCriteriaCode(), detail.getScore());
+            scores.merge(detail.getCriteriaCode(), detail.getScore(), Integer::sum);
         }
         
         return scores;
