@@ -14,6 +14,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -36,6 +37,7 @@ public class ActivityService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final SseEmitterService sseEmitterService;
+    private final TransactionTemplate transactionTemplate;
 
     // ========================================
     // Activity CRUD
@@ -434,7 +436,9 @@ public class ActivityService {
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return doRegister(student, activityId);
+                Map<String, Object> result = transactionTemplate.execute(
+                        status -> doRegister(student, activityId));
+                return Objects.requireNonNull(result, "Giao dịch đăng ký không trả kết quả");
             } catch (ObjectOptimisticLockingFailureException e) {
                 log.warn("Optimistic lock conflict for activity {} (attempt {}/{})", activityId, attempt, maxRetries);
                 if (attempt == maxRetries) {
@@ -447,7 +451,6 @@ public class ActivityService {
         throw new RuntimeException("Đăng ký thất bại, vui lòng thử lại");
     }
     
-    @Transactional
     private Map<String, Object> doRegister(User student, Long activityId) {
         if (student.getStudentClass() == null) {
             throw new RuntimeException("Bạn phải tham gia lớp trước khi đăng ký hoạt động");
@@ -558,7 +561,9 @@ public class ActivityService {
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return doCancel(student, activityId);
+                Map<String, Object> result = transactionTemplate.execute(
+                        status -> doCancel(student, activityId));
+                return Objects.requireNonNull(result, "Giao dịch hủy đăng ký không trả kết quả");
             } catch (ObjectOptimisticLockingFailureException e) {
                 log.warn("Optimistic lock conflict on cancel for activity {} (attempt {}/{})", activityId, attempt, maxRetries);
                 if (attempt == maxRetries) {
@@ -570,7 +575,6 @@ public class ActivityService {
         throw new RuntimeException("Hủy đăng ký thất bại, vui lòng thử lại");
     }
     
-    @Transactional
     private Map<String, Object> doCancel(User student, Long activityId) {
         Activity activity = findActivityById(activityId);
         
