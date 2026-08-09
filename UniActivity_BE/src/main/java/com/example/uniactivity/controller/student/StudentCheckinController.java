@@ -3,6 +3,7 @@ package com.example.uniactivity.controller.student;
 import com.example.uniactivity.entity.*;
 import com.example.uniactivity.enums.RegistrationStatus;
 import com.example.uniactivity.enums.Role;
+import com.example.uniactivity.exception.ValidationException;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.security.CustomUserDetails;
@@ -10,7 +11,7 @@ import com.example.uniactivity.service.ActivityService;
 import com.example.uniactivity.service.DynamicQrTokenService;
 import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.SseEmitterService;
-import com.example.uniactivity.util.GeoUtils;
+import com.example.uniactivity.service.StudentCheckinService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,6 +36,7 @@ public class StudentCheckinController {
     private final NotificationService notificationService;
     private final DynamicQrTokenService dynamicQrTokenService;
     private final SseEmitterService sseEmitterService;
+    private final StudentCheckinService studentCheckinService;
 
     @GetMapping("/checkin/{activityId}")
     public String checkinPage(@AuthenticationPrincipal CustomUserDetails userDetails,
@@ -93,104 +95,30 @@ public class StudentCheckinController {
                                              @RequestParam(required = false) Double lng,
                                              @RequestParam(required = false) Double accuracy) {
         try {
-            // Fetch fresh user data from database
             User currentUser = userRepository.findById(userDetails.getUser().getId())
                     .orElse(userDetails.getUser());
-            Activity activity = activityService.findActivityById(activityId);
-            
-            // Validate classId if provided (from QR code)
-            if (classId != null && currentUser.getStudentClass() != null) {
-                if (!currentUser.getStudentClass().getId().equals(classId)) {
-                    return ResponseEntity.badRequest().body(Map.of("message", "Mã QR này chỉ dành cho lớp khác. Vui lòng sử dụng mã QR của lớp bạn."));
-                }
-            }
+            ActivityRegistration registration = studentCheckinService.checkIn(
+                    currentUser, activityId, classId, token, lat, lng, accuracy);
+            Activity activity = registration.getActivity();
 
-            // ✅ Validate Dynamic QR Token — chặn gửi QR từ xa
-            if (classId != null && token != null && !token.isBlank()) {
-                if (!dynamicQrTokenService.validateToken(token, activityId, classId)) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", "Mã QR đã hết hạn. Vui lòng quét lại mã QR mới từ Manager.",
-                        "expired", true
-                    ));
-                }
-            } else if (classId != null) {
-                // Khi có classId nhưng không có token → QR cũ hoặc link thủ công
-                // Cho phép trong giai đoạn chuyển đổi
-            }
-
-            // ✅ Validate GPS Location — kiểm tra vị trí sinh viên
-            if (activity.getLatitude() != null && activity.getLongitude() != null
-                    && activity.getCheckinRadius() != null && activity.getCheckinRadius() > 0) {
-                // Hoạt động có GPS → bắt buộc sinh viên gửi vị trí
-                if (lat == null || lng == null) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", "Hoạt động này yêu cầu xác minh vị trí. Vui lòng cấp quyền GPS để check-in.",
-                        "gpsRequired", true
-                    ));
-                }
-
-                // Kiểm tra độ chính xác GPS
-                if (accuracy != null && accuracy > 150) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", String.format("Tín hiệu GPS không chính xác (sai số: %.0fm). Vui lòng ra khu vực thoáng hoặc bật Wi-Fi để tăng độ chính xác.", accuracy),
-                        "gpsInaccurate", true
-                    ));
-                }
-
-                // Tính khoảng cách Haversine
-                double distance = GeoUtils.haversineMeters(
-                        activity.getLatitude(), activity.getLongitude(), lat, lng);
-                int radius = activity.getCheckinRadius();
-
-                if (distance > radius) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", String.format("Bạn cách địa điểm hoạt động khoảng %.0fm. Chỉ được check-in trong phạm vi %dm.", distance, radius),
-                        "tooFar", true,
-                        "distance", Math.round(distance),
-                        "radius", radius
-                    ));
-                }
-            }
-            
-            var registration = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
-            
-            if (registration.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn chưa đăng ký hoạt động này"));
-            }
-            
-            ActivityRegistration reg = registration.get();
-            
-            if (reg.getStatus() == RegistrationStatus.ATTENDED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn đã check-in rồi"));
-            }
-            
-            if (reg.getStatus() == RegistrationStatus.CANCELLED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Đăng ký đã bị hủy, không thể check-in"));
-            }
-            
-            // Mark as attended
-            reg.setStatus(RegistrationStatus.ATTENDED);
-            activityRegistrationRepository.save(reg);
-
-            // Notify manager about check-in
-            try {
-                StudentClass studentClass = currentUser.getStudentClass();
-                if (studentClass != null) {
-                    userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
+            StudentClass studentClass = currentUser.getStudentClass();
+            if (studentClass != null) {
+                userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER)
                         .forEach(manager -> notificationService.notifyStudentCheckedIn(
-                            manager, currentUser.getFullName(), activity.getName()));
-                }
-            } catch (Exception ignored) {}
-            
+                                manager, currentUser.getFullName(), activity.getName()));
+            }
+
             return ResponseEntity.ok(Map.of(
-                "message", "Check-in thành công! Cảm ơn bạn đã tham gia.",
-                "activityName", activity.getName()
+                    "message", "Check-in thành công! Cảm ơn bạn đã tham gia.",
+                    "activityName", activity.getName()
             ));
-        } catch (Exception e) {
+        } catch (ValidationException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("message", "Không thể check-in, vui lòng thử lại"));
         }
     }
-
     // Get score options for an activity (for student evidence upload)
     @GetMapping("/api/activities/{activityId}/score-options")
     @ResponseBody

@@ -9,7 +9,6 @@ import com.example.uniactivity.service.*;
 import com.example.uniactivity.enums.RegistrationStatus;
 import com.example.uniactivity.enums.EvidenceStatus;
 import com.example.uniactivity.enums.Role;
-import com.example.uniactivity.util.GeoUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +40,7 @@ public class ManagerDataApiController {
     private final SemesterRepository semesterRepository;
     private final ScoringRulesService scoringRulesService;
     private final FileUploadService fileUploadService;
-    private final DynamicQrTokenService dynamicQrTokenService;
+    private final StudentCheckinService studentCheckinService;
     private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
 
     private static final DateTimeFormatter DTF = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
@@ -534,78 +533,19 @@ public class ManagerDataApiController {
         try {
             User currentUser = userRepository.findById(userDetails.getUser().getId())
                     .orElse(userDetails.getUser());
-            Activity activity = activityService.findActivityById(activityId);
-            
-            // Validate classId if provided (from QR code)
-            if (classId != null && currentUser.getStudentClass() != null) {
-                if (!currentUser.getStudentClass().getId().equals(classId)) {
-                    return ResponseEntity.badRequest().body(Map.of("message", "Mã QR này chỉ dành cho lớp khác. Vui lòng sử dụng mã QR của lớp bạn."));
-                }
-            }
-
-            // Validate Dynamic QR Token
-            if (classId != null && token != null && !token.isBlank()) {
-                if (!dynamicQrTokenService.validateToken(token, activityId, classId)) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", "Mã QR đã hết hạn. Vui lòng quét lại mã QR mới từ Manager.",
-                        "expired", true
-                    ));
-                }
-            }
-
-            // Validate GPS Location
-            if (activity.getLatitude() != null && activity.getLongitude() != null
-                    && activity.getCheckinRadius() != null && activity.getCheckinRadius() > 0) {
-                if (lat == null || lng == null) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", "Hoạt động này yêu cầu xác minh vị trí. Vui lòng cấp quyền GPS để check-in.",
-                        "gpsRequired", true
-                    ));
-                }
-                if (accuracy != null && accuracy > 150) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", String.format("Tín hiệu GPS không chính xác (sai số: %.0fm). Vui lòng ra khu vực thoáng hoặc bật Wi-Fi để tăng độ chính xác.", accuracy),
-                        "gpsInaccurate", true
-                    ));
-                }
-                double distance = GeoUtils.haversineMeters(
-                        activity.getLatitude(), activity.getLongitude(), lat, lng);
-                int radius = activity.getCheckinRadius();
-                if (distance > radius) {
-                    return ResponseEntity.status(403).body(Map.of(
-                        "message", String.format("Bạn cách địa điểm hoạt động khoảng %.0fm. Chỉ được check-in trong phạm vi %dm.", distance, radius),
-                        "tooFar", true,
-                        "distance", Math.round(distance),
-                        "radius", radius
-                    ));
-                }
-            }
-            
-            var registration = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
-            if (registration.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn chưa đăng ký hoạt động này"));
-            }
-            
-            ActivityRegistration reg = registration.get();
-            if (reg.getStatus() == RegistrationStatus.ATTENDED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn đã check-in rồi"));
-            }
-            if (reg.getStatus() == RegistrationStatus.CANCELLED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Đăng ký đã bị hủy, không thể check-in"));
-            }
-            
-            reg.setStatus(RegistrationStatus.ATTENDED);
-            activityRegistrationRepository.save(reg);
-            
+            ActivityRegistration registration = studentCheckinService.checkIn(
+                    currentUser, activityId, classId, token, lat, lng, accuracy);
             return ResponseEntity.ok(Map.of(
-                "message", "Check-in thành công! Cảm ơn bạn đã tham gia.",
-                "activityName", activity.getName()
+                    "message", "Check-in thành công! Cảm ơn bạn đã tham gia.",
+                    "activityName", registration.getActivity().getName()
             ));
-        } catch (Exception e) {
+        } catch (com.example.uniactivity.exception.ValidationException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("message", "Không thể check-in, vui lòng thử lại"));
         }
     }
-
     @GetMapping("/activities/{activityId}/score-options")
     public ResponseEntity<?> getScoreOptionsForActivity(@PathVariable Long activityId) {
         try {

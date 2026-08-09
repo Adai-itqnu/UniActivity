@@ -1,5 +1,7 @@
 package com.example.uniactivity.util;
 
+import com.example.uniactivity.exception.ValidationException;
+
 /**
  * Utility class cho tính toán GPS khoảng cách.
  * Sử dụng Haversine formula — độ chính xác cao cho khoảng cách ngắn.
@@ -21,6 +23,8 @@ public final class GeoUtils {
      * @return Khoảng cách (mét)
      */
     public static double haversineMeters(double lat1, double lng1, double lat2, double lng2) {
+        validateCoordinates(lat1, lng1);
+        validateCoordinates(lat2, lng2);
         double dLat = Math.toRadians(lat2 - lat1);
         double dLng = Math.toRadians(lng2 - lng1);
 
@@ -30,5 +34,13 @@ public final class GeoUtils {
 
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return EARTH_RADIUS_METERS * c;
+    }
+
+    private static void validateCoordinates(double latitude, double longitude) {
+        if (!Double.isFinite(latitude) || !Double.isFinite(longitude)
+                || latitude < -90 || latitude > 90
+                || longitude < -180 || longitude > 180) {
+            throw new ValidationException("Tọa độ GPS không hợp lệ");
+        }
     }
 }
