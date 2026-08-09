@@ -15,6 +15,13 @@ public interface TrainingPointDetailRepository extends JpaRepository<TrainingPoi
     
     Optional<TrainingPointDetail> findByStudentTrainingPointAndCriteriaCode(
             StudentTrainingPoint studentTrainingPoint, String criteriaCode);
+
+    Optional<TrainingPointDetail>
+            findByStudentTrainingPointAndCriteriaCodeAndSourceTypeAndReferenceId(
+                    StudentTrainingPoint studentTrainingPoint,
+                    String criteriaCode,
+                    String sourceType,
+                    Long referenceId);
     
     void deleteByStudentTrainingPointAndCriteriaCode(
             StudentTrainingPoint studentTrainingPoint, String criteriaCode);

@@ -42,6 +42,7 @@ public class ManagerDataApiController {
     private final FileUploadService fileUploadService;
     private final StudentCheckinService studentCheckinService;
     private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
+    private final EvidenceReviewService evidenceReviewService;
 
     private static final DateTimeFormatter DTF = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -581,10 +582,8 @@ public class ManagerDataApiController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Tối đa 3 ảnh"));
             }
 
-            var scoreOption = activityService.findScoreOptionById(scoreOptionId);
-            if (scoreOption == null) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Mục điểm không hợp lệ"));
-            }
+            ScoreOption scoreOption =
+                    evidenceReviewService.requireScoreOption(activityId, scoreOptionId);
             reg.setScoreOption(scoreOption);
             
             List<String> uploadedUrls = new ArrayList<>();

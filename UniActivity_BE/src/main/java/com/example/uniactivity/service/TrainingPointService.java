@@ -96,6 +96,32 @@ public class TrainingPointService {
         recalculateTotal(stp);
     }
 
+    @Transactional
+    public boolean addScoreOnce(
+            User student, String criteriaCode, Integer score,
+            String sourceType, Long referenceId, String description) {
+        if (sourceType == null || referenceId == null) {
+            throw new IllegalArgumentException("Nguồn điểm tự động phải có reference");
+        }
+        StudentTrainingPoint stp = getOrCreateForCurrentSemester(student);
+        if (trainingPointDetailRepository
+                .findByStudentTrainingPointAndCriteriaCodeAndSourceTypeAndReferenceId(
+                        stp, criteriaCode, sourceType, referenceId)
+                .isPresent()) {
+            return false;
+        }
+        TrainingPointDetail detail = new TrainingPointDetail();
+        detail.setStudentTrainingPoint(stp);
+        detail.setCriteriaCode(criteriaCode);
+        detail.setScore(score);
+        detail.setSourceType(sourceType);
+        detail.setReferenceId(referenceId);
+        detail.setDescription(description);
+        trainingPointDetailRepository.save(detail);
+        recalculateTotal(stp);
+        return true;
+    }
+
     /**
      * Recalculate total score and classification
      */

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ScoreOptionRepository extends JpaRepository<ScoreOption, Long> {
@@ -13,6 +14,8 @@ public interface ScoreOptionRepository extends JpaRepository<ScoreOption, Long> 
     List<ScoreOption> findByActivity(Activity activity);
     
     List<ScoreOption> findByActivityId(Long activityId);
+
+    Optional<ScoreOption> findByIdAndActivity_Id(Long optionId, Long activityId);
     
     void deleteByActivity(Activity activity);
     

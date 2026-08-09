@@ -12,6 +12,7 @@ import com.example.uniactivity.service.DynamicQrTokenService;
 import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.SseEmitterService;
 import com.example.uniactivity.service.StudentCheckinService;
+import com.example.uniactivity.service.EvidenceReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,6 +38,7 @@ public class StudentCheckinController {
     private final DynamicQrTokenService dynamicQrTokenService;
     private final SseEmitterService sseEmitterService;
     private final StudentCheckinService studentCheckinService;
+    private final EvidenceReviewService evidenceReviewService;
 
     @GetMapping("/checkin/{activityId}")
     public String checkinPage(@AuthenticationPrincipal CustomUserDetails userDetails,
@@ -163,10 +165,8 @@ public class StudentCheckinController {
             }
 
             // Find and set the selected score option
-            var scoreOption = activityService.findScoreOptionById(scoreOptionId);
-            if (scoreOption == null) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Mục điểm không hợp lệ"));
-            }
+            ScoreOption scoreOption =
+                    evidenceReviewService.requireScoreOption(activityId, scoreOptionId);
             reg.setScoreOption(scoreOption);
             
             // Save files and collect URLs - save to resources/uploads/evidence

@@ -6,12 +6,18 @@ import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.RegistrationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 public interface ActivityRegistrationRepository extends JpaRepository<ActivityRegistration, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM ActivityRegistration r WHERE r.id = :id")
+    Optional<ActivityRegistration> findByIdForUpdate(@Param("id") Long id);
     
     List<ActivityRegistration> findByStudentOrderByRegisteredAtDesc(User student);
     

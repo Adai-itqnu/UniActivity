@@ -37,11 +37,16 @@ public class ManagerScopeAuthorizationService {
     }
 
     public ActivityRegistration requireRegistration(User manager, Long registrationId) {
-        StudentClass managedClass = requireManagedClass(manager);
         ActivityRegistration registration = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new NotFoundException("Đăng ký", registrationId));
-        requireSameClass(managedClass, registration.getStudent());
+        assertRegistrationInScope(manager, registration);
         return registration;
+    }
+
+    public void assertRegistrationInScope(
+            User manager, ActivityRegistration registration) {
+        StudentClass managedClass = requireManagedClass(manager);
+        requireSameClass(managedClass, registration.getStudent());
     }
 
     public Activity requireActivity(User manager, Long activityId) {

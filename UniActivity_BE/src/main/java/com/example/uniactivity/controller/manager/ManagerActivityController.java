@@ -12,8 +12,8 @@ import com.example.uniactivity.service.ActivityService;
 import com.example.uniactivity.service.DynamicQrTokenService;
 import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.QrCodeService;
-import com.example.uniactivity.service.TrainingPointService;
 import com.example.uniactivity.service.ManagerScopeAuthorizationService;
+import com.example.uniactivity.service.EvidenceReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -41,9 +41,9 @@ public class ManagerActivityController {
     private final QrCodeService qrCodeService;
     private final DynamicQrTokenService dynamicQrTokenService;
     private final ActivityRegistrationRepository activityRegistrationRepository;
-    private final TrainingPointService trainingPointService;
     private final NotificationService notificationService;
     private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
+    private final EvidenceReviewService evidenceReviewService;
 
     @GetMapping("/activities")
     public String activities(@AuthenticationPrincipal CustomUserDetails userDetails, Model model) {
@@ -235,88 +235,54 @@ public class ManagerActivityController {
     public ResponseEntity<?> approveRegistration(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long registrationId) {
-        try {
-            ActivityRegistration reg = managerScopeAuthorizationService.requireRegistration(
-                    userDetails.getUser(), registrationId);
-            
-            reg.setIsApproved(true);
-            activityRegistrationRepository.save(reg);
-            
-            // Add points to student training points
-            Activity activity = reg.getActivity();
-            User student = reg.getStudent();
-            
-            String criteriaCode;
-            Integer score;
-            String description;
-            
-            // Get score from activity's slot/score option, or use default
-            if (reg.getScoreOption() != null) {
-                criteriaCode = reg.getScoreOption().getScoreCategory();
-                score = reg.getScoreOption().getScoreValue();
-                description = activity.getName() + " - " + reg.getScoreOption().getName();
-            } else {
-                // Default: category 3.1 (Hoạt động CT-XH), 5 points
-                criteriaCode = "3.1";
-                score = 5;
-                description = "Tham gia hoạt động: " + activity.getName();
-            }
-            
-            trainingPointService.addOrUpdateScore(student, criteriaCode, score, 
-                    "AUTO_ACTIVITY", activity.getId(), description);
-            
-            // Send notification to student
-            notificationService.create(
-                student.getId(),
-                NotificationType.EVIDENCE_APPROVED,
-                "Minh chứng được duyệt",
-                "Minh chứng hoạt động '" + activity.getName() + "' đã được duyệt. +" + score + " điểm",
-                "/student/my-registrations"
-            );
-            
-            return ResponseEntity.ok(Map.of("message", "Đã duyệt và cộng " + score + " điểm thành công"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
-    }
+        EvidenceReviewService.EvidenceReviewResult result =
+                evidenceReviewService.approve(userDetails.getUser(), registrationId);
+        ActivityRegistration registration = result.registration();
+        Activity activity = registration.getActivity();
+        User student = registration.getStudent();
 
+        try {
+            notificationService.create(
+                    student.getId(),
+                    NotificationType.EVIDENCE_APPROVED,
+                    "Minh chứng được duyệt",
+                    "Minh chứng hoạt động '" + activity.getName()
+                            + "' đã được duyệt. +" + result.score() + " điểm",
+                    "/student/my-registrations"
+            );
+        } catch (Exception ignored) {
+            // Review result is already committed; notification is best-effort.
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã duyệt và cộng " + result.score() + " điểm thành công"));
+    }
     @PostMapping("/api/registrations/{registrationId}/reject")
     @ResponseBody
     public ResponseEntity<?> rejectRegistration(
-                                                 @AuthenticationPrincipal CustomUserDetails userDetails,
-                                                 @PathVariable Long registrationId,
-                                                 @RequestBody Map<String, String> body) {
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long registrationId,
+            @RequestBody Map<String, String> body) {
+        String reason = body.get("reason");
+        evidenceReviewService.reject(userDetails.getUser(), registrationId, reason);
+
+        ActivityRegistration registration =
+                managerScopeAuthorizationService.requireRegistration(
+                        userDetails.getUser(), registrationId);
+        Activity activity = registration.getActivity();
+        User student = registration.getStudent();
         try {
-            String reason = body.get("reason");
-            if (reason == null || reason.trim().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng nhập lý do từ chối"));
-            }
-            
-            ActivityRegistration reg = managerScopeAuthorizationService.requireRegistration(
-                    userDetails.getUser(), registrationId);
-            
-            reg.setIsApproved(false);
-            reg.setRejectionReason(reason.trim());
-            activityRegistrationRepository.save(reg);
-            
-            // Send notification to student
-            Activity activity = reg.getActivity();
-            User student = reg.getStudent();
-            String message = "Minh chứng hoạt động '" + activity.getName() + "' bị từ chối";
-            if (reason != null && !reason.trim().isEmpty()) {
-                message += ". Lý do: " + reason.trim();
-            }
             notificationService.create(
-                student.getId(),
-                NotificationType.EVIDENCE_REJECTED,
-                "Minh chứng bị từ chối",
-                message,
-                "/student/my-registrations"
+                    student.getId(),
+                    NotificationType.EVIDENCE_REJECTED,
+                    "Minh chứng bị từ chối",
+                    "Minh chứng hoạt động '" + activity.getName()
+                            + "' bị từ chối. Lý do: " + registration.getRejectionReason(),
+                    "/student/my-registrations"
             );
-            
-            return ResponseEntity.ok(Map.of("message", "Đã từ chối minh chứng"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception ignored) {
+            // Review result is already committed; notification is best-effort.
         }
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối minh chứng"));
     }
 }
