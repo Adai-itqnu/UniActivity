@@ -3,6 +3,7 @@ package com.example.uniactivity.controller.student;
 import com.example.uniactivity.entity.*;
 import com.example.uniactivity.enums.EvidenceStatus;
 import com.example.uniactivity.enums.RegistrationStatus;
+import com.example.uniactivity.exception.AuthorizationException;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.repository.SemesterRepository;
 import com.example.uniactivity.repository.UserRepository;
@@ -352,7 +353,12 @@ public class StudentDataApiController {
     // ===================== USER SCORES =====================
 
     @GetMapping("/users/{id}/scores")
-    public ResponseEntity<?> getUserScores(@PathVariable Long id) {
+    public ResponseEntity<?> getUserScores(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        if (!userDetails.getUser().getId().equals(id)) {
+            throw new AuthorizationException("Bạn chỉ được xem hồ sơ điểm của chính mình");
+        }
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
             return ResponseEntity.notFound().build();

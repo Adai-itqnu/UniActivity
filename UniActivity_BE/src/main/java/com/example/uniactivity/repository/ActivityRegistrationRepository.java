@@ -2,6 +2,7 @@ package com.example.uniactivity.repository;
 
 import com.example.uniactivity.entity.Activity;
 import com.example.uniactivity.entity.ActivityRegistration;
+import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.RegistrationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,6 +20,9 @@ public interface ActivityRegistrationRepository extends JpaRepository<ActivityRe
     boolean existsByActivityAndStudent(Activity activity, User student);
     
     List<ActivityRegistration> findByActivityOrderByRegisteredAtAsc(Activity activity);
+
+    List<ActivityRegistration> findByActivityAndStudent_StudentClassOrderByRegisteredAtAsc(
+            Activity activity, StudentClass studentClass);
     
     long countByActivity(Activity activity);
     

@@ -13,6 +13,7 @@ import com.example.uniactivity.service.DynamicQrTokenService;
 import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.QrCodeService;
 import com.example.uniactivity.service.TrainingPointService;
+import com.example.uniactivity.service.ManagerScopeAuthorizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -42,6 +43,7 @@ public class ManagerActivityController {
     private final ActivityRegistrationRepository activityRegistrationRepository;
     private final TrainingPointService trainingPointService;
     private final NotificationService notificationService;
+    private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
 
     @GetMapping("/activities")
     public String activities(@AuthenticationPrincipal CustomUserDetails userDetails, Model model) {
@@ -96,6 +98,8 @@ public class ManagerActivityController {
             if (currentUser.getStudentClass() == null) {
                 return ResponseEntity.badRequest().build();
             }
+
+            managerScopeAuthorizationService.requireActivity(currentUser, activityId);
             
             Long classId = currentUser.getStudentClass().getId();
             String token = dynamicQrTokenService.generateToken(activityId, classId);
@@ -137,6 +141,8 @@ public class ManagerActivityController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Bạn chưa có lớp"));
             }
 
+            managerScopeAuthorizationService.requireActivity(currentUser, activityId);
+
             Long classId = currentUser.getStudentClass().getId();
             String token = dynamicQrTokenService.generateToken(activityId, classId);
 
@@ -172,10 +178,9 @@ public class ManagerActivityController {
     public List<Map<String, Object>> getActivityRegistrations(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long activityId) {
-        // Authorization: only manager of the same class can view
         User currentUser = userDetails.getUser();
-        Activity activity = activityService.findActivityById(activityId);
-        List<ActivityRegistration> registrations = activityRegistrationRepository.findByActivityOrderByRegisteredAtAsc(activity);
+        List<ActivityRegistration> registrations =
+                managerScopeAuthorizationService.registrationsForActivity(currentUser, activityId);
         
         return registrations.stream().map(reg -> {
             Map<String, Object> data = new HashMap<>();
@@ -206,8 +211,8 @@ public class ManagerActivityController {
     public ResponseEntity<?> manualCheckin(@AuthenticationPrincipal CustomUserDetails userDetails,
                                            @PathVariable Long registrationId) {
         try {
-            ActivityRegistration reg = activityRegistrationRepository.findById(registrationId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký"));
+            ActivityRegistration reg = managerScopeAuthorizationService.requireRegistration(
+                    userDetails.getUser(), registrationId);
             
             if (reg.getStatus() == RegistrationStatus.ATTENDED) {
                 return ResponseEntity.badRequest().body(Map.of("message", "Sinh viên đã được điểm danh rồi"));
@@ -227,10 +232,12 @@ public class ManagerActivityController {
 
     @PostMapping("/api/registrations/{registrationId}/approve")
     @ResponseBody
-    public ResponseEntity<?> approveRegistration(@PathVariable Long registrationId) {
+    public ResponseEntity<?> approveRegistration(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long registrationId) {
         try {
-            ActivityRegistration reg = activityRegistrationRepository.findById(registrationId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký"));
+            ActivityRegistration reg = managerScopeAuthorizationService.requireRegistration(
+                    userDetails.getUser(), registrationId);
             
             reg.setIsApproved(true);
             activityRegistrationRepository.save(reg);
@@ -275,7 +282,9 @@ public class ManagerActivityController {
 
     @PostMapping("/api/registrations/{registrationId}/reject")
     @ResponseBody
-    public ResponseEntity<?> rejectRegistration(@PathVariable Long registrationId,
+    public ResponseEntity<?> rejectRegistration(
+                                                 @AuthenticationPrincipal CustomUserDetails userDetails,
+                                                 @PathVariable Long registrationId,
                                                  @RequestBody Map<String, String> body) {
         try {
             String reason = body.get("reason");
@@ -283,8 +292,8 @@ public class ManagerActivityController {
                 return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng nhập lý do từ chối"));
             }
             
-            ActivityRegistration reg = activityRegistrationRepository.findById(registrationId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đăng ký"));
+            ActivityRegistration reg = managerScopeAuthorizationService.requireRegistration(
+                    userDetails.getUser(), registrationId);
             
             reg.setIsApproved(false);
             reg.setRejectionReason(reason.trim());

@@ -42,6 +42,7 @@ public class ManagerDataApiController {
     private final ScoringRulesService scoringRulesService;
     private final FileUploadService fileUploadService;
     private final DynamicQrTokenService dynamicQrTokenService;
+    private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
 
     private static final DateTimeFormatter DTF = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -249,12 +250,10 @@ public class ManagerDataApiController {
     // ==================== USER SCORES ====================
 
     @GetMapping("/users/{id}/scores")
-    public ResponseEntity<?> getUserScores(@PathVariable Long id) {
-        java.util.Optional<User> userOpt = userRepository.findById(id);
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        User user = userOpt.get();
+    public ResponseEntity<?> getUserScores(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long id) {
+        User user = managerScopeAuthorizationService.requireStudent(userDetails.getUser(), id);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("categoryTotals", trainingPointService.getCategoryTotals(user));
