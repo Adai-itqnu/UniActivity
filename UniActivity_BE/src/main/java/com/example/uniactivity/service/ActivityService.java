@@ -44,24 +44,11 @@ public class ActivityService {
     // ========================================
     
     public List<ActivityResponseDto> getAllActivities() {
-        return activityRepository.findAllByOrderByCreatedAtDesc().stream()
+        // Use optimized query with JOIN FETCH to prevent N+1
+        return activityRepository.findAllWithDetailsOrderByCreatedAtDesc().stream()
                 .map(activity -> {
                     ActivityResponseDto dto = activityMapper.toResponseDto(activity);
-                    // Calculate stats
-                    var slots = activitySlotRepository.findByActivityId(activity.getId());
-                    int maxSlots = slots.stream().mapToInt(s -> s.getMaxQuantity() != null ? s.getMaxQuantity() : 0).sum();
-                    int registered = slots.stream().mapToInt(s -> s.getCurrentQuantity() != null ? s.getCurrentQuantity() : 0).sum();
-                    dto.setMaxSlots(maxSlots);
-                    dto.setRegisteredCount(registered);
-                    // Count checked-in users
-                    int checkedIn = (int) activityRegistrationRepository.countByActivityAndStatus(activity, RegistrationStatus.ATTENDED);
-                    dto.setCheckedInCount(checkedIn);
-                    // Check if registration deadline has passed
-                    dto.setIsDeadlinePassed(activity.getRegistrationDeadline() != null 
-                        && activity.getRegistrationDeadline().isBefore(java.time.LocalDateTime.now()));
-                    // Check if activity has ended (based on endTime)
-                    dto.setIsEnded(activity.getEndTime() != null 
-                        && activity.getEndTime().isBefore(java.time.LocalDateTime.now()));
+                    enrichActivityWithStats(dto, activity);
                     return dto;
                 })
                 .toList();
@@ -90,27 +77,40 @@ public class ActivityService {
      * Get activities visible to a specific student based on their class/faculty
      */
     public List<ActivityResponseDto> getVisibleActivitiesForStudent(User student) {
-        // Get all activities, not just OPEN ones - let manager see ended activities too
-        return activityRepository.findAllByOrderByCreatedAtDesc().stream()
+        // Use optimized query with JOIN FETCH to prevent N+1
+        return activityRepository.findAllWithDetailsOrderByCreatedAtDesc().stream()
                 .filter(activity -> isActivityVisibleToStudent(activity, student))
                 .map(activity -> {
                     ActivityResponseDto dto = activityMapper.toResponseDto(activity);
-                    var slots = activitySlotRepository.findByActivityId(activity.getId());
-                    int maxSlots = slots.stream().mapToInt(s -> s.getMaxQuantity() != null ? s.getMaxQuantity() : 0).sum();
-                    int registered = slots.stream().mapToInt(s -> s.getCurrentQuantity() != null ? s.getCurrentQuantity() : 0).sum();
-                    dto.setMaxSlots(maxSlots);
-                    dto.setRegisteredCount(registered);
-                    // Count checked-in users
-                    int checkedIn = (int) activityRegistrationRepository.countByActivityAndStatus(activity, RegistrationStatus.ATTENDED);
-                    dto.setCheckedInCount(checkedIn);
-                    dto.setIsDeadlinePassed(activity.getRegistrationDeadline() != null 
-                        && activity.getRegistrationDeadline().isBefore(java.time.LocalDateTime.now()));
-                    // Calculate if activity has ended
-                    dto.setIsEnded(activity.getEndTime() != null 
-                        && activity.getEndTime().isBefore(java.time.LocalDateTime.now()));
+                    enrichActivityWithStats(dto, activity);
                     return dto;
                 })
                 .toList();
+    }
+    
+    /**
+     * Enrich activity DTO with slot statistics (extracted to avoid duplication)
+     * Calculates: maxSlots, registeredCount, checkedInCount, deadline status, ended status
+     */
+    private void enrichActivityWithStats(ActivityResponseDto dto, Activity activity) {
+        // Get slots and calculate stats
+        var slots = activitySlotRepository.findByActivityId(activity.getId());
+        int maxSlots = slots.stream().mapToInt(s -> s.getMaxQuantity() != null ? s.getMaxQuantity() : 0).sum();
+        int registered = slots.stream().mapToInt(s -> s.getCurrentQuantity() != null ? s.getCurrentQuantity() : 0).sum();
+        dto.setMaxSlots(maxSlots);
+        dto.setRegisteredCount(registered);
+        
+        // Count checked-in users
+        int checkedIn = (int) activityRegistrationRepository.countByActivityAndStatus(activity, RegistrationStatus.ATTENDED);
+        dto.setCheckedInCount(checkedIn);
+        
+        // Check if registration deadline has passed
+        dto.setIsDeadlinePassed(activity.getRegistrationDeadline() != null 
+            && activity.getRegistrationDeadline().isBefore(LocalDateTime.now()));
+        
+        // Check if activity has ended (based on endTime)
+        dto.setIsEnded(activity.getEndTime() != null 
+            && activity.getEndTime().isBefore(LocalDateTime.now()));
     }
     
     /**

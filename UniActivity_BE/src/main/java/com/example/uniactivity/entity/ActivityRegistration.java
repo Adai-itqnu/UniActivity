@@ -10,7 +10,13 @@ import java.time.LocalDateTime;
         name = "activity_registrations",
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_activity_regs_student_activity",
-                columnNames = {"student_id", "activity_id"}))
+                columnNames = {"student_id", "activity_id"}),
+        indexes = {
+                @Index(name = "idx_ar_student", columnList = "student_id"),
+                @Index(name = "idx_ar_activity", columnList = "activity_id"),
+                @Index(name = "idx_ar_status", columnList = "status"),
+                @Index(name = "idx_ar_registered_at", columnList = "registered_at")
+        })
 @Data
 public class ActivityRegistration {
     @Id
