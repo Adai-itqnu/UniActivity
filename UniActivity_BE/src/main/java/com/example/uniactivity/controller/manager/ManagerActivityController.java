@@ -66,8 +66,7 @@ public class ManagerActivityController {
         model.addAttribute("studentClass", currentUser.getStudentClass());
         model.addAttribute("activityId", activityId);
         
-        // Get activity info
-        var activity = activityService.getActivityById(activityId);
+        Activity activity = managerScopeAuthorizationService.requireActivity(currentUser, activityId);
         model.addAttribute("activity", activity);
         
         return "manager/activity-detail";
