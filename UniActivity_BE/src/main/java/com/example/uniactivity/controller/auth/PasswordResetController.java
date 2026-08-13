@@ -8,6 +8,7 @@ import com.example.uniactivity.repository.PasswordResetTokenRepository;
 import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.service.MailService;
 import com.example.uniactivity.service.OtpService;
+import com.example.uniactivity.service.PasswordResetNotificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class PasswordResetController {
     private final PasswordResetTokenRepository tokenRepository;
     private final MailService mailService;
     private final OtpService otpService;
+    private final PasswordResetNotificationService passwordResetNotificationService;
 
     @PostMapping("/send-verification-email")
     public ResponseEntity<Map<String, String>> sendVerificationEmail(
@@ -97,17 +99,12 @@ public class PasswordResetController {
         if (userOpt.isEmpty()
                 || !userOpt.get().isEmailVerified()
                 || recentOtpCount(email, OtpService.PASSWORD_RESET) >= MAX_OTP_PER_WINDOW) {
+            otpService.performDummyHash();
             return ResponseEntity.ok(GENERIC_FORGOT_RESPONSE);
         }
 
         OtpService.IssuedOtp issued = otpService.issue(email, OtpService.PASSWORD_RESET);
-        try {
-            mailService.sendEmail(email, "Mã OTP khôi phục mật khẩu UniActivity",
-                    "Mã OTP của bạn là: " + issued.code()
-                            + "\nMã này có hiệu lực trong 5 phút. Vui lòng không chia sẻ cho ai.");
-        } catch (RuntimeException exception) {
-            log.error("Could not send password reset OTP", exception);
-        }
+        passwordResetNotificationService.sendPasswordResetOtp(email, issued.code());
         return ResponseEntity.ok(GENERIC_FORGOT_RESPONSE);
     }
 

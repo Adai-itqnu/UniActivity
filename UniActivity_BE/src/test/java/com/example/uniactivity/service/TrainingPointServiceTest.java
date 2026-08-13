@@ -67,7 +67,7 @@ class TrainingPointServiceTest {
     @Test
     void sameSourceReferenceDoesNotCreateSecondContribution() {
         when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
-        when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
+        when(studentTrainingPointRepository.findByStudentAndSemesterForUpdate(student, semester))
                 .thenReturn(Optional.of(trainingPoint));
         when(detailRepository.findByStudentTrainingPointAndSourceKey(
                         trainingPoint, "AUTO_ACTIVITY:100"))
@@ -82,7 +82,7 @@ class TrainingPointServiceTest {
     @Test
     void sameActivityReferenceCannotBeCreditedUnderAnotherCriteria() {
         when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
-        when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
+        when(studentTrainingPointRepository.findByStudentAndSemesterForUpdate(student, semester))
                 .thenReturn(Optional.of(trainingPoint));
         when(detailRepository.findByStudentTrainingPointAndSourceKey(
                 trainingPoint, "AUTO_ACTIVITY:100"))
@@ -100,7 +100,7 @@ class TrainingPointServiceTest {
         existing.setSourceType("POINT_REQUEST");
         existing.setSourceKey("POINT_REQUEST:1.3");
         when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
-        when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
+        when(studentTrainingPointRepository.findByStudentAndSemesterForUpdate(student, semester))
                 .thenReturn(Optional.of(trainingPoint));
         when(detailRepository.findByStudentTrainingPointAndSourceKey(
                 trainingPoint, "POINT_REQUEST:1.3"))
@@ -121,7 +121,7 @@ class TrainingPointServiceTest {
     @Test
     void firstPointRequestCreatesEffectiveCriteriaScore() {
         when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
-        when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
+        when(studentTrainingPointRepository.findByStudentAndSemesterForUpdate(student, semester))
                 .thenReturn(Optional.of(trainingPoint));
         when(detailRepository.findByStudentTrainingPointAndSourceKey(
                 trainingPoint, "POINT_REQUEST:1.3"))

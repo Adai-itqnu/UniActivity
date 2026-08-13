@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,6 +16,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Iterator;
 import java.util.UUID;
 
 @Service
@@ -22,6 +25,7 @@ public class FileUploadService {
 
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
     private static final int MAX_EVIDENCE_FILES = 3;
+    private static final long MAX_IMAGE_PIXELS = 25_000_000L;
     private static final String PUBLIC_PREFIX = "/uploads/";
 
     private final Path uploadRoot;
@@ -95,6 +99,19 @@ public class FileUploadService {
         }
     }
 
+    public Path resolveEvidenceFile(String filename) throws IOException {
+        if (filename == null
+                || !filename.matches("[0-9a-fA-F-]{36}\\.(?:png|jpg|webp)")) {
+            throw new IOException("Tên tệp minh chứng không hợp lệ");
+        }
+        Path target = uploadRoot.resolve("evidence").resolve(filename).normalize();
+        requireInsideRoot(target);
+        if (!Files.isRegularFile(target)) {
+            throw new IOException("Không tìm thấy tệp minh chứng");
+        }
+        return target;
+    }
+
     public boolean isValidImage(MultipartFile file) {
         if (file == null || file.isEmpty() || file.getSize() > MAX_FILE_SIZE) {
             return false;
@@ -136,8 +153,24 @@ public class FileUploadService {
     }
 
     private boolean canDecode(byte[] content) {
-        try {
-            return ImageIO.read(new ByteArrayInputStream(content)) != null;
+        try (ImageInputStream input = ImageIO.createImageInputStream(
+                new ByteArrayInputStream(content))) {
+            if (input == null) {
+                return false;
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                return false;
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                return hasSafeDimensions(width, height) && reader.read(0) != null;
+            } finally {
+                reader.dispose();
+            }
         } catch (IOException e) {
             return false;
         }
@@ -172,12 +205,40 @@ public class FileUploadService {
                     && content.length >= 30
                     && (content[23] & 0xff) == 0x9d
                     && (content[24] & 0xff) == 0x01
-                    && (content[25] & 0xff) == 0x2a;
+                    && (content[25] & 0xff) == 0x2a
+                    && hasSafeDimensions(
+                            littleEndianUnsignedShort(content, 26) & 0x3fff,
+                            littleEndianUnsignedShort(content, 28) & 0x3fff);
         }
         if (hasAscii(content, 12, "VP8L")) {
-            return chunkSize >= 5 && (content[20] & 0xff) == 0x2f;
+            if (chunkSize < 5 || (content[20] & 0xff) != 0x2f) {
+                return false;
+            }
+            int bits = (content[21] & 0xff)
+                    | ((content[22] & 0xff) << 8)
+                    | ((content[23] & 0xff) << 16)
+                    | ((content[24] & 0xff) << 24);
+            return hasSafeDimensions((bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1);
         }
-        return hasAscii(content, 12, "VP8X") && chunkSize == 10 && content.length >= 30;
+        return hasAscii(content, 12, "VP8X") && chunkSize == 10 && content.length >= 30
+                && hasSafeDimensions(
+                        littleEndianUnsigned24(content, 24) + 1,
+                        littleEndianUnsigned24(content, 27) + 1);
+    }
+
+    private boolean hasSafeDimensions(int width, int height) {
+        return width > 0 && height > 0
+                && (long) width * height <= MAX_IMAGE_PIXELS;
+    }
+
+    private int littleEndianUnsignedShort(byte[] content, int offset) {
+        return (content[offset] & 0xff) | ((content[offset + 1] & 0xff) << 8);
+    }
+
+    private int littleEndianUnsigned24(byte[] content, int offset) {
+        return (content[offset] & 0xff)
+                | ((content[offset + 1] & 0xff) << 8)
+                | ((content[offset + 2] & 0xff) << 16);
     }
 
     private long littleEndianUnsignedInt(byte[] content, int offset) {

@@ -38,7 +38,7 @@ Test P0-A hiện có: `JwtTokenProviderTest`, `UserServiceTest`, `JwtAuthenticat
 - [x] Session form/OAuth không thể xác thực các route API/SSE; các route này luôn phải qua access JWT hoặc purpose-bound SSE ticket.
 - [x] OAuth exchange single-flight chống gọi lặp trong React StrictMode nhưng giải phóng cache sau khi request hoàn tất để có thể retry lỗi tạm thời.
 
-Xác minh gần nhất: 107 backend tests, 9 frontend Node tests, backend/Karate chạy bằng H2 cô lập, frontend production build, ESLint và `npm audit` đều đạt.
+Xác minh gần nhất: 117 backend tests (bao gồm 8 scenario Karate), 9 frontend Node assertions, backend/Karate chạy bằng H2 cô lập, frontend production build, ESLint và `npm audit` đều đạt.
 
 ### P0-C — Phân quyền, check-in và toàn vẹn điểm
 
@@ -60,7 +60,7 @@ Xác minh gần nhất: 107 backend tests, 9 frontend Node tests, backend/Karate
 - [x] Chuẩn hóa các exception chính trong `GlobalExceptionHandler`; lỗi upload/nội bộ không trả raw exception ra client.
 - [ ] Bổ sung audit log cho thay đổi điểm, duyệt minh chứng, khóa user và thao tác admin.
 - [x] Bổ sung pessimistic lock cho duyệt evidence/point request/OTP và transaction riêng cho registration retry.
-- [ ] Thay `ddl-auto=update` bằng migration có version (Flyway/Liquibase) cho môi trường triển khai.
+- [x] Bật Flyway baseline cho database hiện hữu, thêm V2/V3 có version và chuyển production sang `ddl-auto=validate`.
 - [ ] Đưa CORS/frontend URL và cookie policy sang cấu hình theo môi trường.
 - [x] Bổ sung test hồi quy cho phân quyền IDOR, check-in, điểm, OTP, upload và Karate API.
 

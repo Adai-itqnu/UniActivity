@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import SecureImage from '../../components/common/SecureImage'
 
 function fmtDate(d) {
     if (!d) return ''
@@ -383,7 +384,7 @@ export default function ActivityDetail() {
                         </div>
                         <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-y-auto">
                             {evidenceModal.split(',').map((url, i) => (
-                                <img key={i} src={url.trim()} alt={`Minh chứng ${i + 1}`} className="w-full rounded-xl object-contain" />
+                                <SecureImage key={i} src={url.trim()} alt={`Minh chứng ${i + 1}`} className="w-full rounded-xl object-contain" />
                             ))}
                         </div>
                     </div>

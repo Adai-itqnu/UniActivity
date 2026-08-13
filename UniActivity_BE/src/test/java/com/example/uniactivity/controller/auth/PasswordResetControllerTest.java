@@ -6,6 +6,7 @@ import com.example.uniactivity.repository.PasswordResetTokenRepository;
 import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.service.MailService;
 import com.example.uniactivity.service.OtpService;
+import com.example.uniactivity.service.PasswordResetNotificationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -28,11 +29,13 @@ class PasswordResetControllerTest {
     @Mock PasswordResetTokenRepository tokenRepository;
     @Mock MailService mailService;
     @Mock OtpService otpService;
+    @Mock PasswordResetNotificationService passwordResetNotificationService;
 
     @Test
     void forgotPasswordReturnsSameResponseForKnownAndUnknownEmail() {
         PasswordResetController controller =
-                new PasswordResetController(userRepository, tokenRepository, mailService, otpService);
+                new PasswordResetController(userRepository, tokenRepository, mailService, otpService,
+                        passwordResetNotificationService);
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail("student@example.com");
 
@@ -58,7 +61,8 @@ class PasswordResetControllerTest {
     @Test
     void forgotPasswordDoesNotSendMailForUnknownEmail() {
         PasswordResetController controller =
-                new PasswordResetController(userRepository, tokenRepository, mailService, otpService);
+                new PasswordResetController(userRepository, tokenRepository, mailService, otpService,
+                        passwordResetNotificationService);
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail("missing@example.com");
         when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
@@ -66,5 +70,6 @@ class PasswordResetControllerTest {
         controller.processForgotPassword(request);
 
         verify(mailService, never()).sendEmail(anyString(), anyString(), anyString());
+        verify(otpService).performDummyHash();
     }
 }

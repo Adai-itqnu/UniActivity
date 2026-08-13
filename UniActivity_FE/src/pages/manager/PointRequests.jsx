@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import SecureImage from '../../components/common/SecureImage'
 
 function timeAgo(dateStr) {
     if (!dateStr) return ''
@@ -294,7 +295,7 @@ export default function PointRequests() {
                         </div>
                         <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-y-auto">
                             {evidenceModal.split(',').map((url, i) => (
-                                <img key={i} src={url.trim()} alt={`Minh chứng ${i + 1}`} className="w-full rounded-xl object-contain" />
+                                <SecureImage key={i} src={url.trim()} alt={`Minh chứng ${i + 1}`} className="w-full rounded-xl object-contain" />
                             ))}
                         </div>
                     </div>

@@ -94,14 +94,12 @@ public class ManagerActivityController {
     public ResponseEntity<byte[]> generateQRCode(@AuthenticationPrincipal CustomUserDetails userDetails,
                                                   @PathVariable Long activityId,
                                                   HttpServletRequest request) {
+        User currentUser = userDetails.getUser();
+        if (currentUser.getStudentClass() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        managerScopeAuthorizationService.requireActivity(currentUser, activityId);
         try {
-            User currentUser = userDetails.getUser();
-            if (currentUser.getStudentClass() == null) {
-                return ResponseEntity.badRequest().build();
-            }
-
-            managerScopeAuthorizationService.requireActivity(currentUser, activityId);
-            
             Long classId = currentUser.getStudentClass().getId();
             String token = dynamicQrTokenService.generateToken(activityId, classId);
             
@@ -136,14 +134,12 @@ public class ManagerActivityController {
     public ResponseEntity<?> getDynamicQrToken(@AuthenticationPrincipal CustomUserDetails userDetails,
                                                 @PathVariable Long activityId,
                                                 HttpServletRequest request) {
+        User currentUser = userDetails.getUser();
+        if (currentUser.getStudentClass() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Bạn chưa có lớp"));
+        }
+        managerScopeAuthorizationService.requireActivity(currentUser, activityId);
         try {
-            User currentUser = userDetails.getUser();
-            if (currentUser.getStudentClass() == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Bạn chưa có lớp"));
-            }
-
-            managerScopeAuthorizationService.requireActivity(currentUser, activityId);
-
             Long classId = currentUser.getStudentClass().getId();
             String token = dynamicQrTokenService.generateToken(activityId, classId);
 

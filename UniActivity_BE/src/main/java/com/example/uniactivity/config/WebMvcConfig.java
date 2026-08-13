@@ -24,7 +24,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (!resourceLocation.endsWith("/")) {
             resourceLocation += "/";
         }
-        registry.addResourceHandler("/uploads/**")
-                .addResourceLocations(resourceLocation);
+        registry.addResourceHandler("/uploads/activities/**")
+                .addResourceLocations(resourceLocation + "activities/");
     }
 }

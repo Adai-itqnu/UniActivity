@@ -32,6 +32,10 @@ public class OtpService {
 
     public record IssuedOtp(String code) {}
 
+    public void performDummyHash() {
+        passwordEncoder.encode(String.format("%06d", SECURE_RANDOM.nextInt(1_000_000)));
+    }
+
     @Transactional
     public IssuedOtp issue(String email, String type) {
         requireAllowedType(type);

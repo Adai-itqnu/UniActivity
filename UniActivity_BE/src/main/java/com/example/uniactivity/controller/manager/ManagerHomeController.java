@@ -63,12 +63,8 @@ public class ManagerHomeController {
             model.addAttribute("activeActivitiesCount", activeActivities.size());
             
             // Count pending evidence approvals (minh chứng)
-            long pendingEvidences = activityRegistrationRepository.findAll().stream()
-                .filter(r -> r.getActivity() != null && 
-                            r.getEvidenceUrl() != null && 
-                            !r.getEvidenceUrl().isEmpty() &&
-                            r.getIsApproved() == null)
-                .count();
+            long pendingEvidences = activityRegistrationRepository
+                    .countPendingEvidenceByStudentClass(currentUser.getStudentClass());
             model.addAttribute("pendingEvidences", pendingEvidences);
             
             // Calculate average training points for class

@@ -106,6 +106,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/register", "/login", "/css/**", "/js/**", "/images/**",
+                    "/uploads/activities/**",
                     "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/oauth2/exchange",
                     "/api/auth/send-verification-email", "/api/auth/verify-email",
                     "/api/auth/forgot-password", "/api/auth/verify-reset-otp", "/api/auth/reset-password",

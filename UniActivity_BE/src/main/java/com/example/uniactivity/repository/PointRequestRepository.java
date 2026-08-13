@@ -29,6 +29,8 @@ public interface PointRequestRepository extends JpaRepository<PointRequest, Long
     List<PointRequest> findByStatus(EvidenceStatus status);
     
     List<PointRequest> findByStudentAndStatus(User student, EvidenceStatus status);
+
+    List<PointRequest> findByEvidenceImageUrlContaining(String evidencePath);
     
     /**
      * Find pending point requests for students in a specific class

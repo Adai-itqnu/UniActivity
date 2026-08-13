@@ -100,7 +100,7 @@ public class ManagerDataApiController {
         data.put("activeActivities", activeActivities.stream().limit(5).collect(Collectors.toList()));
 
         // Pending evidence — use optimized query instead of findAll()
-        long pendingEvidences = activityRegistrationRepository.countPendingEvidence();
+        long pendingEvidences = activityRegistrationRepository.countPendingEvidenceByStudentClass(sc);
         data.put("pendingEvidences", pendingEvidences);
 
         // Average training points

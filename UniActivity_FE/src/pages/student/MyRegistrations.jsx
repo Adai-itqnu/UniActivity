@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useOutletContext } from 'react-router-dom'
+import SecureImage from '../../components/common/SecureImage'
 
 const STATUS_MAP = {
     REGISTERED: { label: 'Chưa check-in', icon: 'schedule', cls: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' },
@@ -389,7 +390,7 @@ export default function MyRegistrations() {
                                     }`}>
                                         {urls.map((url, i) => (
                                             <div key={i} className={`rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800 ${urls.length === 1 ? 'max-w-md mx-auto' : ''}`}>
-                                                <img
+                                                <SecureImage
                                                     src={url}
                                                     alt={`Minh chứng ${i + 1}`}
                                                     className="w-full h-full object-contain max-h-[50vh]"

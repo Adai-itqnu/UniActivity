@@ -54,7 +54,7 @@ public class TrainingPointService {
     @Transactional
     public void addOrUpdateScore(User student, String criteriaCode, Integer score, 
                                   String sourceType, Long referenceId, String description) {
-        StudentTrainingPoint stp = getOrCreateForCurrentSemester(student);
+        StudentTrainingPoint stp = getOrCreateLockedForCurrentSemester(student);
         
         // Check if detail already exists
         Optional<TrainingPointDetail> existingDetail = 
@@ -105,7 +105,7 @@ public class TrainingPointService {
         if (sourceType == null || referenceId == null) {
             throw new IllegalArgumentException("Nguồn điểm tự động phải có reference");
         }
-        StudentTrainingPoint stp = getOrCreateForCurrentSemester(student);
+        StudentTrainingPoint stp = getOrCreateLockedForCurrentSemester(student);
         String sourceKey = sourceType + ":" + referenceId;
         if (trainingPointDetailRepository.findByStudentTrainingPointAndSourceKey(stp, sourceKey)
                 .isPresent()) {
@@ -131,7 +131,7 @@ public class TrainingPointService {
         if (sourceType == null || referenceId == null) {
             throw new IllegalArgumentException("Nguồn điểm phải có reference");
         }
-        StudentTrainingPoint stp = getOrCreateForCurrentSemester(student);
+        StudentTrainingPoint stp = getOrCreateLockedForCurrentSemester(student);
         String sourceKey = sourceType + ":" + criteriaCode;
         Optional<TrainingPointDetail> existing =
                 trainingPointDetailRepository.findByStudentTrainingPointAndSourceKey(stp, sourceKey);
@@ -158,11 +158,27 @@ public class TrainingPointService {
                 : sourceType + ":" + referenceId;
     }
 
+    private StudentTrainingPoint getOrCreateLockedForCurrentSemester(User student) {
+        Semester currentSemester = semesterRepository.findByIsCurrentTrue();
+        if (currentSemester == null) {
+            throw new IllegalStateException("Không tìm thấy học kỳ hiện tại");
+        }
+        return studentTrainingPointRepository
+                .findByStudentAndSemesterForUpdate(student, currentSemester)
+                .orElseGet(() -> {
+                    StudentTrainingPoint stp = new StudentTrainingPoint();
+                    stp.setStudent(student);
+                    stp.setSemester(currentSemester);
+                    stp.setTotalScore(0);
+                    stp.setStatus("DRAFT");
+                    return studentTrainingPointRepository.saveAndFlush(stp);
+                });
+    }
+
     /**
      * Recalculate total score and classification
      */
-    @Transactional
-    public void recalculateTotal(StudentTrainingPoint stp) {
+    private void recalculateTotal(StudentTrainingPoint stp) {
         List<TrainingPointDetail> details = trainingPointDetailRepository.findByStudentTrainingPoint(stp);
         
         int total = details.stream()

@@ -129,31 +129,7 @@ public class ActivityService {
             return false; // No slots = not visible
         }
         
-        StudentClass studentClass = student.getStudentClass();
-        Faculty studentFaculty = studentClass.getFaculty();
-        
-        for (ActivitySlot slot : slots) {
-            // School-wide slot (no faculty, no class)
-            if (slot.getFaculty() == null && slot.getStudentClass() == null) {
-                return true;
-            }
-            
-            // Faculty-wide slot (matches student's faculty, no specific class)
-            if (slot.getFaculty() != null && slot.getStudentClass() == null) {
-                if (studentFaculty != null && slot.getFaculty().getId().equals(studentFaculty.getId())) {
-                    return true;
-                }
-            }
-            
-            // Class-specific slot
-            if (slot.getStudentClass() != null) {
-                if (slot.getStudentClass().getId().equals(studentClass.getId())) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
+        return slots.stream().anyMatch(slot -> slotMatchesStudent(slot, student.getStudentClass()));
     }
     
     /**
@@ -163,30 +139,37 @@ public class ActivityService {
         if (student.getStudentClass() == null) return null;
         
         var slots = activitySlotRepository.findByActivityId(activity.getId());
-        StudentClass studentClass = student.getStudentClass();
-        Faculty studentFaculty = studentClass.getFaculty();
-        
-        // Priority: Class-specific > Faculty-wide > School-wide
-        for (ActivitySlot slot : slots) {
-            if (slot.getStudentClass() != null && slot.getStudentClass().getId().equals(studentClass.getId())) {
-                return slot;
-            }
+        return slots.stream()
+                .filter(slot -> slotMatchesStudent(slot, student.getStudentClass()))
+                .max(java.util.Comparator.comparingInt(this::slotSpecificity))
+                .orElse(null);
+    }
+
+    private boolean slotMatchesStudent(ActivitySlot slot, StudentClass studentClass) {
+        if (slot.getStudentClass() != null
+                && !sameId(slot.getStudentClass().getId(), studentClass.getId())) {
+            return false;
         }
-        
-        for (ActivitySlot slot : slots) {
-            if (slot.getFaculty() != null && slot.getStudentClass() == null && studentFaculty != null 
-                && slot.getFaculty().getId().equals(studentFaculty.getId())) {
-                return slot;
-            }
+        if (slot.getFaculty() != null
+                && (studentClass.getFaculty() == null
+                || !sameId(slot.getFaculty().getId(), studentClass.getFaculty().getId()))) {
+            return false;
         }
-        
-        for (ActivitySlot slot : slots) {
-            if (slot.getFaculty() == null && slot.getStudentClass() == null) {
-                return slot;
-            }
-        }
-        
-        return null;
+        return slot.getAcademicYear() == null
+                || (studentClass.getAcademicYear() != null
+                && sameId(slot.getAcademicYear().getId(), studentClass.getAcademicYear().getId()));
+    }
+
+    private int slotSpecificity(ActivitySlot slot) {
+        int specificity = 0;
+        if (slot.getAcademicYear() != null) specificity++;
+        if (slot.getFaculty() != null) specificity += 2;
+        if (slot.getStudentClass() != null) specificity += 4;
+        return specificity;
+    }
+
+    private boolean sameId(Long first, Long second) {
+        return first != null && first.equals(second);
     }
 
     /**
