@@ -40,4 +40,49 @@ public interface PointRequestRepository extends JpaRepository<PointRequest, Long
      */
     @Query("SELECT COUNT(pr) FROM PointRequest pr WHERE pr.student.studentClass = :studentClass AND pr.status = :status")
     long countByStudentClassAndStatus(@Param("studentClass") StudentClass studentClass, @Param("status") EvidenceStatus status);
+    
+    // ========================================
+    // Optimized queries with JOIN FETCH to prevent N+1
+    // ========================================
+    
+    /**
+     * Find point requests by class with eager loading of related entities
+     * Prevents N+1 query problem
+     */
+    @Query("SELECT DISTINCT pr FROM PointRequest pr " +
+           "JOIN FETCH pr.student s " +
+           "JOIN FETCH s.studentClass " +
+           "JOIN FETCH pr.semester " +
+           "LEFT JOIN FETCH pr.reviewedBy " +
+           "WHERE s.studentClass = :studentClass " +
+           "ORDER BY pr.createdAt DESC")
+    List<PointRequest> findByStudentClassWithDetails(@Param("studentClass") StudentClass studentClass);
+    
+    /**
+     * Find point requests by class and status with eager loading
+     */
+    @Query("SELECT DISTINCT pr FROM PointRequest pr " +
+           "JOIN FETCH pr.student s " +
+           "JOIN FETCH s.studentClass " +
+           "JOIN FETCH pr.semester " +
+           "LEFT JOIN FETCH pr.reviewedBy " +
+           "WHERE s.studentClass = :studentClass " +
+           "AND pr.status = :status " +
+           "ORDER BY pr.createdAt DESC")
+    List<PointRequest> findByStudentClassAndStatusWithDetails(
+        @Param("studentClass") StudentClass studentClass, 
+        @Param("status") EvidenceStatus status
+    );
+    
+    /**
+     * Find point requests by student with eager loading
+     */
+    @Query("SELECT DISTINCT pr FROM PointRequest pr " +
+           "JOIN FETCH pr.student s " +
+           "LEFT JOIN FETCH s.studentClass " +
+           "JOIN FETCH pr.semester " +
+           "LEFT JOIN FETCH pr.reviewedBy " +
+           "WHERE pr.student = :student " +
+           "ORDER BY pr.createdAt DESC")
+    List<PointRequest> findByStudentWithDetails(@Param("student") User student);
 }

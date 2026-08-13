@@ -29,4 +29,35 @@ public interface ActivityRegistrationRepository extends JpaRepository<ActivityRe
 
     @Query("SELECT COUNT(r) FROM ActivityRegistration r WHERE r.evidenceUrl IS NOT NULL AND r.evidenceUrl <> '' AND r.isApproved IS NULL")
     long countPendingEvidence();
+    
+    // ========================================
+    // Optimized queries with JOIN FETCH to prevent N+1
+    // ========================================
+    
+    /**
+     * Find registrations by student with eager loading of related entities
+     * Prevents N+1 query problem
+     */
+    @Query("SELECT DISTINCT ar FROM ActivityRegistration ar " +
+           "JOIN FETCH ar.student s " +
+           "JOIN FETCH ar.activity a " +
+           "LEFT JOIN FETCH a.semester " +
+           "LEFT JOIN FETCH ar.activitySlot " +
+           "LEFT JOIN FETCH ar.scoreOption " +
+           "WHERE ar.student = :student " +
+           "ORDER BY ar.registeredAt DESC")
+    List<ActivityRegistration> findByStudentWithDetailsOrderByRegisteredAtDesc(@Param("student") User student);
+    
+    /**
+     * Find registrations by activity with eager loading
+     */
+    @Query("SELECT DISTINCT ar FROM ActivityRegistration ar " +
+           "JOIN FETCH ar.student s " +
+           "LEFT JOIN FETCH s.studentClass " +
+           "JOIN FETCH ar.activity a " +
+           "LEFT JOIN FETCH ar.activitySlot slot " +
+           "LEFT JOIN FETCH ar.scoreOption " +
+           "WHERE ar.activity = :activity " +
+           "ORDER BY ar.registeredAt ASC")
+    List<ActivityRegistration> findByActivityWithDetailsOrderByRegisteredAtAsc(@Param("activity") Activity activity);
 }
