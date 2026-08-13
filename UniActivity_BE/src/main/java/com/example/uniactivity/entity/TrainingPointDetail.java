@@ -29,7 +29,7 @@ public class TrainingPointDetail {
     @Column(nullable = false)
     private Integer score;
 
-    private String sourceType; // ACTIVITY, MANUAL, VIOLATION, AUTO_GPA
+    private String sourceType; // AUTO_ACTIVITY, POINT_REQUEST, MANUAL, VIOLATION
 
     private Long referenceId;
 

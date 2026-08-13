@@ -184,7 +184,7 @@ public class ActivityController {
         try {
             String bannerUrl = fileUploadService
                     .uploadActivityImages(new MultipartFile[]{file})
-                    .getFirst();
+                    .get(0);
             return ResponseEntity.ok(Map.of("bannerUrl", bannerUrl));
         } catch (IOException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Upload thất bại hoặc tệp không hợp lệ"));

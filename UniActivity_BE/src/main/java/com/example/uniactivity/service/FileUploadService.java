@@ -21,6 +21,7 @@ import java.util.UUID;
 public class FileUploadService {
 
     private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
+    private static final int MAX_EVIDENCE_FILES = 3;
     private static final String PUBLIC_PREFIX = "/uploads/";
 
     private final Path uploadRoot;
@@ -30,6 +31,9 @@ public class FileUploadService {
     }
 
     public List<String> uploadEvidenceImages(MultipartFile[] files) throws IOException {
+        if (files != null && files.length > MAX_EVIDENCE_FILES) {
+            throw new IOException("Tối đa 3 ảnh minh chứng");
+        }
         return uploadImages(files, "evidence");
     }
 
@@ -152,11 +156,47 @@ public class FileUploadService {
     }
 
     private boolean isWebp(byte[] content) {
-        return content.length >= 12
-                && content[0] == 'R' && content[1] == 'I'
-                && content[2] == 'F' && content[3] == 'F'
-                && content[8] == 'W' && content[9] == 'E'
-                && content[10] == 'B' && content[11] == 'P';
+        if (content.length < 25
+                || !hasAscii(content, 0, "RIFF")
+                || !hasAscii(content, 8, "WEBP")
+                || littleEndianUnsignedInt(content, 4) + 8 != content.length) {
+            return false;
+        }
+
+        long chunkSize = littleEndianUnsignedInt(content, 16);
+        if (chunkSize > content.length - 20L) {
+            return false;
+        }
+        if (hasAscii(content, 12, "VP8 ")) {
+            return chunkSize >= 10
+                    && content.length >= 30
+                    && (content[23] & 0xff) == 0x9d
+                    && (content[24] & 0xff) == 0x01
+                    && (content[25] & 0xff) == 0x2a;
+        }
+        if (hasAscii(content, 12, "VP8L")) {
+            return chunkSize >= 5 && (content[20] & 0xff) == 0x2f;
+        }
+        return hasAscii(content, 12, "VP8X") && chunkSize == 10 && content.length >= 30;
+    }
+
+    private long littleEndianUnsignedInt(byte[] content, int offset) {
+        return (content[offset] & 0xffL)
+                | ((content[offset + 1] & 0xffL) << 8)
+                | ((content[offset + 2] & 0xffL) << 16)
+                | ((content[offset + 3] & 0xffL) << 24);
+    }
+
+    private boolean hasAscii(byte[] content, int offset, String expected) {
+        if (offset < 0 || content.length - offset < expected.length()) {
+            return false;
+        }
+        for (int i = 0; i < expected.length(); i++) {
+            if (content[offset + i] != expected.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean startsWith(byte[] content, byte[] signature) {

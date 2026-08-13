@@ -43,6 +43,19 @@ class FileUploadServiceTest {
     }
 
     @Test
+    void rejectsRiffFileThatIsNotAValidWebpBitstream() {
+        byte[] fakeWebp = {
+                'R', 'I', 'F', 'F', 12, 0, 0, 0,
+                'W', 'E', 'B', 'P', 'J', 'U', 'N', 'K',
+                0, 0, 0, 0
+        };
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "fake.webp", "image/webp", fakeWebp);
+
+        assertFalse(service.isValidImage(file));
+    }
+
+    @Test
     void rejectsOversizedFilesAtTheStorageBoundary() {
         MockMultipartFile oversized = new MockMultipartFile(
                 "file", "large.png", "image/png",
@@ -53,13 +66,23 @@ class FileUploadServiceTest {
     }
 
     @Test
+    void rejectsMoreThanThreeEvidenceFilesAtTheStorageBoundary() {
+        MockMultipartFile png = new MockMultipartFile(
+                "file", "image.png", "image/png", ONE_PIXEL_PNG);
+
+        assertThrows(java.io.IOException.class,
+                () -> service.uploadEvidenceImages(
+                        new MockMultipartFile[]{png, png, png, png}));
+    }
+
+    @Test
     void ignoresTraversalFilenameAndUsesDetectedExtension() throws Exception {
         MockMultipartFile png = new MockMultipartFile(
                 "file", "../../outside.html", "text/html", ONE_PIXEL_PNG);
 
         List<String> urls = service.uploadEvidenceImages(new MockMultipartFile[]{png});
 
-        assertTrue(urls.getFirst().matches("/uploads/evidence/[0-9a-f-]+\\.png"));
+        assertTrue(urls.get(0).matches("/uploads/evidence/[0-9a-f-]+\\.png"));
         try (var paths = Files.list(uploadRoot.resolve("evidence"))) {
             assertTrue(paths.allMatch(path -> path.normalize().startsWith(uploadRoot.normalize())));
         }

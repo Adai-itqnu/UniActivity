@@ -48,7 +48,7 @@ public class TrainingPointService {
     /**
      * Add or update score for a specific criteria
      * Score behavior depends on source type:
-     * - POINT_REQUEST, MANUAL, AUTO_GPA: REPLACE (self-declared, only latest counts)
+     * - POINT_REQUEST, MANUAL: REPLACE (self-declared, only latest counts)
      * - AUTO_ACTIVITY: ACCUMULATE (can have multiple activities)
      */
     @Transactional
@@ -62,7 +62,7 @@ public class TrainingPointService {
         
         // Determine if this source type should REPLACE or ACCUMULATE
         boolean shouldReplace = sourceType != null && 
-                (sourceType.equals("POINT_REQUEST") || sourceType.equals("MANUAL") || sourceType.equals("AUTO_GPA"));
+                (sourceType.equals("POINT_REQUEST") || sourceType.equals("MANUAL"));
         
         TrainingPointDetail detail;
         if (existingDetail.isPresent()) {
