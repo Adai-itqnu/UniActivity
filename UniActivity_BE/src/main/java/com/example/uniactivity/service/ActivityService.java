@@ -474,6 +474,8 @@ public class ActivityService {
         if (existing.isPresent()) {
             ActivityRegistration existingReg = existing.get();
             if (existingReg.getStatus() == RegistrationStatus.CANCELLED) {
+                ActivitySlot slot = requireAvailableSlot(activity, student);
+
                 // Re-activate the cancelled registration
                 existingReg.setStatus(RegistrationStatus.REGISTERED);
                 existingReg.setRegisteredAt(LocalDateTime.now());
@@ -481,16 +483,11 @@ public class ActivityService {
                 existingReg.setIsApproved(null);
                 existingReg.setRejectionReason(null);
                 existingReg.setScoreOption(null);
+                existingReg.setActivitySlot(slot);
                 activityRegistrationRepository.save(existingReg);
-                
-                // Update slot count (optimistic lock protected)
-                if (existingReg.getActivitySlot() != null) {
-                    ActivitySlot slot = activitySlotRepository.findById(existingReg.getActivitySlot().getId()).orElse(null);
-                    if (slot != null) {
-                        slot.setCurrentQuantity(slot.getCurrentQuantity() + 1);
-                        activitySlotRepository.save(slot); // @Version will catch conflicts
-                    }
-                }
+
+                slot.setCurrentQuantity(slot.getCurrentQuantity() + 1);
+                activitySlotRepository.save(slot);
                 
                 // Notify managers about re-registration
                 sendRegistrationUpdateToManagers(student, activity, true);
@@ -500,24 +497,7 @@ public class ActivityService {
             throw new RuntimeException("Bạn đã đăng ký hoạt động này rồi");
         }
         
-        // Check visibility
-        if (!isActivityVisibleToStudent(activity, student)) {
-            throw new RuntimeException("Bạn không thể đăng ký hoạt động này");
-        }
-        
-        // Find matching slot (re-read from DB for freshest data)
-        ActivitySlot slot = findMatchingSlotForStudent(activity, student);
-        if (slot == null) {
-            throw new RuntimeException("Không tìm thấy slot phù hợp");
-        }
-        
-        // Re-read slot from DB to get latest version
-        slot = activitySlotRepository.findById(slot.getId()).orElseThrow();
-        
-        // Check slot capacity
-        if (slot.getCurrentQuantity() >= slot.getMaxQuantity()) {
-            throw new RuntimeException("Slot đã đầy, không thể đăng ký");
-        }
+        ActivitySlot slot = requireAvailableSlot(activity, student);
         
         // Create registration
         ActivityRegistration reg = new ActivityRegistration();
@@ -552,6 +532,22 @@ public class ActivityService {
         sendRegistrationUpdateToManagers(student, activity, true);
         
         return Map.of("message", "Đăng ký thành công!", "registrationId", reg.getId());
+    }
+
+    private ActivitySlot requireAvailableSlot(Activity activity, User student) {
+        if (!isActivityVisibleToStudent(activity, student)) {
+            throw new RuntimeException("Bạn không thể đăng ký hoạt động này");
+        }
+        ActivitySlot matchingSlot = findMatchingSlotForStudent(activity, student);
+        if (matchingSlot == null) {
+            throw new RuntimeException("Không tìm thấy slot phù hợp");
+        }
+        ActivitySlot currentSlot = activitySlotRepository.findById(matchingSlot.getId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy slot phù hợp"));
+        if (currentSlot.getCurrentQuantity() >= currentSlot.getMaxQuantity()) {
+            throw new RuntimeException("Slot đã đầy, không thể đăng ký");
+        }
+        return currentSlot;
     }
     
     /**

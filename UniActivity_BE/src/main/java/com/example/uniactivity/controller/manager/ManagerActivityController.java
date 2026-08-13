@@ -14,6 +14,7 @@ import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.QrCodeService;
 import com.example.uniactivity.service.ManagerScopeAuthorizationService;
 import com.example.uniactivity.service.EvidenceReviewService;
+import com.example.uniactivity.service.ManagerRegistrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -44,6 +45,7 @@ public class ManagerActivityController {
     private final NotificationService notificationService;
     private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
     private final EvidenceReviewService evidenceReviewService;
+    private final ManagerRegistrationService managerRegistrationService;
 
     @GetMapping("/activities")
     public String activities(@AuthenticationPrincipal CustomUserDetails userDetails, Model model) {
@@ -209,24 +211,11 @@ public class ManagerActivityController {
     @ResponseBody
     public ResponseEntity<?> manualCheckin(@AuthenticationPrincipal CustomUserDetails userDetails,
                                            @PathVariable Long registrationId) {
-        try {
-            ActivityRegistration reg = managerScopeAuthorizationService.requireRegistration(
-                    userDetails.getUser(), registrationId);
-            
-            if (reg.getStatus() == RegistrationStatus.ATTENDED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Sinh viên đã được điểm danh rồi"));
-            }
-            if (reg.getStatus() == RegistrationStatus.CANCELLED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Đăng ký đã bị hủy, không thể điểm danh"));
-            }
-            
-            reg.setStatus(RegistrationStatus.ATTENDED);
-            activityRegistrationRepository.save(reg);
-            
-            return ResponseEntity.ok(Map.of("message", "Đã điểm danh thành công cho " + reg.getStudent().getFullName()));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        ActivityRegistration registration = managerRegistrationService.manualCheckIn(
+                userDetails.getUser(), registrationId);
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã điểm danh thành công cho "
+                        + registration.getStudent().getFullName()));
     }
 
     @PostMapping("/api/registrations/{registrationId}/approve")
