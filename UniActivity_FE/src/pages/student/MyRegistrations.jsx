@@ -65,8 +65,8 @@ export default function MyRegistrations() {
         return () => window.removeEventListener('new-notification', handleNotification)
     }, [apiPrefix])
 
-    const showToast = (type, text) => {
-        setToast({ type, text })
+    const showToast = (title, text, type = 'info') => {
+        setToast({ title, type, text })
         setTimeout(() => setToast(null), 3000)
     }
 
@@ -77,10 +77,10 @@ export default function MyRegistrations() {
             const res = await fetch(`${apiPrefix}/activities/${activityId}/register`, { method: 'DELETE', credentials: 'include' })
             const json = await res.json()
             if (!res.ok) throw new Error(json.message)
-            showToast('success', json.message)
+            showToast('Thành công', json.message, 'success')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setActionLoading(null)
         }
@@ -98,11 +98,11 @@ export default function MyRegistrations() {
 
     const handleSubmitEvidence = async () => {
         if (!selectedScoreOption || evidenceFiles.length === 0) {
-            showToast('error', 'Vui lòng chọn mục điểm và ảnh minh chứng')
+            showToast('Dữ liệu chưa hợp lệ', 'Vui lòng chọn mục điểm và ảnh minh chứng', 'error')
             return
         }
         if (evidenceFiles.length > 3) {
-            showToast('error', 'Tối đa 3 ảnh')
+            showToast('Dữ liệu chưa hợp lệ', 'Tối đa 3 ảnh', 'error')
             return
         }
         setUploading(true)
@@ -115,11 +115,11 @@ export default function MyRegistrations() {
             })
             const json = await res.json()
             if (!res.ok) throw new Error(json.message)
-            showToast('success', json.message)
+            showToast('Thành công', json.message, 'success')
             setEvidenceModal(null)
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setUploading(false)
         }

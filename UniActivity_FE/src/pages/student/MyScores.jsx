@@ -76,8 +76,8 @@ export default function MyScores() {
         return () => window.removeEventListener('new-notification', handleNotification)
     }, [apiPrefix])
 
-    const showToast = (type, text) => {
-        setToast({ type, text })
+    const showToast = (title, text, type = 'info') => {
+        setToast({ title, type, text })
         setTimeout(() => setToast(null), 4000)
     }
 
@@ -113,7 +113,7 @@ export default function MyScores() {
     // Submit point request
     const handleSubmitRequest = async () => {
         if (!selectedCriteria || !description.trim()) {
-            showToast('error', 'Vui lòng điền đầy đủ thông tin')
+            showToast('Dữ liệu chưa hợp lệ', 'Vui lòng điền đầy đủ thông tin', 'error')
             return
         }
         setSubmitting(true)
@@ -146,7 +146,7 @@ export default function MyScores() {
                 })
                 const json = await res.json()
                 if (!res.ok) throw new Error(json.message)
-                showToast('success', json.message)
+                showToast('Thành công', json.message, 'success')
             } else {
                 // Normal point request
                 const res = await fetch(`${apiPrefix}/point-requests`, {
@@ -161,7 +161,7 @@ export default function MyScores() {
                 })
                 const json = await res.json()
                 if (!res.ok) throw new Error(json.message)
-                showToast('success', json.message)
+                showToast('Thành công', json.message, 'success')
             }
 
             // Reset form
@@ -175,7 +175,7 @@ export default function MyScores() {
             setGpaScore(null)
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setSubmitting(false)
         }
@@ -339,7 +339,9 @@ export default function MyScores() {
 
                         {/* Rules info */}
                         {criteriaInfo?.rulesHtml && (
-                            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-600 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: criteriaInfo.rulesHtml }} />
+                            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-600 dark:text-gray-300">
+                                {criteriaInfo.rulesHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}
+                            </div>
                         )}
 
                         {/* GPA section for 1.1 */}

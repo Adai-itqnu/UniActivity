@@ -715,7 +715,7 @@ function QrScannerCard({ onScanned }) {
             if (!el || !mountedRef.current) return
 
             // Clean leftover DOM from StrictMode double-mount
-            el.innerHTML = ''
+            el.replaceChildren()
 
             try {
                 // Step 1: Enumerate cameras FIRST (also triggers permission)

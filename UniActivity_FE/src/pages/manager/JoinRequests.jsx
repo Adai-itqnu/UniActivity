@@ -21,8 +21,8 @@ export default function JoinRequests() {
     const [showQr, setShowQr] = useState(false)
     const qrRef = useRef(null)
 
-    const showToast = (type, text) => {
-        setToast({ type, text })
+    const showToast = (title, text, type = 'info') => {
+        setToast({ title, type, text })
         setTimeout(() => setToast(null), 4000)
     }
 
@@ -64,10 +64,10 @@ export default function JoinRequests() {
             const res = await fetch(`/manager/api/join-requests/${id}/approve`, { method: 'POST', credentials: 'include' })
             const d = await res.json()
             if (!res.ok) throw new Error(d.message)
-            showToast('success', d.message)
+            showToast('Thành công', d.message, 'success')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         }
     }
 
@@ -76,10 +76,10 @@ export default function JoinRequests() {
             const res = await fetch(`/manager/api/join-requests/${id}/reject`, { method: 'POST', credentials: 'include' })
             const d = await res.json()
             if (!res.ok) throw new Error(d.message)
-            showToast('success', d.message)
+            showToast('Thành công', d.message, 'success')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         }
     }
 
@@ -88,10 +88,10 @@ export default function JoinRequests() {
             const res = await fetch('/manager/api/regenerate-join-code', { method: 'POST', credentials: 'include' })
             const d = await res.json()
             if (!res.ok) throw new Error(d.message)
-            showToast('success', d.message)
+            showToast('Thành công', d.message, 'success')
             setData(prev => ({ ...prev, joinCode: d.joinCode }))
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         }
     }
 

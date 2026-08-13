@@ -68,8 +68,8 @@ export default function Activities() {
     }, [activitiesUrl])
 
 
-    const showToast = (type, text) => {
-        setToast({ type, text })
+    const showToast = (title, text, type = 'info') => {
+        setToast({ title, type, text })
         setTimeout(() => setToast(null), 3000)
     }
 
@@ -81,10 +81,10 @@ export default function Activities() {
             })
             const json = await res.json()
             if (!res.ok) throw new Error(json.message)
-            showToast('success', json.message)
+            showToast('Thành công', json.message, 'success')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setActionLoading(null)
         }
@@ -99,10 +99,10 @@ export default function Activities() {
             })
             const json = await res.json()
             if (!res.ok) throw new Error(json.message)
-            showToast('success', json.message)
+            showToast('Thành công', json.message, 'success')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setActionLoading(null)
         }

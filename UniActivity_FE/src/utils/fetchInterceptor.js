@@ -100,5 +100,3 @@ window.fetch = async function (url, options = {}) {
 
     return response
 }
-
-console.log('[FetchInterceptor] ✅ Đã kích hoạt — JWT token sẽ tự động gắn vào mọi API request')

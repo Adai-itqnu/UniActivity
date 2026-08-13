@@ -27,8 +27,8 @@ export default function ActivityDetail() {
     const [evidenceModal, setEvidenceModal] = useState(null)
     const [showQrModal, setShowQrModal] = useState(false)
 
-    const showToast = (type, text) => {
-        setToast({ type, text })
+    const showToast = (title, text, type = 'info') => {
+        setToast({ title, type, text })
         setTimeout(() => setToast(null), 4000)
     }
 
@@ -98,16 +98,16 @@ export default function ActivityDetail() {
             const res = await fetch(`/manager/api/registrations/${regId}/approve`, { method: 'POST', credentials: 'include' })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         }
     }
 
     const handleReject = async () => {
         if (!rejectReason.trim()) {
-            showToast('error', 'Vui lòng nhập lý do từ chối')
+            showToast('Dữ liệu chưa hợp lệ', 'Vui lòng nhập lý do từ chối', 'error')
             return
         }
         try {
@@ -118,12 +118,12 @@ export default function ActivityDetail() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             setRejectModal(null)
             setRejectReason('')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         }
     }
 
@@ -132,10 +132,10 @@ export default function ActivityDetail() {
             const res = await fetch(`/manager/api/registrations/${regId}/checkin`, { method: 'POST', credentials: 'include' })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         }
     }
 

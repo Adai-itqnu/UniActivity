@@ -546,7 +546,7 @@ function QrScannerModal({ onScanned, onClose, onError }) {
             if (!el || !mountedRef.current) return
 
             // Clean up any leftover DOM (StrictMode double-mount)
-            el.innerHTML = ''
+            el.replaceChildren()
 
             try {
                 // Step 1: Enumerate cameras FIRST (also triggers permission)

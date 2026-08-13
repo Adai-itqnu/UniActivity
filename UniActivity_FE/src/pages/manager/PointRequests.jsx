@@ -21,8 +21,8 @@ export default function PointRequests() {
     const [comment, setComment] = useState('')
     const [evidenceModal, setEvidenceModal] = useState(null)
 
-    const showToast = (type, text) => {
-        setToast({ type, text })
+    const showToast = (title, text, type = 'info') => {
+        setToast({ title, type, text })
         setTimeout(() => setToast(null), 4000)
     }
 
@@ -70,12 +70,12 @@ export default function PointRequests() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             setActionModal(null)
             setComment('')
             fetchData()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         }
     }
 

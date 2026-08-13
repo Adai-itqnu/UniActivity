@@ -47,8 +47,8 @@ export default function Profile() {
     const [verifying, setVerifying] = useState(false)
     const [verifyCooldown, setVerifyCooldown] = useState(0)
 
-    const showToast = (type, text) => {
-        setToast({ type, text })
+    const showToast = (title, text, type = 'info') => {
+        setToast({ title, type, text })
         setTimeout(() => setToast(null), 4000)
     }
 
@@ -70,19 +70,19 @@ export default function Profile() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             setShowVerifyModal(true)
             setVerifyOtp('')
             setVerifyCooldown(60)
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setSendingVerify(false)
         }
     }
 
     const handleVerifyEmail = async () => {
-        if (!verifyOtp.trim()) { showToast('error', 'Vui lòng nhập mã OTP'); return }
+        if (!verifyOtp.trim()) { showToast('Dữ liệu chưa hợp lệ', 'Vui lòng nhập mã OTP', 'error'); return }
         setVerifying(true)
         try {
             const res = await fetch('/api/auth/verify-email', {
@@ -92,12 +92,12 @@ export default function Profile() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             setShowVerifyModal(false)
             setVerifyOtp('')
             fetchProfile()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setVerifying(false)
         }
@@ -127,7 +127,7 @@ export default function Profile() {
 
     const handleSaveProfile = async () => {
         if (!fullName.trim()) {
-            showToast('error', 'Họ tên không được để trống')
+            showToast('Dữ liệu chưa hợp lệ', 'Họ tên không được để trống', 'error')
             return
         }
         setSaving(true)
@@ -139,21 +139,21 @@ export default function Profile() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             setEditMode(false)
             fetchProfile()
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setSaving(false)
         }
     }
 
     const handleChangePassword = async () => {
-        if (!currentPassword) { showToast('error', 'Vui lòng nhập mật khẩu hiện tại'); return }
-        if (!newPassword) { showToast('error', 'Vui lòng nhập mật khẩu mới'); return }
-        if (newPassword.length < 6) { showToast('error', 'Mật khẩu mới phải có ít nhất 6 ký tự'); return }
-        if (newPassword !== confirmPassword) { showToast('error', 'Mật khẩu xác nhận không khớp'); return }
+        if (!currentPassword) { showToast('Dữ liệu chưa hợp lệ', 'Vui lòng nhập mật khẩu hiện tại', 'error'); return }
+        if (!newPassword) { showToast('Dữ liệu chưa hợp lệ', 'Vui lòng nhập mật khẩu mới', 'error'); return }
+        if (newPassword.length < 6) { showToast('Dữ liệu chưa hợp lệ', 'Mật khẩu mới phải có ít nhất 6 ký tự', 'error'); return }
+        if (newPassword !== confirmPassword) { showToast('Dữ liệu chưa hợp lệ', 'Mật khẩu xác nhận không khớp', 'error'); return }
 
         setChangingPw(true)
         try {
@@ -164,13 +164,13 @@ export default function Profile() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message)
-            showToast('success', data.message)
+            showToast('Thành công', data.message, 'success')
             setShowPwForm(false)
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
         } catch (e) {
-            showToast('error', e.message)
+            showToast('Có lỗi xảy ra', e.message, 'error')
         } finally {
             setChangingPw(false)
         }
