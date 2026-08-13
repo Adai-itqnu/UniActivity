@@ -6,7 +6,12 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "class_join_requests")
+@Table(name = "class_join_requests", indexes = {
+    @Index(name = "idx_cjr_user", columnList = "user_id"),
+    @Index(name = "idx_cjr_class", columnList = "class_id"),
+    @Index(name = "idx_cjr_status", columnList = "status"),
+    @Index(name = "idx_cjr_created_at", columnList = "created_at")
+})
 @Data
 public class ClassJoinRequest {
     @Id

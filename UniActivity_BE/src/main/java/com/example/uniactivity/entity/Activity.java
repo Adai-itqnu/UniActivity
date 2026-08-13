@@ -7,7 +7,13 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "activities")
+@Table(name = "activities", indexes = {
+    @Index(name = "idx_activity_semester", columnList = "semester_id"),
+    @Index(name = "idx_activity_status", columnList = "status"),
+    @Index(name = "idx_activity_scope", columnList = "scope"),
+    @Index(name = "idx_activity_created_by", columnList = "created_by_id"),
+    @Index(name = "idx_activity_dates", columnList = "registration_deadline, start_time")
+})
 @Data
 public class Activity {
     @Id

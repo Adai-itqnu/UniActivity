@@ -6,9 +6,17 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "registrations", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"student_id", "activity_id"})
-})
+@Table(name = "registrations", 
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"student_id", "activity_id"})
+    },
+    indexes = {
+        @Index(name = "idx_reg_student", columnList = "student_id"),
+        @Index(name = "idx_reg_activity", columnList = "activity_id"),
+        @Index(name = "idx_reg_status", columnList = "status"),
+        @Index(name = "idx_reg_registered_at", columnList = "registered_at")
+    }
+)
 @Data
 public class Registration {
     @Id
