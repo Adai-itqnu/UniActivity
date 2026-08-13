@@ -1,9 +1,9 @@
 Feature: Kiểm thử API UniActivity
 
   Background:
-    * def baseUrl = 'http://localhost:8080'
-    * def username = '4551190011'
-    * def password = 'Demo123@'
+    * def baseUrl = 'http://127.0.0.1:' + karate.properties['karate.server.port']
+    * def username = 'karate-student'
+    * def password = 'Karate123@'
     * url baseUrl
 
   Scenario: Đăng nhập thành công
