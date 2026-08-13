@@ -6,6 +6,7 @@ import com.example.uniactivity.enums.ActivityStatus;
 import com.example.uniactivity.service.ActivityService;
 import com.example.uniactivity.service.AcademicYearService;
 import com.example.uniactivity.service.FacultyService;
+import com.example.uniactivity.service.FileUploadService;
 import com.example.uniactivity.service.ScoringRulesService;
 import com.example.uniactivity.service.SemesterService;
 import com.example.uniactivity.service.StudentClassService;
@@ -18,13 +19,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Controller
 @RequestMapping("/admin/activities")
@@ -37,6 +33,7 @@ public class ActivityController {
     private final AcademicYearService academicYearService;
     private final StudentClassService studentClassService;
     private final ScoringRulesService scoringRulesService;
+    private final FileUploadService fileUploadService;
 
     @GetMapping
     public String listActivities(Model model) {
@@ -185,24 +182,12 @@ public class ActivityController {
         }
 
         try {
-            String basePath = System.getProperty("user.dir");
-            Path uploadPath = Paths.get(basePath, "src", "main", "resources", "uploads", "activities");
-            Files.createDirectories(uploadPath);
-
-            String originalName = file.getOriginalFilename();
-            String extension = "";
-            if (originalName != null && originalName.contains(".")) {
-                extension = originalName.substring(originalName.lastIndexOf("."));
-            }
-            String fileName = UUID.randomUUID().toString().substring(0, 8) + extension;
-            Path filePath = uploadPath.resolve(fileName);
-
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            String bannerUrl = "/uploads/activities/" + fileName;
+            String bannerUrl = fileUploadService
+                    .uploadActivityImages(new MultipartFile[]{file})
+                    .getFirst();
             return ResponseEntity.ok(Map.of("bannerUrl", bannerUrl));
         } catch (IOException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Upload thất bại: " + e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", "Upload thất bại hoặc tệp không hợp lệ"));
         }
     }
 }

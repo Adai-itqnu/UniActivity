@@ -1,14 +1,17 @@
 package com.example.uniactivity.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -16,117 +19,155 @@ import java.util.UUID;
 @Service
 @Slf4j
 public class FileUploadService {
-    
-    // Use absolute path to src/main/resources/uploads
-    private Path getUploadPath(String subfolder) {
-        String basePath = System.getProperty("user.dir");
-        return Paths.get(basePath, "src", "main", "resources", "uploads", subfolder);
+
+    private static final long MAX_FILE_SIZE = 5L * 1024 * 1024;
+    private static final String PUBLIC_PREFIX = "/uploads/";
+
+    private final Path uploadRoot;
+
+    public FileUploadService(@Value("${app.upload.root}") String uploadRoot) {
+        this.uploadRoot = Paths.get(uploadRoot).toAbsolutePath().normalize();
     }
-    
-    /**
-     * Upload multiple evidence images
-     * @param files List of files to upload
-     * @return List of relative paths to uploaded files
-     */
+
     public List<String> uploadEvidenceImages(MultipartFile[] files) throws IOException {
+        return uploadImages(files, "evidence");
+    }
+
+    public List<String> uploadActivityImages(MultipartFile[] files) throws IOException {
+        return uploadImages(files, "activities");
+    }
+
+    private List<String> uploadImages(MultipartFile[] files, String subfolder) throws IOException {
         List<String> uploadedPaths = new ArrayList<>();
-        
-        // Create upload directory if not exists
-        Path uploadPath = getUploadPath("evidence");
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-            log.info("Created upload directory: {}", uploadPath.toAbsolutePath());
+        if (files == null) {
+            return uploadedPaths;
         }
-        
+        Path directory = safeDirectory(subfolder);
+        Files.createDirectories(directory);
         for (MultipartFile file : files) {
-            if (file != null && !file.isEmpty()) {
-                String uploadedPath = uploadSingleFile(file, uploadPath, "evidence");
-                uploadedPaths.add(uploadedPath);
+            if (file == null || file.isEmpty()) {
+                continue;
             }
+            uploadedPaths.add(uploadSingleFile(file, directory, subfolder));
         }
-        
         return uploadedPaths;
     }
 
-    /**
-     * Upload activity images
-     */
-    public List<String> uploadActivityImages(MultipartFile[] files) throws IOException {
-        List<String> uploadedPaths = new ArrayList<>();
-        
-        Path uploadPath = getUploadPath("activities");
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-            log.info("Created upload directory: {}", uploadPath.toAbsolutePath());
+    private String uploadSingleFile(
+            MultipartFile file, Path directory, String subfolder) throws IOException {
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IOException("Tệp vượt quá kích thước cho phép");
         }
-        
-        for (MultipartFile file : files) {
-            if (file != null && !file.isEmpty()) {
-                String uploadedPath = uploadSingleFile(file, uploadPath, "activities");
-                uploadedPaths.add(uploadedPath);
-            }
+        byte[] content = file.getBytes();
+        String extension = detectImageExtension(content);
+        if (extension == null) {
+            throw new IOException("Tệp không phải ảnh JPEG, PNG hoặc WebP hợp lệ");
         }
-        
-        return uploadedPaths;
+
+        String filename = UUID.randomUUID() + extension;
+        Path target = directory.resolve(filename).normalize();
+        requireInsideRoot(target);
+        Files.write(target, content, StandardOpenOption.CREATE_NEW);
+        log.info("Stored uploaded image at {}", target);
+        return PUBLIC_PREFIX + subfolder + "/" + filename;
     }
-    
-    /**
-     * Upload a single file
-     */
-    private String uploadSingleFile(MultipartFile file, Path uploadPath, String subfolder) throws IOException {
-        // Generate unique filename with sanitized original name
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-        String uniqueFilename = UUID.randomUUID().toString().substring(0, 8) + extension;
-        
-        // Save file
-        Path filePath = uploadPath.resolve(uniqueFilename);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-        
-        log.info("Uploaded file: {} -> {}", originalFilename, filePath);
-        
-        // Return URL path for accessing the file
-        return "/uploads/" + subfolder + "/" + uniqueFilename;
-    }
-    
-    /**
-     * Delete an uploaded file
-     */
+
     public boolean deleteFile(String relativePath) {
-        try {
-            // Convert URL path to file system path
-            String basePath = System.getProperty("user.dir");
-            Path filePath = Paths.get(basePath, "src", "main", "resources", relativePath);
-            if (Files.exists(filePath)) {
-                Files.delete(filePath);
-                log.info("Deleted file: {}", filePath);
-                return true;
-            }
-        } catch (IOException e) {
-            log.error("Failed to delete file: {}", relativePath, e);
-        }
-        return false;
-    }
-    
-    /**
-     * Validate file is an image
-     */
-    public boolean isValidImage(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
+        if (relativePath == null || !relativePath.startsWith(PUBLIC_PREFIX)) {
             return false;
         }
-        
-        String contentType = file.getContentType();
-        return contentType != null && contentType.startsWith("image/");
+        try {
+            String localPath = relativePath.substring(PUBLIC_PREFIX.length());
+            Path target = uploadRoot.resolve(localPath).normalize();
+            requireInsideRoot(target);
+            boolean deleted = Files.deleteIfExists(target);
+            if (deleted) {
+                log.info("Deleted uploaded file at {}", target);
+            }
+            return deleted;
+        } catch (IOException | SecurityException e) {
+            log.warn("Refused or failed to delete uploaded path: {}", e.getMessage());
+            return false;
+        }
     }
-    
-    /**
-     * Get max file size in bytes (5MB default)
-     */
+
+    public boolean isValidImage(MultipartFile file) {
+        if (file == null || file.isEmpty() || file.getSize() > MAX_FILE_SIZE) {
+            return false;
+        }
+        try {
+            return detectImageExtension(file.getBytes()) != null;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     public long getMaxFileSize() {
-        return 5 * 1024 * 1024; // 5MB
+        return MAX_FILE_SIZE;
+    }
+
+    private Path safeDirectory(String subfolder) throws IOException {
+        Path directory = uploadRoot.resolve(subfolder).normalize();
+        requireInsideRoot(directory);
+        return directory;
+    }
+
+    private void requireInsideRoot(Path path) throws IOException {
+        if (!path.startsWith(uploadRoot)) {
+            throw new IOException("Đường dẫn tệp không hợp lệ");
+        }
+    }
+
+    private String detectImageExtension(byte[] content) {
+        if (isPng(content) && canDecode(content)) {
+            return ".png";
+        }
+        if (isJpeg(content) && canDecode(content)) {
+            return ".jpg";
+        }
+        if (isWebp(content)) {
+            return ".webp";
+        }
+        return null;
+    }
+
+    private boolean canDecode(byte[] content) {
+        try {
+            return ImageIO.read(new ByteArrayInputStream(content)) != null;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean isPng(byte[] content) {
+        byte[] signature = {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+        return startsWith(content, signature);
+    }
+
+    private boolean isJpeg(byte[] content) {
+        return content.length >= 3
+                && (content[0] & 0xff) == 0xff
+                && (content[1] & 0xff) == 0xd8
+                && (content[2] & 0xff) == 0xff;
+    }
+
+    private boolean isWebp(byte[] content) {
+        return content.length >= 12
+                && content[0] == 'R' && content[1] == 'I'
+                && content[2] == 'F' && content[3] == 'F'
+                && content[8] == 'W' && content[9] == 'E'
+                && content[10] == 'B' && content[11] == 'P';
+    }
+
+    private boolean startsWith(byte[] content, byte[] signature) {
+        if (content.length < signature.length) {
+            return false;
+        }
+        for (int i = 0; i < signature.length; i++) {
+            if (content[i] != signature[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 }
