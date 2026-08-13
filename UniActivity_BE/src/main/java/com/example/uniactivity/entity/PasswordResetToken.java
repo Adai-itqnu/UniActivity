@@ -16,7 +16,7 @@ public class PasswordResetToken {
     @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String otpCode;
 
     // "PASSWORD_RESET" hoặc "EMAIL_VERIFY"
@@ -27,6 +27,9 @@ public class PasswordResetToken {
     private LocalDateTime expiryTime;
 
     private boolean used = false;
+
+    @Column(nullable = false)
+    private int failedAttempts = 0;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;

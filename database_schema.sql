@@ -116,9 +116,11 @@ CREATE TABLE class_join_requests (
 CREATE TABLE password_reset_tokens (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(100) NOT NULL,
-    otp_code VARCHAR(10) NOT NULL,
+    otp_code VARCHAR(255) NOT NULL,
+    type VARCHAR(30) NOT NULL DEFAULT 'PASSWORD_RESET',
     expiry_time DATETIME NOT NULL,
     used BOOLEAN DEFAULT FALSE,
+    failed_attempts INT NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_password_reset_email (email)
 );
