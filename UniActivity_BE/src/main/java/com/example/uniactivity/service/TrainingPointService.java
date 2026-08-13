@@ -80,6 +80,7 @@ public class TrainingPointService {
             }
             detail.setSourceType(sourceType);
             detail.setReferenceId(referenceId);
+            detail.setSourceKey(buildLegacySourceKey(sourceType, criteriaCode, referenceId));
         } else {
             detail = new TrainingPointDetail();
             detail.setStudentTrainingPoint(stp);
@@ -87,6 +88,7 @@ public class TrainingPointService {
             detail.setScore(score);
             detail.setSourceType(sourceType);
             detail.setReferenceId(referenceId);
+            detail.setSourceKey(buildLegacySourceKey(sourceType, criteriaCode, referenceId));
             detail.setDescription(description);
         }
         
@@ -104,9 +106,8 @@ public class TrainingPointService {
             throw new IllegalArgumentException("Nguồn điểm tự động phải có reference");
         }
         StudentTrainingPoint stp = getOrCreateForCurrentSemester(student);
-        if (trainingPointDetailRepository
-                .findByStudentTrainingPointAndCriteriaCodeAndSourceTypeAndReferenceId(
-                        stp, criteriaCode, sourceType, referenceId)
+        String sourceKey = sourceType + ":" + referenceId;
+        if (trainingPointDetailRepository.findByStudentTrainingPointAndSourceKey(stp, sourceKey)
                 .isPresent()) {
             return false;
         }
@@ -116,10 +117,45 @@ public class TrainingPointService {
         detail.setScore(score);
         detail.setSourceType(sourceType);
         detail.setReferenceId(referenceId);
+        detail.setSourceKey(sourceKey);
         detail.setDescription(description);
         trainingPointDetailRepository.save(detail);
         recalculateTotal(stp);
         return true;
+    }
+
+    @Transactional
+    public boolean addOrReplaceCriteriaScore(
+            User student, String criteriaCode, Integer score,
+            String sourceType, Long referenceId, String description) {
+        if (sourceType == null || referenceId == null) {
+            throw new IllegalArgumentException("Nguồn điểm phải có reference");
+        }
+        StudentTrainingPoint stp = getOrCreateForCurrentSemester(student);
+        String sourceKey = sourceType + ":" + criteriaCode;
+        Optional<TrainingPointDetail> existing =
+                trainingPointDetailRepository.findByStudentTrainingPointAndSourceKey(stp, sourceKey);
+        TrainingPointDetail detail = existing.orElseGet(TrainingPointDetail::new);
+        detail.setStudentTrainingPoint(stp);
+        detail.setCriteriaCode(criteriaCode);
+        detail.setScore(score);
+        detail.setSourceType(sourceType);
+        detail.setReferenceId(referenceId);
+        detail.setSourceKey(sourceKey);
+        detail.setDescription(description);
+        trainingPointDetailRepository.save(detail);
+        recalculateTotal(stp);
+        return existing.isEmpty();
+    }
+
+    private String buildLegacySourceKey(
+            String sourceType, String criteriaCode, Long referenceId) {
+        if (sourceType == null) {
+            return null;
+        }
+        return referenceId == null
+                ? sourceType + ":" + criteriaCode
+                : sourceType + ":" + referenceId;
     }
 
     /**

@@ -31,6 +31,11 @@ public class EvidenceReviewService {
     public EvidenceReviewResult approve(User manager, Long registrationId) {
         ActivityRegistration registration = loadPending(manager, registrationId);
         ScoreOption option = registration.getScoreOption();
+        if (option != null && (option.getActivity() == null
+                || option.getActivity().getId() == null
+                || !option.getActivity().getId().equals(registration.getActivity().getId()))) {
+            throw new ValidationException("Mục điểm không thuộc hoạt động này");
+        }
         String criteriaCode = option == null ? "3.1" : option.getScoreCategory();
         int score = option == null ? 5 : option.getScoreValue();
         String description = option == null

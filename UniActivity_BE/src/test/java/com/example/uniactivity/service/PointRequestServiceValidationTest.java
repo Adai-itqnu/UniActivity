@@ -96,7 +96,7 @@ class PointRequestServiceValidationTest {
 
         service.approveRequest(99L, manager, "Hợp lệ");
 
-        verify(trainingPointService).addScoreOnce(
+        verify(trainingPointService).addOrReplaceCriteriaScore(
                 student, "1.3", 5, "POINT_REQUEST", 99L, "Chứng chỉ ngoại ngữ");
         assertEquals(EvidenceStatus.APPROVED, request.getStatus());
     }

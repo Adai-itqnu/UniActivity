@@ -42,7 +42,7 @@ public class ManagerDataApiController {
     private final FileUploadService fileUploadService;
     private final StudentCheckinService studentCheckinService;
     private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
-    private final EvidenceReviewService evidenceReviewService;
+    private final EvidenceSubmissionService evidenceSubmissionService;
 
     private static final DateTimeFormatter DTF = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -561,62 +561,14 @@ public class ManagerDataApiController {
                                              @PathVariable Long activityId,
                                              @RequestParam("scoreOptionId") Long scoreOptionId,
                                              @RequestParam("files") List<MultipartFile> files) {
-        try {
-            User currentUser = userRepository.findById(userDetails.getUser().getId())
-                    .orElse(userDetails.getUser());
-            Activity activity = activityService.findActivityById(activityId);
-            
-            var registration = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
-            if (registration.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn chưa đăng ký hoạt động này"));
-            }
-            
-            ActivityRegistration reg = registration.get();
-            if (reg.getStatus() != RegistrationStatus.ATTENDED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn cần check-in trước khi nộp minh chứng"));
-            }
-            if (files == null || files.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng chọn ít nhất 1 ảnh"));
-            }
-            if (files.size() > 3) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Tối đa 3 ảnh"));
-            }
-
-            ScoreOption scoreOption =
-                    evidenceReviewService.requireScoreOption(activityId, scoreOptionId);
-            reg.setScoreOption(scoreOption);
-            
-            List<String> uploadedUrls = new ArrayList<>();
-            String basePath = System.getProperty("user.dir");
-            java.nio.file.Path uploadPath = java.nio.file.Paths.get(basePath, "src", "main", "resources", "uploads", "evidence");
-            java.nio.file.Files.createDirectories(uploadPath);
-            
-            for (MultipartFile file : files) {
-                if (file.isEmpty()) continue;
-                String originalName = file.getOriginalFilename();
-                if (originalName == null) originalName = "file.jpg";
-                String extension = "";
-                int dotIndex = originalName.lastIndexOf('.');
-                if (dotIndex > 0) {
-                    extension = originalName.substring(dotIndex);
-                }
-                String fileName = UUID.randomUUID().toString().substring(0, 8) + extension;
-                java.nio.file.Path filePath = uploadPath.resolve(fileName);
-                java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                uploadedUrls.add("/uploads/evidence/" + fileName);
-            }
-            
-            reg.setEvidenceUrl(String.join(",", uploadedUrls));
-            reg.setIsApproved(null); // Pending approval
-            reg.setRejectionReason(null);
-            activityRegistrationRepository.save(reg);
-            
-            return ResponseEntity.ok(Map.of(
-                "message", "Đã nộp " + uploadedUrls.size() + " ảnh minh chứng! Vui lòng chờ xác nhận từ quản lý lớp."
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+        EvidenceSubmissionService.EvidenceSubmissionResult result =
+                evidenceSubmissionService.submit(
+                        currentUser, activityId, scoreOptionId, files);
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã nộp " + result.paths().size()
+                        + " ảnh minh chứng! Vui lòng chờ xác nhận từ quản lý lớp."));
     }
 
     // ===================== MANAGER AS STUDENT MANUAL POINT REQUESTS =====================

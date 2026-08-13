@@ -135,7 +135,7 @@ public class PointRequestService {
         pointRequestRepository.save(request);
         
         // Sync score to StudentTrainingPoint
-        trainingPointService.addScoreOnce(
+        trainingPointService.addOrReplaceCriteriaScore(
                 request.getStudent(),
                 request.getCriteriaCode(),
                 request.getClaimedScore(),

@@ -8,12 +8,10 @@ import java.time.LocalDateTime;
 @Table(
         name = "training_point_details",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_tp_detail_source_reference",
+                name = "uk_tp_detail_source_key",
                 columnNames = {
                         "student_training_point_id",
-                        "criteria_code",
-                        "source_type",
-                        "reference_id"
+                        "source_key"
                 }))
 @Data
 public class TrainingPointDetail {
@@ -34,6 +32,9 @@ public class TrainingPointDetail {
     private String sourceType; // ACTIVITY, MANUAL, VIOLATION, AUTO_GPA
 
     private Long referenceId;
+
+    @Column(length = 160)
+    private String sourceKey;
 
     @Column(columnDefinition = "TEXT")
     private String description;

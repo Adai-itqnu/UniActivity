@@ -95,6 +95,7 @@ class EvidenceReviewServiceTest {
     @Test
     void repeatedApprovalAddsScoreOnlyOnce() {
         ScoreOption option = new ScoreOption();
+        option.setActivity(activity);
         option.setScoreCategory("3.1");
         option.setScoreValue(5);
         option.setName("Tham gia");
@@ -114,5 +115,21 @@ class EvidenceReviewServiceTest {
         verify(trainingPointService, times(1)).addScoreOnce(
                 registration.getStudent(), "3.1", 5,
                 "AUTO_ACTIVITY", 30L, "Ngày hội - Tham gia");
+    }
+
+    @Test
+    void rejectsLegacyRegistrationWithOptionFromAnotherActivity() {
+        Activity anotherActivity = new Activity();
+        anotherActivity.setId(21L);
+        ScoreOption option = new ScoreOption();
+        option.setActivity(anotherActivity);
+        option.setScoreCategory("3.1");
+        option.setScoreValue(5);
+        registration.setScoreOption(option);
+        when(registrationRepository.findByIdForUpdate(30L))
+                .thenReturn(Optional.of(registration));
+
+        assertThrows(ValidationException.class,
+                () -> service.approve(manager, 30L));
     }
 }

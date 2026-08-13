@@ -19,6 +19,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -67,15 +69,71 @@ class TrainingPointServiceTest {
         when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
         when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
                 .thenReturn(Optional.of(trainingPoint));
-        when(detailRepository
-                .findByStudentTrainingPointAndCriteriaCodeAndSourceTypeAndReferenceId(
-                        trainingPoint, "3.1", "AUTO_ACTIVITY", 100L))
+        when(detailRepository.findByStudentTrainingPointAndSourceKey(
+                        trainingPoint, "AUTO_ACTIVITY:100"))
                 .thenReturn(Optional.of(detail("3.1", 3, 100L)));
 
         boolean added = service.addScoreOnce(
                 student, "3.1", 3, "AUTO_ACTIVITY", 100L, "Hoạt động");
 
         assertFalse(added);
+    }
+
+    @Test
+    void sameActivityReferenceCannotBeCreditedUnderAnotherCriteria() {
+        when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
+        when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
+                .thenReturn(Optional.of(trainingPoint));
+        when(detailRepository.findByStudentTrainingPointAndSourceKey(
+                trainingPoint, "AUTO_ACTIVITY:100"))
+                .thenReturn(Optional.of(detail("3.1", 3, 100L)));
+
+        boolean added = service.addScoreOnce(
+                student, "4.2", 5, "AUTO_ACTIVITY", 100L, "Nộp lại");
+
+        assertFalse(added);
+    }
+
+    @Test
+    void newerPointRequestReplacesEffectiveScoreForTheCriteria() {
+        TrainingPointDetail existing = detail("1.3", 3, 90L);
+        existing.setSourceType("POINT_REQUEST");
+        existing.setSourceKey("POINT_REQUEST:1.3");
+        when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
+        when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
+                .thenReturn(Optional.of(trainingPoint));
+        when(detailRepository.findByStudentTrainingPointAndSourceKey(
+                trainingPoint, "POINT_REQUEST:1.3"))
+                .thenReturn(Optional.of(existing));
+        when(detailRepository.findByStudentTrainingPoint(trainingPoint))
+                .thenReturn(List.of(existing));
+        when(scoringRulesService.normalizeScore(5)).thenReturn(5);
+
+        boolean created = service.addOrReplaceCriteriaScore(
+                student, "1.3", 5, "POINT_REQUEST", 99L, "Chứng chỉ mới");
+
+        assertFalse(created);
+        assertEquals(5, existing.getScore());
+        assertEquals(99L, existing.getReferenceId());
+        verify(detailRepository).save(existing);
+    }
+
+    @Test
+    void firstPointRequestCreatesEffectiveCriteriaScore() {
+        when(semesterRepository.findByIsCurrentTrue()).thenReturn(semester);
+        when(studentTrainingPointRepository.findByStudentAndSemester(student, semester))
+                .thenReturn(Optional.of(trainingPoint));
+        when(detailRepository.findByStudentTrainingPointAndSourceKey(
+                trainingPoint, "POINT_REQUEST:1.3"))
+                .thenReturn(Optional.empty());
+        when(detailRepository.findByStudentTrainingPoint(trainingPoint))
+                .thenReturn(List.of());
+        when(scoringRulesService.normalizeScore(0)).thenReturn(0);
+
+        boolean created = service.addOrReplaceCriteriaScore(
+                student, "1.3", 5, "POINT_REQUEST", 99L, "Chứng chỉ");
+
+        assertTrue(created);
     }
 
     private TrainingPointDetail detail(String criteria, int score, Long reference) {
@@ -85,6 +143,7 @@ class TrainingPointServiceTest {
         detail.setScore(score);
         detail.setSourceType("AUTO_ACTIVITY");
         detail.setReferenceId(reference);
+        detail.setSourceKey("AUTO_ACTIVITY:" + reference);
         return detail;
     }
 }

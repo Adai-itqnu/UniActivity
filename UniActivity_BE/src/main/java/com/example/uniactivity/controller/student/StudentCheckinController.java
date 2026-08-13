@@ -12,7 +12,7 @@ import com.example.uniactivity.service.DynamicQrTokenService;
 import com.example.uniactivity.service.NotificationService;
 import com.example.uniactivity.service.SseEmitterService;
 import com.example.uniactivity.service.StudentCheckinService;
-import com.example.uniactivity.service.EvidenceReviewService;
+import com.example.uniactivity.service.EvidenceSubmissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,7 +38,7 @@ public class StudentCheckinController {
     private final DynamicQrTokenService dynamicQrTokenService;
     private final SseEmitterService sseEmitterService;
     private final StudentCheckinService studentCheckinService;
-    private final EvidenceReviewService evidenceReviewService;
+    private final EvidenceSubmissionService evidenceSubmissionService;
 
     @GetMapping("/checkin/{activityId}")
     public String checkinPage(@AuthenticationPrincipal CustomUserDetails userDetails,
@@ -138,97 +138,38 @@ public class StudentCheckinController {
                                              @PathVariable Long activityId,
                                              @RequestParam("scoreOptionId") Long scoreOptionId,
                                              @RequestParam("files") List<MultipartFile> files) {
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+        EvidenceSubmissionService.EvidenceSubmissionResult result =
+                evidenceSubmissionService.submit(
+                        currentUser, activityId, scoreOptionId, files);
+        Activity activity = result.registration().getActivity();
+
         try {
-            // Fetch fresh user data from database
-            User currentUser = userRepository.findById(userDetails.getUser().getId())
-                    .orElse(userDetails.getUser());
-            Activity activity = activityService.findActivityById(activityId);
-            
-            var registration = activityRegistrationRepository.findByActivityAndStudent(activity, currentUser);
-            
-            if (registration.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn chưa đăng ký hoạt động này"));
-            }
-            
-            ActivityRegistration reg = registration.get();
-            
-            if (reg.getStatus() != RegistrationStatus.ATTENDED) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn cần check-in trước khi nộp minh chứng"));
-            }
-
-            if (files == null || files.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng chọn ít nhất 1 ảnh"));
-            }
-
-            if (files.size() > 3) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Tối đa 3 ảnh"));
-            }
-
-            // Find and set the selected score option
-            ScoreOption scoreOption =
-                    evidenceReviewService.requireScoreOption(activityId, scoreOptionId);
-            reg.setScoreOption(scoreOption);
-            
-            // Save files and collect URLs - save to resources/uploads/evidence
-            List<String> uploadedUrls = new ArrayList<>();
-            String basePath = System.getProperty("user.dir");
-            java.nio.file.Path uploadPath = java.nio.file.Paths.get(basePath, "src", "main", "resources", "uploads", "evidence");
-            java.nio.file.Files.createDirectories(uploadPath);
-            
-            for (MultipartFile file : files) {
-                if (file.isEmpty()) continue;
-                
-                // Sanitize filename
-                String originalName = file.getOriginalFilename();
-                if (originalName == null) originalName = "file.jpg";
-                // Keep only extension
-                String extension = "";
-                int dotIndex = originalName.lastIndexOf('.');
-                if (dotIndex > 0) {
-                    extension = originalName.substring(dotIndex);
+            StudentClass studentClass = currentUser.getStudentClass();
+            if (studentClass != null) {
+                List<User> managers = userRepository.findByStudentClassAndRole(
+                        studentClass, Role.MANAGER);
+                managers.forEach(manager -> notificationService.notifyEvidenceSubmitted(
+                        manager, currentUser.getFullName(), activity.getName()));
+                Set<Long> managerIds = new HashSet<>();
+                managers.forEach(manager -> managerIds.add(manager.getId()));
+                if (!managerIds.isEmpty()) {
+                    Map<String, Object> payload = new HashMap<>();
+                    payload.put("activityId", activityId);
+                    payload.put("activityName", activity.getName());
+                    payload.put("studentName", currentUser.getFullName());
+                    payload.put("action", "evidence_submitted");
+                    sseEmitterService.sendToUsers(
+                            managerIds, "activity_registration_update", payload);
                 }
-                
-                String fileName = UUID.randomUUID().toString().substring(0, 8) + extension;
-                java.nio.file.Path filePath = uploadPath.resolve(fileName);
-                
-                // Use Files.copy instead of transferTo
-                java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                uploadedUrls.add("/uploads/evidence/" + fileName);
             }
-            
-            // Store URLs as comma-separated string
-            reg.setEvidenceUrl(String.join(",", uploadedUrls));
-            reg.setIsApproved(null); // Pending approval
-            reg.setRejectionReason(null); // Clear any previous rejection reason
-            activityRegistrationRepository.save(reg);
-
-            // Notify manager about evidence submission + SSE real-time update
-            try {
-                StudentClass studentClass = currentUser.getStudentClass();
-                if (studentClass != null) {
-                    List<User> managers = userRepository.findByStudentClassAndRole(studentClass, Role.MANAGER);
-                    managers.forEach(manager -> notificationService.notifyEvidenceSubmitted(
-                            manager, currentUser.getFullName(), activity.getName()));
-                    
-                    // Gửi SSE event để Manager ActivityDetail tự re-fetch
-                    Set<Long> managerIds = new HashSet<>();
-                    managers.forEach(m -> managerIds.add(m.getId()));
-                    if (!managerIds.isEmpty()) {
-                        Map<String, Object> ssePayload = new HashMap<>();
-                        ssePayload.put("activityId", activityId);
-                        ssePayload.put("activityName", activity.getName());
-                        ssePayload.put("studentName", currentUser.getFullName());
-                        ssePayload.put("action", "evidence_submitted");
-                        sseEmitterService.sendToUsers(managerIds, "activity_registration_update", ssePayload);
-                    }
-                }
-            } catch (Exception ignored) {}
-            
-            return ResponseEntity.ok(Map.of(
-                "message", "Đã nộp " + uploadedUrls.size() + " ảnh minh chứng! Vui lòng chờ xác nhận từ quản lý lớp."
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Lỗi tải file: " + e.getMessage()));
+        } catch (Exception ignored) {
+            // Evidence is already stored; notification is best-effort.
         }
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã nộp " + result.paths().size()
+                        + " ảnh minh chứng! Vui lòng chờ xác nhận từ quản lý lớp."));
     }
 }
