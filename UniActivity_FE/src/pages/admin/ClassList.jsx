@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { useOutletContext } from 'react-router-dom'
 
 const API = '/admin/classes/api'
 
 export default function ClassList() {
-    const { currentUser } = useOutletContext()
     const [items, setItems] = useState([])
     const [faculties, setFaculties] = useState([])
     const [academicYears, setAcademicYears] = useState([])

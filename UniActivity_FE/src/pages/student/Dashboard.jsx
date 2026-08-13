@@ -40,8 +40,8 @@ export default function StudentDashboard() {
 
     useEffect(() => {
         if (!currentUser) return
-        setLoading(true)
-        fetchDashboardData()
+        const initialFetch = setTimeout(fetchDashboardData, 0)
+        return () => clearTimeout(initialFetch)
     }, [currentUser, fetchDashboardData])
 
     // Tự động kiểm tra trạng thái duyệt lớp nếu đang chờ duyệt
@@ -606,7 +606,7 @@ function QrScannerModal({ onScanned, onClose, onError }) {
             const s = scannerRef.current
             scannerRef.current = null
             if (s) {
-                try { if (s.isScanning) s.stop().catch(() => {}) } catch {}
+                try { if (s.isScanning) s.stop().catch(() => {}) } catch { /* Scanner already stopped. */ }
             }
         }
     }, []) // eslint-disable-line react-hooks/exhaustive-deps

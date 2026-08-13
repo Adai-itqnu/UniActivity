@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useDarkMode } from '../../contexts/DarkModeContext'
+import { useDarkMode } from '../../contexts/darkMode'
 import { useNavigate } from 'react-router-dom'
 import UserProfileModal from '../common/UserProfileModal'
 
@@ -75,7 +75,7 @@ export default function ManagerHeader({ onMenuToggle }) {
     }, [])
 
     useEffect(() => {
-        fetchNotifications();
+        const initialFetch = setTimeout(fetchNotifications, 0);
         const interval = setInterval(fetchNotifications, 30000);
 
         const handleNewNotification = () => {
@@ -84,6 +84,7 @@ export default function ManagerHeader({ onMenuToggle }) {
         window.addEventListener('new-notification', handleNewNotification);
 
         return () => {
+            clearTimeout(initialFetch);
             clearInterval(interval);
             window.removeEventListener('new-notification', handleNewNotification);
         };

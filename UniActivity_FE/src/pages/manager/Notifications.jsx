@@ -49,7 +49,10 @@ export default function Notifications() {
             .catch(() => { })
     }, [])
 
-    useEffect(() => { fetchPage(0); fetchUnread() }, [fetchPage, fetchUnread])
+    useEffect(() => {
+        const initialFetch = setTimeout(() => { fetchPage(0); fetchUnread() }, 0)
+        return () => clearTimeout(initialFetch)
+    }, [fetchPage, fetchUnread])
 
     useEffect(() => {
         if (!loaderRef.current) return

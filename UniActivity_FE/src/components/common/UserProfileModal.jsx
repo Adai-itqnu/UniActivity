@@ -29,10 +29,10 @@ function fmtDate(s) {
 export default function UserProfileModal({ user, apiBase, onClose }) {
     const rc = roleConfig[user.role] || roleConfig.STUDENT
     const [scoreData, setScoreData] = useState(null)
-    const [scoreLoading, setScoreLoading] = useState(true)
+    const [scoreLoading, setScoreLoading] = useState(Boolean(user.id))
 
     useEffect(() => {
-        if (!user.id) { setScoreLoading(false); return }
+        if (!user.id) return
         fetch(`${apiBase}/api/users/${user.id}/scores`, { credentials: 'include', headers: { 'Accept': 'application/json' } })
             .then(r => { if (!r.ok) throw new Error(); return r.json() })
             .then(data => { setScoreData(data); setScoreLoading(false) })

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useDarkMode } from '../../contexts/DarkModeContext'
+import { useDarkMode } from '../../contexts/darkMode'
 import { useNavigate } from 'react-router-dom'
 import UserProfileModal from '../common/UserProfileModal'
 
@@ -16,13 +16,6 @@ function timeAgo(dateStr) {
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days} ngày trước`
   return `${Math.floor(days / 30)} tháng trước`
-}
-
-function fmtDate(d) {
-  if (!d) return '—'
-  const dt = new Date(d)
-  const p = n => String(n).padStart(2, '0')
-  return `${p(dt.getDate())}/${p(dt.getMonth() + 1)}/${dt.getFullYear()}`
 }
 
 // Map NotificationType sang icon + color
@@ -79,7 +72,7 @@ export default function Header({ onMenuToggle }) {
   }, [])
 
   useEffect(() => {
-    fetchNotifications()
+    const initialFetch = setTimeout(fetchNotifications, 0)
     const interval = setInterval(fetchNotifications, 30000)
 
     const handleNewNotification = () => {
@@ -88,6 +81,7 @@ export default function Header({ onMenuToggle }) {
     window.addEventListener('new-notification', handleNewNotification)
 
     return () => {
+      clearTimeout(initialFetch)
       clearInterval(interval)
       window.removeEventListener('new-notification', handleNewNotification)
     }

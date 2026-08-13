@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { NavLink, useOutletContext } from 'react-router-dom'
 
 const STATUS_MAP = {
@@ -35,17 +35,19 @@ export default function MyRegistrations() {
     const checkinPath = currentUser?.role === 'MANAGER' ? '/manager/checkin' : '/student/checkin'
     const activitiesPath = currentUser?.role === 'MANAGER' ? '/manager/my-activities' : '/student/activities'
 
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         setLoading(true)
         fetch(`${apiPrefix}/my-registrations`, { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Lỗi'); return r.json() })
             .then(json => { setData(json); setLoading(false) })
             .catch(() => setLoading(false))
-    }
+    }, [apiPrefix])
 
     useEffect(() => {
-        if (currentUser) fetchData()
-    }, [currentUser, apiPrefix])
+        if (!currentUser) return
+        const initialFetch = setTimeout(fetchData, 0)
+        return () => clearTimeout(initialFetch)
+    }, [currentUser, fetchData])
 
     // Lắng nghe sự kiện SSE để cập nhật lịch sử đăng ký ngầm ngay lập tức khi minh chứng được duyệt/từ chối
     useEffect(() => {

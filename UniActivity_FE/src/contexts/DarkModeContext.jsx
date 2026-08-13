@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-
-const DarkModeContext = createContext()
+import { useState, useEffect } from 'react'
+import { DarkModeContext } from './darkMode'
 
 export function DarkModeProvider({ children }) {
     const [isDark, setIsDark] = useState(() => {
@@ -20,19 +19,11 @@ export function DarkModeProvider({ children }) {
         localStorage.setItem('uniactivity-dark-mode', isDark)
     }, [isDark])
 
-    const toggleDarkMode = () => setIsDark(!isDark)
+    const toggleDarkMode = () => setIsDark(current => !current)
 
     return (
         <DarkModeContext.Provider value={{ isDark, toggleDarkMode }}>
             {children}
         </DarkModeContext.Provider>
     )
-}
-
-export function useDarkMode() {
-    const context = useContext(DarkModeContext)
-    if (!context) {
-        throw new Error('useDarkMode must be used within a DarkModeProvider')
-    }
-    return context
 }

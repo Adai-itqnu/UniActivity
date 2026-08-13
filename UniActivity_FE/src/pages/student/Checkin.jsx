@@ -802,7 +802,7 @@ function QrScannerCard({ onScanned }) {
             const s = scannerRef.current
             scannerRef.current = null
             if (s) {
-                try { if (s.isScanning) s.stop().catch(() => {}) } catch {}
+                try { if (s.isScanning) s.stop().catch(() => {}) } catch { /* Scanner already stopped. */ }
             }
             activeDeviceIdRef.current = ''
         }

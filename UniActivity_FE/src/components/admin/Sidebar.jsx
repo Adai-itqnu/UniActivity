@@ -41,7 +41,7 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser, mobileOp
   // Close mobile sidebar on route change
   useEffect(() => {
     if (mobileOpen) setMobileOpen(false)
-  }, [location.pathname])
+  }, [location.pathname, mobileOpen, setMobileOpen])
 
   // Close user menu on outside click
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function Sidebar({ collapsed, setCollapsed, currentUser, mobileOp
   const handleLogout = async () => {
     try {
       await fetch('/logout', { method: 'POST', credentials: 'include' })
-    } catch (_) { /* ignore */ }
+    } catch { /* Logout cleanup still runs locally. */ }
     // Clear JWT tokens
     sessionStorage.removeItem('accessToken')
     sessionStorage.removeItem('refreshToken')

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useDarkMode } from '../contexts/DarkModeContext'
+import { useDarkMode } from '../contexts/darkMode'
 
 export default function TermsPage() {
     const { isDark, toggleDarkMode } = useDarkMode()

@@ -742,7 +742,7 @@ function PasswordStrength({ password }) {
     )
 }
 
-function ScoreDonut({ categoryTotals, totalScore, classification }) {
+function ScoreDonut({ categoryTotals, classification }) {
     const size = 140
     const strokeWidth = 14
     const radius = (size - strokeWidth) / 2

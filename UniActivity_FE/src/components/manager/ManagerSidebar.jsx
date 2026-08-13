@@ -53,7 +53,7 @@ export default function ManagerSidebar({ collapsed, setCollapsed, currentUser, m
     // Đóng mobile sidebar khi chuyển trang
     useEffect(() => {
         if (mobileOpen) setMobileOpen(false)
-    }, [location.pathname])
+    }, [location.pathname, mobileOpen, setMobileOpen])
 
     useEffect(() => {
         const handleClick = (e) => {
@@ -68,7 +68,7 @@ export default function ManagerSidebar({ collapsed, setCollapsed, currentUser, m
     const handleLogout = async () => {
         try {
             await fetch('/logout', { method: 'POST', credentials: 'include' })
-        } catch (_) { /* ignore */ }
+        } catch { /* Logout cleanup still runs locally. */ }
         // Clear JWT tokens
         sessionStorage.removeItem('accessToken')
         sessionStorage.removeItem('refreshToken')

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { useOutletContext } from 'react-router-dom'
 
 const API = '/admin/users/api'
 
@@ -21,7 +20,6 @@ function timeAgo(d) {
 }
 
 export default function UserList() {
-    const { currentUser } = useOutletContext()
     const [items, setItems] = useState([])
     const [classes, setClasses] = useState([])
     const [loading, setLoading] = useState(true)

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { useOutletContext } from 'react-router-dom'
 
 /* ── Status helpers ── */
 const statusConfig = {
@@ -10,7 +9,6 @@ const statusConfig = {
 const API = '/admin/faculties/api'
 
 export default function FacultyList() {
-    const { currentUser } = useOutletContext()
 
     // Data
     const [faculties, setFaculties] = useState([])

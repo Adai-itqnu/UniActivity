@@ -25,7 +25,8 @@ export default function ManagerDashboard() {
     }, [])
 
     useEffect(() => {
-        fetchDashboardData(false)
+        const initialFetch = setTimeout(() => fetchDashboardData(false), 0)
+        return () => clearTimeout(initialFetch)
     }, [fetchDashboardData])
 
     // Lắng nghe sự kiện SSE để cập nhật số liệu Dashboard ngầm lập tức

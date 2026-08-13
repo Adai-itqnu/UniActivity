@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { useOutletContext } from 'react-router-dom'
 
 const statusConfig = {
     ACTIVE: { label: 'Hoạt động', bg: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' },
@@ -9,7 +8,6 @@ const statusConfig = {
 const API = '/admin/academic-years/api'
 
 export default function AcademicYearList() {
-    const { currentUser } = useOutletContext()
     const [items, setItems] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 
 function fmtDate(d) {
@@ -32,11 +32,6 @@ export default function ManagerActivities() {
 
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 50
-
-    // Reset page to 1 when search or filter changes
-    useEffect(() => {
-        setCurrentPage(1)
-    }, [search, statusFilter])
 
     const fetchActivities = () => {
         fetch('/manager/api/activities', { credentials: 'include' })
@@ -143,10 +138,10 @@ export default function ManagerActivities() {
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <div className="relative flex-1">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-                        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm hoạt động..."
+                        <input type="text" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1) }} placeholder="Tìm hoạt động..."
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition" />
                     </div>
-                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                    <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentPage(1) }}
                         className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50">
                         <option value="ALL">Tất cả trạng thái</option>
                         <option value="OPEN">Đang mở</option>
@@ -374,7 +369,7 @@ function QRModal({ data, onClose }) {
     const countdownRef = useRef(null)
     const intervalSeconds = useRef(60)
 
-    const fetchDynamicQr = async () => {
+    const fetchDynamicQr = useCallback(async () => {
         try {
             const res = await fetch(`/manager/api/qrcode/dynamic/${data.activityId}`, { credentials: 'include' })
             if (!res.ok) throw new Error('Không thể tải mã QR')
@@ -390,12 +385,12 @@ function QRModal({ data, onClose }) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [data.activityId])
 
     useEffect(() => {
         fetchDynamicQr()
         return () => clearInterval(countdownRef.current)
-    }, [data.activityId])
+    }, [fetchDynamicQr])
 
     useEffect(() => {
         clearInterval(countdownRef.current)
@@ -406,7 +401,7 @@ function QRModal({ data, onClose }) {
             })
         }, 1000)
         return () => clearInterval(countdownRef.current)
-    }, [qrData?.token])
+    }, [fetchDynamicQr, qrData?.token])
 
     useEffect(() => {
         if (!qrData?.checkinUrl || !canvasRef.current) return

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useOutletContext, NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 
 export default function MyClass() {
-    const { currentUser } = useOutletContext()
     const [data, setData] = useState(null)
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
@@ -11,7 +10,6 @@ export default function MyClass() {
     const ITEMS_PER_PAGE = 50
 
     useEffect(() => {
-        setLoading(true)
         const params = search ? `?search=${encodeURIComponent(search)}` : ''
         fetch(`/student/api/my-class${params}`, { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Lỗi tải dữ liệu'); return r.json() })
@@ -19,17 +17,17 @@ export default function MyClass() {
             .catch(() => setLoading(false))
     }, [search])
 
-    useEffect(() => {
-        setCurrentPage(1)
-    }, [data])
-
     const handleSearch = (e) => {
         e.preventDefault()
+        setLoading(true)
+        setCurrentPage(1)
         setSearch(searchInput.trim())
     }
 
     const clearSearch = () => {
         setSearchInput('')
+        setLoading(true)
+        setCurrentPage(1)
         setSearch('')
     }
 

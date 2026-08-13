@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
 
 const API = '/admin/semesters/api'
 
@@ -11,7 +10,6 @@ function formatDate(dateStr) {
 }
 
 export default function SemesterList() {
-    const { currentUser } = useOutletContext()
     const [items, setItems] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)

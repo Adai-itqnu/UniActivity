@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useOutletContext, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import ActivityWizard from './ActivityWizard'
 
 const API = '/admin/activities/api'
@@ -20,9 +20,7 @@ function formatDT(s) {
 }
 
 export default function ActivityList() {
-    const { currentUser } = useOutletContext()
     const [items, setItems] = useState([])
-    const [semesters, setSemesters] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [urlSearchParams] = useSearchParams()
@@ -49,13 +47,9 @@ export default function ActivityList() {
     const fetchData = async () => {
         setLoading(true)
         try {
-            const [aRes, sRes] = await Promise.all([
-                fetch(API, { credentials: 'include' }),
-                fetch('/admin/semesters/api', { credentials: 'include' }),
-            ])
+            const aRes = await fetch(API, { credentials: 'include' })
             if (!aRes.ok) throw new Error('Fetch failed')
             setItems(await aRes.json())
-            if (sRes.ok) setSemesters(await sRes.json())
         } catch (e) { setError(e.message) }
         setLoading(false)
     }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useDarkMode } from '../contexts/DarkModeContext';
+import { useDarkMode } from '../contexts/darkMode';
 
 export default function ForgotPasswordModal({ isOpen, onClose }) {
     const { isDark } = useDarkMode();
@@ -40,7 +40,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             } else {
                 setError(data.message || 'Lỗi gửi OTP');
             }
-        } catch (err) {
+        } catch {
             setError('Có lỗi xảy ra khi kết nối máy chủ.');
         } finally {
             setIsLoading(false);
@@ -65,7 +65,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             } else {
                 setError(data.message || 'OTP không hợp lệ');
             }
-        } catch (err) {
+        } catch {
             setError('Có lỗi xảy ra khi kết nối máy chủ.');
         } finally {
             setIsLoading(false);
@@ -101,7 +101,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             } else {
                 setError(data.message || 'Đổi mật khẩu thất bại');
             }
-        } catch (err) {
+        } catch {
             setError('Có lỗi xảy ra khi kết nối máy chủ.');
         } finally {
             setIsLoading(false);

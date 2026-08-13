@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { NavLink, useSearchParams, useOutletContext } from 'react-router-dom'
 
 export default function Activities() {
@@ -16,24 +16,26 @@ export default function Activities() {
     const activitiesUrl = currentUser?.role === 'MANAGER' ? '/manager/api/my-activities' : '/student/api/activities'
     const homePath = currentUser?.role === 'MANAGER' ? '/manager/dashboard' : '/student/home'
 
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         setLoading(true)
         fetch(activitiesUrl, { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Lỗi'); return r.json() })
             .then(json => { setData(json); setLoading(false) })
             .catch(() => setLoading(false))
-    }
+    }, [activitiesUrl])
 
-    const fetchSilent = () => {
+    const fetchSilent = useCallback(() => {
         fetch(activitiesUrl, { credentials: 'include' })
             .then(r => r.ok ? r.json() : null)
             .then(json => { if (json) setData(json) })
             .catch(() => {})
-    }
+    }, [activitiesUrl])
 
     useEffect(() => {
-        if (currentUser) fetchData()
-    }, [currentUser, activitiesUrl])
+        if (!currentUser) return
+        const initialFetch = setTimeout(fetchData, 0)
+        return () => clearTimeout(initialFetch)
+    }, [currentUser, fetchData])
 
     // Auto-polling mỗi 3 giây để cập nhật số lượng slot, trạng thái đăng ký
     useEffect(() => {
@@ -42,7 +44,7 @@ export default function Activities() {
             fetchSilent()
         }, 2000)
         return () => clearInterval(interval)
-    }, [currentUser, activitiesUrl])
+    }, [currentUser, fetchSilent])
 
     // Lắng nghe SSE: khi Admin publish hoạt động mới → tự re-fetch danh sách
     useEffect(() => {
@@ -65,7 +67,7 @@ export default function Activities() {
             window.removeEventListener('new-notification', handleNotification)
             window.removeEventListener('registration-update', handleNewActivity)
         }
-    }, [activitiesUrl])
+    }, [fetchSilent])
 
 
     const showToast = (title, text, type = 'info') => {

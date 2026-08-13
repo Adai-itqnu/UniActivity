@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 const CATEGORY_NAMES = ['', 'Ý thức học tập', 'Chấp hành nội quy', 'Hoạt động CT-XH', 'Phẩm chất công dân', 'Lớp, Đoàn', 'Thành tích đặc biệt']
@@ -41,17 +41,19 @@ export default function MyScores() {
 
     const apiPrefix = currentUser?.role === 'MANAGER' ? '/manager/api' : '/student/api'
 
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         setLoading(true)
         fetch(`${apiPrefix}/my-scores`, { credentials: 'include' })
             .then(r => { if (!r.ok) throw new Error('Lỗi'); return r.json() })
             .then(json => { setData(json); setLoading(false) })
             .catch(() => setLoading(false))
-    }
+    }, [apiPrefix])
 
     useEffect(() => {
-        if (currentUser) fetchData()
-    }, [currentUser, apiPrefix])
+        if (!currentUser) return
+        const initialFetch = setTimeout(fetchData, 0)
+        return () => clearTimeout(initialFetch)
+    }, [currentUser, fetchData])
 
     // Lắng nghe sự kiện SSE để cập nhật điểm ngầm ngay lập tức khi có thông báo duyệt điểm hoặc minh chứng
     useEffect(() => {

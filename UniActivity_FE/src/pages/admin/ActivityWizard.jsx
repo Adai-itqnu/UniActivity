@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import DateTimeInput from '../../components/common/DateTimeInput'
 
 const API = '/admin/activities/api'
@@ -90,7 +90,10 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
             fetch(`${API}/${activity.id}/score-options`, { credentials: 'include' })
                 .then(r => r.json()).then(d => setScores(d.map(s => ({ ...s, _existing: true })))).catch(() => { })
         }
-    }, [])
+    }, [activity.bannerUrl, activity.checkinRadius, activity.description, activity.endTime,
+        activity.id, activity.latitude, activity.location, activity.longitude, activity.name,
+        activity.registrationDeadline, activity.scope, activity.semesterId, activity.startTime,
+        activity.status, isEdit])
 
     const handleBannerUpload = async (e) => {
         const file = e.target.files[0]; if (!file) return
@@ -217,7 +220,7 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
                                 <div className="space-y-1.5"><label className={lbl}>Địa điểm</label><input type="text" value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} className={inp} placeholder="VD: Hội trường A" /></div>
 
                                 {/* ═══ GPS Location Picker ═══ */}
-                                <GpsLocationPicker form={form} setForm={setForm} setError={setError} inp={inp} lbl={lbl} isEdit={isEdit} />
+                                <GpsLocationPicker form={form} setForm={setForm} setError={setError} inp={inp} isEdit={isEdit} />
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-1.5"><label className={lbl}>Bắt đầu</label><DateTimeInput value={form.startTime} onChange={e => setForm(p => ({ ...p, startTime: e.target.value }))} className={inp} /></div>
                                     <div className="space-y-1.5"><label className={lbl}>Kết thúc</label><DateTimeInput value={form.endTime} onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} className={inp} /></div>
@@ -361,7 +364,7 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
    - Bản đồ Leaflet: click chọn vị trí + reverse geocode
    - Chọn bán kính check-in
    ═══════════════════════════════════════════ */
-function GpsLocationPicker({ form, setForm, setError, inp, lbl, isEdit }) {
+function GpsLocationPicker({ form, setForm, setError, inp, isEdit }) {
     const [showMap, setShowMap] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [searchResults, setSearchResults] = useState([])
@@ -377,15 +380,7 @@ function GpsLocationPicker({ form, setForm, setError, inp, lbl, isEdit }) {
 
     const hasGps = form.latitude !== '' && form.longitude !== ''
 
-    // === Tự động lấy vị trí khi tạo hoạt động mới ===
-    useEffect(() => {
-        if (!isEdit && !autoDetectedRef.current && !hasGps) {
-            autoDetectedRef.current = true
-            autoDetectLocation()
-        }
-    }, [])
-
-    const autoDetectLocation = () => {
+    const autoDetectLocation = useCallback(() => {
         if (!navigator.geolocation) {
             setGpsStatus('error')
             return
@@ -405,16 +400,25 @@ function GpsLocationPicker({ form, setForm, setError, inp, lbl, isEdit }) {
                     if (data.display_name) {
                         setForm(p => ({ ...p, location: p.location || data.display_name.split(',').slice(0, 3).join(',').trim() }))
                     }
-                } catch {}
+                } catch { /* Reverse geocoding is optional. */ }
                 setGettingLocation(false)
             },
-            (err) => {
+            () => {
                 setGpsStatus('denied')
                 setGettingLocation(false)
             },
             { enableHighAccuracy: true, timeout: 10000 }
         )
-    }
+    }, [setForm])
+
+    // === Tự động lấy vị trí khi tạo hoạt động mới ===
+    useEffect(() => {
+        if (!isEdit && !autoDetectedRef.current && !hasGps) {
+            autoDetectedRef.current = true
+            const timer = setTimeout(autoDetectLocation, 0)
+            return () => clearTimeout(timer)
+        }
+    }, [autoDetectLocation, hasGps, isEdit])
 
     // === Tìm kiếm địa chỉ qua Nominatim ===
     const handleSearch = async () => {
@@ -458,7 +462,7 @@ function GpsLocationPicker({ form, setForm, setError, inp, lbl, isEdit }) {
                     if (data.display_name) {
                         setForm(p => ({ ...p, location: data.display_name.split(',').slice(0, 3).join(',').trim() }))
                     }
-                } catch {}
+                } catch { /* Reverse geocoding is optional. */ }
                 updateMapView(lat, lng)
                 setGettingLocation(false)
             },
@@ -530,7 +534,7 @@ function GpsLocationPicker({ form, setForm, setError, inp, lbl, isEdit }) {
                 if (data.display_name) {
                     setForm(p => ({ ...p, location: data.display_name.split(',').slice(0, 3).join(',').trim() }))
                 }
-            } catch {}
+            } catch { /* Reverse geocoding is optional. */ }
         })
 
         // Fix size after render

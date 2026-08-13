@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useDarkMode } from '../contexts/DarkModeContext'
+import { useDarkMode } from '../contexts/darkMode'
 import ForgotPasswordModal from './ForgotPasswordModal'
 import bannerImg from '../assets/img/banner_QNU.jpg'
 import { exchangeOAuthCodeOnce, homePathForRole } from '../utils/oauthExchange'

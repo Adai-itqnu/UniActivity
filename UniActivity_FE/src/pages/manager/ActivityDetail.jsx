@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 
 function fmtDate(d) {
@@ -32,7 +32,7 @@ export default function ActivityDetail() {
         setTimeout(() => setToast(null), 4000)
     }
 
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         setLoading(true)
         Promise.all([
             fetch('/manager/api/activities', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
@@ -45,9 +45,12 @@ export default function ActivityDetail() {
             })
             .catch(() => { })
             .finally(() => setLoading(false))
-    }
+    }, [activityId])
 
-    useEffect(() => { fetchData() }, [activityId])
+    useEffect(() => {
+        const initialFetch = setTimeout(fetchData, 0)
+        return () => clearTimeout(initialFetch)
+    }, [fetchData])
 
     // Lắng nghe SSE: khi sinh viên đăng ký/hủy → tự re-fetch danh sách registrations
     useEffect(() => {
@@ -449,7 +452,7 @@ function QrCodeModal({ activityId, activityName, onClose }) {
     const countdownRef = useRef(null)
     const intervalSeconds = useRef(60)
 
-    const fetchDynamicQr = async () => {
+    const fetchDynamicQr = useCallback(async () => {
         try {
             const res = await fetch(`/manager/api/qrcode/dynamic/${activityId}`, { credentials: 'include' })
             if (!res.ok) throw new Error('Không thể tải mã QR')
@@ -466,13 +469,13 @@ function QrCodeModal({ activityId, activityName, onClose }) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [activityId])
 
     // Init fetch
     useEffect(() => {
         fetchDynamicQr()
         return () => clearInterval(countdownRef.current)
-    }, [activityId])
+    }, [fetchDynamicQr])
 
     // Countdown timer — dùng 1 interval duy nhất
     useEffect(() => {
@@ -487,7 +490,7 @@ function QrCodeModal({ activityId, activityName, onClose }) {
             })
         }, 1000)
         return () => clearInterval(countdownRef.current)
-    }, [qrData?.token])
+    }, [fetchDynamicQr, qrData?.token])
 
     // Render QR code on canvas
     useEffect(() => {
