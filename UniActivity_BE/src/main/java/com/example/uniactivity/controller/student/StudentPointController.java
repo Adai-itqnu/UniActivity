@@ -47,8 +47,9 @@ public class StudentPointController {
                     "previousGpa", previousGpa
             ));
         } catch (Exception e) {
+            log.warn("Rejected GPA calculation request", e);
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", e.getMessage()));
+                    .body(Map.of("message", "Dữ liệu GPA không hợp lệ"));
         }
     }
 
@@ -90,8 +91,9 @@ public class StudentPointController {
                     "id", request.getId()
             ));
         } catch (Exception e) {
+            log.warn("Rejected GPA point request", e);
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", e.getMessage()));
+                    .body(Map.of("message", "Không thể gửi yêu cầu điểm GPA"));
         }
     }
     @PostMapping("/upload-evidence")
@@ -120,7 +122,7 @@ public class StudentPointController {
         } catch (IOException e) {
             log.error("Failed to upload evidence images", e);
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", "Lỗi khi tải ảnh: " + e.getMessage()));
+                    .body(Map.of("message", "Tệp ảnh không hợp lệ hoặc không thể lưu"));
         }
     }
 
@@ -170,8 +172,9 @@ public class StudentPointController {
                     "id", request.getId()
             ));
         } catch (Exception e) {
+            log.warn("Rejected point request", e);
             return ResponseEntity.badRequest()
-                    .body(Map.of("message", e.getMessage()));
+                    .body(Map.of("message", "Không thể gửi yêu cầu điểm"));
         }
     }
 

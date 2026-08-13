@@ -71,16 +71,11 @@ public class StudentActivityController {
     public ResponseEntity<?> registerActivity(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long activityId) {
-        try {
-            // Fetch fresh user data from database to get updated class info
-            User currentUser = userRepository.findById(userDetails.getUser().getId())
-                    .orElse(userDetails.getUser());
-            
-            Map<String, Object> result = activityService.registerStudentForActivity(currentUser, activityId);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+        Map<String, Object> result =
+                activityService.registerStudentForActivity(currentUser, activityId);
+        return ResponseEntity.ok(result);
     }
 
     @DeleteMapping("/api/activities/{activityId}/register")
@@ -88,16 +83,11 @@ public class StudentActivityController {
     public ResponseEntity<?> cancelRegistration(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long activityId) {
-        try {
-            // Fetch fresh user data from database
-            User currentUser = userRepository.findById(userDetails.getUser().getId())
-                    .orElse(userDetails.getUser());
-            
-            Map<String, Object> result = activityService.cancelStudentRegistration(currentUser, activityId);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        User currentUser = userRepository.findById(userDetails.getUser().getId())
+                .orElse(userDetails.getUser());
+        Map<String, Object> result =
+                activityService.cancelStudentRegistration(currentUser, activityId);
+        return ResponseEntity.ok(result);
     }
 
 }

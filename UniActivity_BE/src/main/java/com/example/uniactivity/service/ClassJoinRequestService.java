@@ -5,6 +5,7 @@ import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.JoinRequestStatus;
 import com.example.uniactivity.enums.Role;
+import com.example.uniactivity.exception.AuthorizationException;
 import com.example.uniactivity.exception.NotFoundException;
 import com.example.uniactivity.exception.ValidationException;
 import com.example.uniactivity.repository.ClassJoinRequestRepository;
@@ -93,7 +94,7 @@ public class ClassJoinRequestService {
 
         // Verify manager owns the class
         if (!request.getStudentClass().equals(manager.getStudentClass())) {
-            throw new ValidationException("Bạn không có quyền duyệt yêu cầu này");
+            throw new AuthorizationException("Bạn không có quyền duyệt yêu cầu này");
         }
 
         // Update request status
@@ -128,7 +129,7 @@ public class ClassJoinRequestService {
 
         // Verify manager owns the class
         if (!request.getStudentClass().equals(manager.getStudentClass())) {
-            throw new ValidationException("Bạn không có quyền từ chối yêu cầu này");
+            throw new AuthorizationException("Bạn không có quyền từ chối yêu cầu này");
         }
 
         request.setStatus(JoinRequestStatus.REJECTED);

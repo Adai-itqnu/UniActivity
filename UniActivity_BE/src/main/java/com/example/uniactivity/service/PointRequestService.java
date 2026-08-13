@@ -6,6 +6,8 @@ import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.EvidenceStatus;
 import com.example.uniactivity.enums.Role;
+import com.example.uniactivity.exception.AuthorizationException;
+import com.example.uniactivity.exception.ConflictException;
 import com.example.uniactivity.exception.NotFoundException;
 import com.example.uniactivity.exception.ValidationException;
 import com.example.uniactivity.repository.PointRequestRepository;
@@ -119,12 +121,12 @@ public class PointRequestService {
                 .orElseThrow(() -> new NotFoundException("Yêu cầu điểm", requestId));
 
         if (request.getStatus() != EvidenceStatus.PENDING) {
-            throw new ValidationException("Yêu cầu này đã được xử lý");
+            throw new ConflictException("Yêu cầu này đã được xử lý");
         }
 
         // Verify manager owns the class
         if (!request.getStudent().getStudentClass().equals(manager.getStudentClass())) {
-            throw new ValidationException("Bạn không có quyền duyệt yêu cầu này");
+            throw new AuthorizationException("Bạn không có quyền duyệt yêu cầu này");
         }
 
         request.setStatus(EvidenceStatus.APPROVED);
@@ -161,12 +163,12 @@ public class PointRequestService {
                 .orElseThrow(() -> new NotFoundException("Yêu cầu điểm", requestId));
 
         if (request.getStatus() != EvidenceStatus.PENDING) {
-            throw new ValidationException("Yêu cầu này đã được xử lý");
+            throw new ConflictException("Yêu cầu này đã được xử lý");
         }
 
         // Verify manager owns the class
         if (!request.getStudent().getStudentClass().equals(manager.getStudentClass())) {
-            throw new ValidationException("Bạn không có quyền từ chối yêu cầu này");
+            throw new AuthorizationException("Bạn không có quyền từ chối yêu cầu này");
         }
 
         request.setStatus(EvidenceStatus.REJECTED);

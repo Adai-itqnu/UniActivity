@@ -4,6 +4,7 @@ import com.example.uniactivity.entity.Activity;
 import com.example.uniactivity.entity.ActivityRegistration;
 import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
+import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.exception.AuthorizationException;
 import com.example.uniactivity.exception.NotFoundException;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
@@ -33,6 +34,9 @@ public class ManagerScopeAuthorizationService {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new NotFoundException("Sinh viên", studentId));
         requireSameClass(managedClass, student);
+        if (student.getRole() != Role.STUDENT) {
+            throw new AuthorizationException("Tài khoản được chọn không phải sinh viên");
+        }
         return student;
     }
 

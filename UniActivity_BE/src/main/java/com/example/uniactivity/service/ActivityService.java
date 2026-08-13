@@ -5,7 +5,10 @@ import com.example.uniactivity.entity.*;
 import com.example.uniactivity.enums.ActivityStatus;
 import com.example.uniactivity.enums.RegistrationStatus;
 import com.example.uniactivity.enums.Role;
+import com.example.uniactivity.exception.AuthorizationException;
+import com.example.uniactivity.exception.ConflictException;
 import com.example.uniactivity.exception.NotFoundException;
+import com.example.uniactivity.exception.ValidationException;
 import com.example.uniactivity.mapper.ActivityMapper;
 import com.example.uniactivity.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -442,31 +445,31 @@ public class ActivityService {
             } catch (ObjectOptimisticLockingFailureException e) {
                 log.warn("Optimistic lock conflict for activity {} (attempt {}/{})", activityId, attempt, maxRetries);
                 if (attempt == maxRetries) {
-                    throw new RuntimeException("Hệ thống đang bận, vui lòng thử lại sau giây lát");
+                    throw new ConflictException("Hệ thống đang bận, vui lòng thử lại sau giây lát");
                 }
                 // Wait briefly before retrying
                 try { Thread.sleep(50 + (long)(Math.random() * 100)); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
             }
         }
-        throw new RuntimeException("Đăng ký thất bại, vui lòng thử lại");
+        throw new ConflictException("Đăng ký thất bại, vui lòng thử lại");
     }
     
     private Map<String, Object> doRegister(User student, Long activityId) {
         if (student.getStudentClass() == null) {
-            throw new RuntimeException("Bạn phải tham gia lớp trước khi đăng ký hoạt động");
+            throw new ValidationException("Bạn phải tham gia lớp trước khi đăng ký hoạt động");
         }
         
         Activity activity = findActivityById(activityId);
         
         // Validate activity status
         if (activity.getStatus() != ActivityStatus.OPEN) {
-            throw new RuntimeException("Hoạt động chưa mở đăng ký hoặc đã kết thúc");
+            throw new ValidationException("Hoạt động chưa mở đăng ký hoặc đã kết thúc");
         }
         
         // Validate registration deadline
         if (activity.getRegistrationDeadline() != null
                 && LocalDateTime.now().isAfter(activity.getRegistrationDeadline())) {
-            throw new RuntimeException("Đã hết hạn đăng ký hoạt động này");
+            throw new ValidationException("Đã hết hạn đăng ký hoạt động này");
         }
         
         // Check if already registered (allow re-registration for CANCELLED)
@@ -494,7 +497,7 @@ public class ActivityService {
                 
                 return Map.of("message", "Đăng ký lại thành công!", "registrationId", existingReg.getId());
             }
-            throw new RuntimeException("Bạn đã đăng ký hoạt động này rồi");
+            throw new ConflictException("Bạn đã đăng ký hoạt động này rồi");
         }
         
         ActivitySlot slot = requireAvailableSlot(activity, student);
@@ -536,16 +539,16 @@ public class ActivityService {
 
     private ActivitySlot requireAvailableSlot(Activity activity, User student) {
         if (!isActivityVisibleToStudent(activity, student)) {
-            throw new RuntimeException("Bạn không thể đăng ký hoạt động này");
+            throw new AuthorizationException("Bạn không thể đăng ký hoạt động này");
         }
         ActivitySlot matchingSlot = findMatchingSlotForStudent(activity, student);
         if (matchingSlot == null) {
-            throw new RuntimeException("Không tìm thấy slot phù hợp");
+            throw new ValidationException("Không tìm thấy slot phù hợp");
         }
         ActivitySlot currentSlot = activitySlotRepository.findById(matchingSlot.getId())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy slot phù hợp"));
+                .orElseThrow(() -> new ValidationException("Không tìm thấy slot phù hợp"));
         if (currentSlot.getCurrentQuantity() >= currentSlot.getMaxQuantity()) {
-            throw new RuntimeException("Slot đã đầy, không thể đăng ký");
+            throw new ConflictException("Slot đã đầy, không thể đăng ký");
         }
         return currentSlot;
     }
@@ -563,12 +566,12 @@ public class ActivityService {
             } catch (ObjectOptimisticLockingFailureException e) {
                 log.warn("Optimistic lock conflict on cancel for activity {} (attempt {}/{})", activityId, attempt, maxRetries);
                 if (attempt == maxRetries) {
-                    throw new RuntimeException("Hệ thống đang bận, vui lòng thử lại sau giây lát");
+                    throw new ConflictException("Hệ thống đang bận, vui lòng thử lại sau giây lát");
                 }
                 try { Thread.sleep(50 + (long)(Math.random() * 100)); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
             }
         }
-        throw new RuntimeException("Hủy đăng ký thất bại, vui lòng thử lại");
+        throw new ConflictException("Hủy đăng ký thất bại, vui lòng thử lại");
     }
     
     private Map<String, Object> doCancel(User student, Long activityId) {
@@ -576,14 +579,14 @@ public class ActivityService {
         
         var registration = activityRegistrationRepository.findByActivityAndStudent(activity, student);
         if (registration.isEmpty()) {
-            throw new RuntimeException("Bạn chưa đăng ký hoạt động này");
+            throw new NotFoundException("Đăng ký hoạt động không tồn tại");
         }
         
         ActivityRegistration reg = registration.get();
         
         // Only allow cancelling REGISTERED status
         if (reg.getStatus() != RegistrationStatus.REGISTERED) {
-            throw new RuntimeException("Không thể hủy đăng ký ở trạng thái hiện tại");
+            throw new ConflictException("Không thể hủy đăng ký ở trạng thái hiện tại");
         }
         
         // Set status to CANCELLED

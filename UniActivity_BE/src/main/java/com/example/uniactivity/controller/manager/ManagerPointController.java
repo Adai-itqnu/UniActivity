@@ -48,13 +48,9 @@ public class ManagerPointController {
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        try {
-            String comment = body != null ? body.get("comment") : null;
-            pointRequestService.approveRequest(id, userDetails.getUser(), comment);
-            return ResponseEntity.ok(Map.of("message", "Đã duyệt yêu cầu điểm"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        String comment = body != null ? body.get("comment") : null;
+        pointRequestService.approveRequest(id, userDetails.getUser(), comment);
+        return ResponseEntity.ok(Map.of("message", "Đã duyệt yêu cầu điểm"));
     }
 
     @PostMapping("/api/point-requests/{id}/reject")
@@ -63,12 +59,8 @@ public class ManagerPointController {
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        try {
-            String comment = body != null ? body.get("comment") : null;
-            pointRequestService.rejectRequest(id, userDetails.getUser(), comment);
-            return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu điểm"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        String comment = body != null ? body.get("comment") : null;
+        pointRequestService.rejectRequest(id, userDetails.getUser(), comment);
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu điểm"));
     }
 }

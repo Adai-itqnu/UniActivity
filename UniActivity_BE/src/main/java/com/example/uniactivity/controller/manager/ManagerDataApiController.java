@@ -502,7 +502,8 @@ public class ManagerDataApiController {
             Map<String, Object> result = activityService.registerStudentForActivity(currentUser, activityId);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể đăng ký hoạt động"));
         }
     }
 
@@ -517,7 +518,8 @@ public class ManagerDataApiController {
             Map<String, Object> result = activityService.cancelStudentRegistration(currentUser, activityId);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể hủy đăng ký hoạt động"));
         }
     }
 
@@ -541,7 +543,7 @@ public class ManagerDataApiController {
                     "activityName", registration.getActivity().getName()
             ));
         } catch (com.example.uniactivity.exception.ValidationException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("message", "Không thể check-in, vui lòng thử lại"));
@@ -588,7 +590,8 @@ public class ManagerDataApiController {
                     "previousGpa", previousGpa
             ));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Dữ liệu GPA không hợp lệ"));
         }
     }
 
@@ -622,7 +625,8 @@ public class ManagerDataApiController {
                     "id", request.getId()
             ));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể gửi yêu cầu điểm GPA"));
         }
     }
 
@@ -645,7 +649,8 @@ public class ManagerDataApiController {
                     "paths", uploadedPaths
             ));
         } catch (IOException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Lỗi khi tải ảnh: " + e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Tệp ảnh không hợp lệ hoặc không thể lưu"));
         }
     }
 
@@ -684,7 +689,8 @@ public class ManagerDataApiController {
                     "id", request.getId()
             ));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Không thể gửi yêu cầu điểm"));
         }
     }
 

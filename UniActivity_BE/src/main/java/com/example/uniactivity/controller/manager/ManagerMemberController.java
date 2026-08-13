@@ -7,6 +7,7 @@ import com.example.uniactivity.repository.StudentClassRepository;
 import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.service.ClassJoinRequestService;
+import com.example.uniactivity.service.ManagerScopeAuthorizationService;
 import com.example.uniactivity.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,7 @@ public class ManagerMemberController {
     private final ClassJoinRequestService classJoinRequestService;
     private final StudentClassRepository studentClassRepository;
     private final NotificationService notificationService;
+    private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
 
     @GetMapping("/join-requests")
     public String joinRequests(@AuthenticationPrincipal CustomUserDetails userDetails, Model model) {
@@ -76,12 +78,8 @@ public class ManagerMemberController {
     public ResponseEntity<?> approveJoinRequest(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        try {
-            classJoinRequestService.approveRequest(id, userDetails.getUser());
-            return ResponseEntity.ok(Map.of("message", "Đã duyệt yêu cầu"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        classJoinRequestService.approveRequest(id, userDetails.getUser());
+        return ResponseEntity.ok(Map.of("message", "Đã duyệt yêu cầu"));
     }
 
     @PostMapping("/api/join-requests/{id}/reject")
@@ -89,12 +87,8 @@ public class ManagerMemberController {
     public ResponseEntity<?> rejectJoinRequest(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        try {
-            classJoinRequestService.rejectRequest(id, userDetails.getUser());
-            return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        classJoinRequestService.rejectRequest(id, userDetails.getUser());
+        return ResponseEntity.ok(Map.of("message", "Đã từ chối yêu cầu"));
     }
 
     @DeleteMapping("/api/members/{userId}")
@@ -102,55 +96,30 @@ public class ManagerMemberController {
     public ResponseEntity<?> removeMember(
             @PathVariable Long userId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        try {
-            User member = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy thành viên"));
-            
-            if (!member.getStudentClass().equals(userDetails.getUser().getStudentClass())) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Không có quyền xóa thành viên này"));
-            }
-            
-            StudentClass studentClass = member.getStudentClass();
-            String className = studentClass.getName();
-            member.setStudentClass(null);
-            userRepository.save(member);
-            
-            // Notify student about removal
-            notificationService.notifyRemovedFromClass(member, className);
-            
-            // Gửi dashboard_update SSE cho tất cả manager để cập nhật sĩ số thành viên lớp real-time
-            classJoinRequestService.sendDashboardUpdateToClassManagers(studentClass);
-            
-            return ResponseEntity.ok(Map.of("message", "Đã xóa khỏi lớp"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        User member = managerScopeAuthorizationService
+                .requireStudent(userDetails.getUser(), userId);
+        StudentClass studentClass = member.getStudentClass();
+        String className = studentClass.getName();
+        member.setStudentClass(null);
+        userRepository.save(member);
+        notificationService.notifyRemovedFromClass(member, className);
+        classJoinRequestService.sendDashboardUpdateToClassManagers(studentClass);
+        return ResponseEntity.ok(Map.of("message", "Đã xóa khỏi lớp"));
     }
 
     @PostMapping("/api/regenerate-join-code")
     @ResponseBody
     public ResponseEntity<?> regenerateJoinCode(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        try {
-            User currentUser = userDetails.getUser();
-            if (currentUser.getStudentClass() == null) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Bạn chưa được gán quản lý lớp nào"));
-            }
-            
-            // Generate a unique 6-character code
-            String newCode = java.util.UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-            
-            // Update class with new join code
-            var studentClass = currentUser.getStudentClass();
-            studentClass.setJoinCode(newCode);
-            studentClassRepository.save(studentClass);
-            
-            return ResponseEntity.ok(Map.of(
-                "message", "Đã tạo mã tham gia mới",
-                "joinCode", newCode
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+        StudentClass studentClass = managerScopeAuthorizationService
+                .requireManagedClass(userDetails.getUser());
+        String newCode = java.util.UUID.randomUUID().toString()
+                .substring(0, 6).toUpperCase();
+        studentClass.setJoinCode(newCode);
+        studentClassRepository.save(studentClass);
+        return ResponseEntity.ok(Map.of(
+            "message", "Đã tạo mã tham gia mới",
+            "joinCode", newCode
+        ));
     }
 
 }

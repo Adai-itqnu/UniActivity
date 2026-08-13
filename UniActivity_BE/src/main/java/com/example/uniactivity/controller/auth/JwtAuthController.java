@@ -94,7 +94,8 @@ public class JwtAuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Tên đăng nhập hoặc mật khẩu không đúng."));
         } catch (AuthenticationException ex) {
             log.error("Authentication failed for user {}: {}", username, ex.getMessage());
-            return ResponseEntity.status(401).body(Map.of("error", "Đăng nhập thất bại: " + ex.getMessage()));
+            return ResponseEntity.status(401)
+                    .body(Map.of("error", "Tên đăng nhập hoặc mật khẩu không đúng."));
         }
     }
 

@@ -80,7 +80,7 @@ public class StudentCheckinController {
                 model.addAttribute("registration", registration.get());
             }
         } catch (Exception e) {
-            model.addAttribute("error", "Không tìm thấy hoạt động: " + e.getMessage());
+            model.addAttribute("error", "Không thể tải thông tin hoạt động");
             model.addAttribute("canCheckin", false);
         }
         
@@ -115,7 +115,7 @@ public class StudentCheckinController {
                     "activityName", activity.getName()
             ));
         } catch (ValidationException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            throw e;
         } catch (Exception e) {
             return ResponseEntity.internalServerError()
                     .body(Map.of("message", "Không thể check-in, vui lòng thử lại"));
