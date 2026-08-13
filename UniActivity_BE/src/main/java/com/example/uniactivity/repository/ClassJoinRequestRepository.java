@@ -37,7 +37,7 @@ public interface ClassJoinRequestRepository extends JpaRepository<ClassJoinReque
            "JOIN FETCH cjr.user u " +
            "JOIN FETCH cjr.studentClass sc " +
            "LEFT JOIN FETCH sc.faculty " +
-           "LEFT JOIN FETCH cjr.reviewedBy " +
+           "LEFT JOIN FETCH cjr.processedBy " +
            "WHERE cjr.studentClass = :studentClass " +
            "ORDER BY cjr.createdAt DESC")
     List<ClassJoinRequest> findByStudentClassWithDetails(StudentClass studentClass);
@@ -46,7 +46,7 @@ public interface ClassJoinRequestRepository extends JpaRepository<ClassJoinReque
            "JOIN FETCH cjr.user u " +
            "JOIN FETCH cjr.studentClass sc " +
            "LEFT JOIN FETCH sc.faculty " +
-           "LEFT JOIN FETCH cjr.reviewedBy " +
+           "LEFT JOIN FETCH cjr.processedBy " +
            "WHERE cjr.studentClass = :studentClass " +
            "AND cjr.status = :status " +
            "ORDER BY cjr.createdAt DESC")

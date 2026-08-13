@@ -27,7 +27,8 @@
 		<url/>
 	</scm>
 	<properties>
-		<java.version>17</java.version>
+		<java.version>21</java.version>
+		<byte-buddy.version>1.17.8</byte-buddy.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -87,6 +88,12 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>net.bytebuddy</groupId>
+			<artifactId>byte-buddy-agent</artifactId>
+			<version>${byte-buddy.version}</version>
+			<scope>test</scope>
+		</dependency>
 		<!-- ZXing for QR Code generation -->
 		<dependency>
 			<groupId>com.google.zxing</groupId>
@@ -134,18 +141,28 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-javaagent:${settings.localRepository}/net/bytebuddy/byte-buddy-agent/${byte-buddy.version}/byte-buddy-agent-${byte-buddy.version}.jar</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
 		<testResources>
-        <testResource>
-			<directory>src/test/java</directory>
+			<testResource>
+				<directory>src/test/resources</directory>
+			</testResource>
+			<testResource>
+				<directory>src/test/java</directory>
 				<excludes>
 					<exclude>**/*.java</exclude>
 				</excludes>
 			</testResource>
-    	</testResources>
+		</testResources>
 	</build>
 
 </project>

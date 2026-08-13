@@ -60,7 +60,7 @@ public interface PointRequestRepository extends JpaRepository<PointRequest, Long
            "JOIN FETCH pr.student s " +
            "JOIN FETCH s.studentClass " +
            "JOIN FETCH pr.semester " +
-           "LEFT JOIN FETCH pr.reviewedBy " +
+           "LEFT JOIN FETCH pr.reviewer " +
            "WHERE s.studentClass = :studentClass " +
            "ORDER BY pr.createdAt DESC")
     List<PointRequest> findByStudentClassWithDetails(@Param("studentClass") StudentClass studentClass);
@@ -72,7 +72,7 @@ public interface PointRequestRepository extends JpaRepository<PointRequest, Long
            "JOIN FETCH pr.student s " +
            "JOIN FETCH s.studentClass " +
            "JOIN FETCH pr.semester " +
-           "LEFT JOIN FETCH pr.reviewedBy " +
+           "LEFT JOIN FETCH pr.reviewer " +
            "WHERE s.studentClass = :studentClass " +
            "AND pr.status = :status " +
            "ORDER BY pr.createdAt DESC")
@@ -88,7 +88,7 @@ public interface PointRequestRepository extends JpaRepository<PointRequest, Long
            "JOIN FETCH pr.student s " +
            "LEFT JOIN FETCH s.studentClass " +
            "JOIN FETCH pr.semester " +
-           "LEFT JOIN FETCH pr.reviewedBy " +
+           "LEFT JOIN FETCH pr.reviewer " +
            "WHERE pr.student = :student " +
            "ORDER BY pr.createdAt DESC")
     List<PointRequest> findByStudentWithDetails(@Param("student") User student);
