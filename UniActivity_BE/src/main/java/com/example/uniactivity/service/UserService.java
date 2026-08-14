@@ -10,8 +10,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
-
 @Service
 public class UserService {
 
@@ -21,7 +19,8 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private static final SecureRandom RANDOM = new SecureRandom();
+    @Autowired
+    private AccountCodeGenerator accountCodeGenerator;
 
     @Transactional
     public User registerUser(UserRegistrationDto registrationDto) {
@@ -30,7 +29,7 @@ public class UserService {
         }
 
         // Tự sinh mã sinh viên 8 chữ số ngẫu nhiên, đảm bảo không trùng
-        String username = generateUniqueUsername();
+        String username = accountCodeGenerator.generateUniqueCode();
 
         User user = new User();
         user.setFullName(registrationDto.getFullName());
@@ -46,19 +45,5 @@ public class UserService {
 
         userRepository.save(user);
         return user;
-    }
-
-    /**
-     * Sinh mã sinh viên 8 chữ số ngẫu nhiên (10000000 - 99999999).
-     * Retry nếu bị trùng (xác suất cực thấp).
-     */
-    private String generateUniqueUsername() {
-        for (int i = 0; i < 10; i++) {
-            String code = String.valueOf(10000000 + RANDOM.nextInt(90000000));
-            if (!userRepository.existsByUsername(code)) {
-                return code;
-            }
-        }
-        throw new RuntimeException("Không thể tạo mã sinh viên. Vui lòng thử lại.");
     }
 }

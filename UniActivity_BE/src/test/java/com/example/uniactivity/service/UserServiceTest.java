@@ -27,6 +27,9 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private AccountCodeGenerator accountCodeGenerator;
+
     @InjectMocks
     private UserService userService;
 
@@ -39,7 +42,7 @@ class UserServiceTest {
         dto.setPassword("safe-password");
 
         when(userRepository.existsByEmail(dto.getEmail())).thenReturn(false);
-        when(userRepository.existsByUsername(any())).thenReturn(false);
+        when(accountCodeGenerator.generateUniqueCode()).thenReturn("12345678");
         when(passwordEncoder.encode(dto.getPassword())).thenReturn("encoded-password");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -49,6 +52,7 @@ class UserServiceTest {
         verify(userRepository).save(savedUser.capture());
         verify(userRepository, never()).count();
         assertEquals(Role.STUDENT, savedUser.getValue().getRole());
+        assertEquals("12345678", savedUser.getValue().getUsername());
         assertEquals(0L, savedUser.getValue().getTokenVersion());
     }
 }

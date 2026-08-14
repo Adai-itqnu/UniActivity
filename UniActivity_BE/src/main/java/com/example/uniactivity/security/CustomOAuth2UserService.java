@@ -4,6 +4,7 @@ import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.enums.UserStatus;
 import com.example.uniactivity.repository.UserRepository;
+import com.example.uniactivity.service.AccountCodeGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private AccountCodeGenerator accountCodeGenerator;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -86,13 +90,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
             // Google đã xác thực email → auto verified
             user.setEmailVerified(true);
+            if (user.getRole() != Role.ADMIN && !accountCodeGenerator.isValidCode(user.getUsername())) {
+                user.setUsername(accountCodeGenerator.generateUniqueCode());
+                user.setTokenVersion(user.getTokenVersion() + 1);
+            }
             userRepository.save(user);
             log.info("Cập nhật user hiện tại: {} (role: {})", user.getUsername(), user.getRole());
         } else {
             // Tạo user mới từ Google
             user = new User();
             user.setEmail(email);
-            user.setUsername("google_" + googleId);
+            user.setUsername(accountCodeGenerator.generateUniqueCode());
             user.setFullName(name != null ? name : email);
             user.setRole(Role.STUDENT);
             user.setStatus(UserStatus.ACTIVE);
