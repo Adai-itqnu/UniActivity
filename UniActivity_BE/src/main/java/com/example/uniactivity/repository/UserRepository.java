@@ -4,6 +4,8 @@ import com.example.uniactivity.entity.User;
 import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.enums.UserStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -50,4 +52,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     // Tìm sinh viên theo role + khoa (dùng khi gửi thông báo theo khoa)
     List<User> findByRoleAndStudentClassFaculty(Role role, com.example.uniactivity.entity.Faculty faculty);
+
+    // Paginated: search users by keyword across fullName, username, email with optional role filter
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.studentClass " +
+           "WHERE (:role IS NULL OR u.role = :role) " +
+           "AND (:keyword IS NULL OR :keyword = '' " +
+           "  OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "  OR LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "  OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    Page<User> searchUsers(@Param("keyword") String keyword, @Param("role") Role role, Pageable pageable);
 }

@@ -11,7 +11,11 @@ import com.example.uniactivity.exception.ValidationException;
 import com.example.uniactivity.mapper.UserMapper;
 import com.example.uniactivity.repository.StudentClassRepository;
 import com.example.uniactivity.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +31,20 @@ public class UserManagementService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final AccountCodeGenerator accountCodeGenerator;
+    private final EntityManager entityManager;
 
     public List<UserResponseDto> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(userMapper::toResponseDto)
                 .toList();
+    }
+
+    public Page<UserResponseDto> getUsersPaged(int page, int size, String keyword, String role) {
+        Role roleFilter = (role != null && !role.isEmpty() && !"ALL".equals(role)) ? Role.valueOf(role) : null;
+        String kw = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return userRepository.searchUsers(kw, roleFilter, pageable)
+                .map(userMapper::toResponseDto);
     }
     
     public List<UserResponseDto> getUsersByRole(Role role) {
@@ -103,7 +116,44 @@ public class UserManagementService {
     
     @Transactional
     public void deleteUser(Long id) {
-        userRepository.delete(findById(id));
+        User user = findById(id);
+
+        // Xóa evidences liên kết qua registration.student_id
+        entityManager.createNativeQuery(
+                "DELETE e FROM evidences e JOIN registrations r ON e.registration_id = r.id WHERE r.student_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+
+        // Nullify nullable FK references
+        entityManager.createNativeQuery("UPDATE evidences SET reviewer_id = NULL WHERE reviewer_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("UPDATE activities SET created_by = NULL WHERE created_by = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("UPDATE point_requests SET reviewer_id = NULL WHERE reviewer_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("UPDATE checkin_sessions SET created_by = NULL WHERE created_by = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("UPDATE class_join_requests SET processed_by = NULL WHERE processed_by = :uid")
+                .setParameter("uid", id).executeUpdate();
+
+        // Xóa bản ghi con có NOT NULL FK
+        entityManager.createNativeQuery("DELETE FROM activity_registrations WHERE student_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM registrations WHERE student_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM student_training_points WHERE student_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM point_requests WHERE student_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM class_join_requests WHERE user_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM oauth_exchange_codes WHERE user_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM notifications WHERE user_id = :uid")
+                .setParameter("uid", id).executeUpdate();
+
+        entityManager.flush();
+        entityManager.clear();
+        userRepository.deleteById(id);
     }
     
     private User findById(Long id) {

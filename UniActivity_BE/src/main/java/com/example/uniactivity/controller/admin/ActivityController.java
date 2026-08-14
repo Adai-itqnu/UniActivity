@@ -12,6 +12,7 @@ import com.example.uniactivity.service.SemesterService;
 import com.example.uniactivity.service.StudentClassService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -95,8 +96,10 @@ public class ActivityController {
 
     @GetMapping("/api")
     @ResponseBody
-    public List<ActivityResponseDto> getAllActivities() {
-        return activityService.getAllActivities();
+    public Page<ActivityResponseDto> getAllActivities(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return activityService.getAllActivitiesPaged(page, Math.min(size, 100));
     }
 
     @GetMapping("/api/{id}")

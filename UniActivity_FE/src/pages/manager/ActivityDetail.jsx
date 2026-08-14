@@ -20,6 +20,10 @@ const STATUS_LABELS = { OPEN: 'Đang mở', DRAFT: 'Bản nháp', FINISHED: 'Đ�
 export default function ActivityDetail() {
     const { activityId } = useParams()
     const [registrations, setRegistrations] = useState([])
+    const [regTotalElements, setRegTotalElements] = useState(0)
+    const [regTotalPages, setRegTotalPages] = useState(0)
+    const [regPage, setRegPage] = useState(0)
+    const REG_PAGE_SIZE = 20
     const [activity, setActivity] = useState(null)
     const [loading, setLoading] = useState(true)
     const [toast, setToast] = useState(null)
@@ -33,16 +37,19 @@ export default function ActivityDetail() {
         setTimeout(() => setToast(null), 4000)
     }
 
-    const fetchData = useCallback(() => {
+    const fetchData = useCallback((page = regPage) => {
         setLoading(true)
         Promise.all([
             fetch('/manager/api/activities', { credentials: 'include' }).then(r => r.ok ? r.json() : []),
-            fetch(`/manager/api/activities/${activityId}/registrations`, { credentials: 'include' }).then(r => r.ok ? r.json() : []),
+            fetch(`/manager/api/activities/${activityId}/registrations?page=${page}&size=${REG_PAGE_SIZE}`, { credentials: 'include' }).then(r => r.ok ? r.json() : { content: [], totalElements: 0, totalPages: 0, number: 0 }),
         ])
-            .then(([activities, regs]) => {
+            .then(([activities, regData]) => {
                 const act = activities.find(a => String(a.id) === String(activityId))
                 setActivity(act || null)
-                setRegistrations(regs)
+                setRegistrations(regData.content || [])
+                setRegTotalElements(regData.totalElements || 0)
+                setRegTotalPages(regData.totalPages || 0)
+                setRegPage(regData.number || 0)
             })
             .catch(() => { })
             .finally(() => setLoading(false))
@@ -253,7 +260,7 @@ export default function ActivityDetail() {
                     <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-blue-500">list_alt</span>
                         <h3 className="font-bold text-gray-900 dark:text-white">Danh sách đăng ký</h3>
-                        <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">{registrations.length}</span>
+                        <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">{regTotalElements}</span>
                     </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -272,7 +279,7 @@ export default function ActivityDetail() {
                         <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                             {registrations.length > 0 ? registrations.map((r, i) => (
                                 <tr key={r.id} className="hover:bg-blue-50/40 dark:hover:bg-gray-800/50 transition-colors">
-                                    <td className="px-6 py-3.5 text-gray-400 text-xs">{i + 1}</td>
+                                    <td className="px-6 py-3.5 text-gray-400 text-xs">{regPage * REG_PAGE_SIZE + i + 1}</td>
                                     <td className="px-6 py-3.5">
                                         <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center shrink-0">
@@ -365,6 +372,19 @@ export default function ActivityDetail() {
                         </tbody>
                     </table>
                 </div>
+                {/* Pagination */}
+                {regTotalPages > 1 && (
+                    <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Hiển thị {regPage * REG_PAGE_SIZE + 1}–{Math.min(regTotalElements, (regPage + 1) * REG_PAGE_SIZE)} / {regTotalElements}</p>
+                        <div className="inline-flex items-center gap-1">
+                            <button disabled={regPage === 0} onClick={() => fetchData(0)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">first_page</span></button>
+                            <button disabled={regPage === 0} onClick={() => fetchData(regPage - 1)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">chevron_left</span></button>
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 px-3">Trang {regPage + 1} / {regTotalPages}</span>
+                            <button disabled={regPage >= regTotalPages - 1} onClick={() => fetchData(regPage + 1)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">chevron_right</span></button>
+                            <button disabled={regPage >= regTotalPages - 1} onClick={() => fetchData(regTotalPages - 1)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">last_page</span></button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ── Evidence Modal ── */}

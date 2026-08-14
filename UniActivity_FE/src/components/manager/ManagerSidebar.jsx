@@ -45,7 +45,7 @@ const menuGroups = [
     },
 ]
 
-export default function ManagerSidebar({ collapsed, setCollapsed, currentUser, mobileOpen, setMobileOpen }) {
+export default function ManagerSidebar({ collapsed, setCollapsed, currentUser, mobileOpen, setMobileOpen, pendingCounts = {} }) {
     const [showUserMenu, setShowUserMenu] = useState(false)
     const userMenuRef = useRef(null)
     const location = useLocation()
@@ -84,6 +84,12 @@ export default function ManagerSidebar({ collapsed, setCollapsed, currentUser, m
         .join('')
         .toUpperCase()
         .slice(0, 2)
+
+    // Badge counts cho từng menu item
+    const badgeMap = {
+        '/manager/join-requests': pendingCounts.joinRequests,
+        '/manager/point-requests': pendingCounts.pointRequests,
+    }
 
     const sidebarContent = (isMobile = false) => (
         <>
@@ -142,10 +148,20 @@ export default function ManagerSidebar({ collapsed, setCollapsed, currentUser, m
                                 }
                                 title={collapsed && !isMobile ? item.name : undefined}
                             >
-                                <span className="material-symbols-outlined text-xl shrink-0">
+                                <span className={`material-symbols-outlined text-xl shrink-0 ${collapsed && !isMobile && badgeMap[item.path] ? 'relative' : ''}`}>
                                     {item.icon}
+                                    {collapsed && !isMobile && badgeMap[item.path] > 0 && (
+                                        <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white px-1">
+                                            {badgeMap[item.path] > 99 ? '99+' : badgeMap[item.path]}
+                                        </span>
+                                    )}
                                 </span>
                                 {(!collapsed || isMobile) && <span className="whitespace-nowrap">{item.name}</span>}
+                                {(!collapsed || isMobile) && badgeMap[item.path] > 0 && (
+                                    <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-bold text-white">
+                                        {badgeMap[item.path] > 99 ? '99+' : badgeMap[item.path]}
+                                    </span>
+                                )}
                             </NavLink>
                         ))}
                     </div>

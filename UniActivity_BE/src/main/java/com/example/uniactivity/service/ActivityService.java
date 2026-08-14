@@ -13,6 +13,9 @@ import com.example.uniactivity.mapper.ActivityMapper;
 import com.example.uniactivity.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -55,6 +58,16 @@ public class ActivityService {
                     return dto;
                 })
                 .toList();
+    }
+
+    public Page<ActivityResponseDto> getAllActivitiesPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return activityRepository.findAllWithDetailsPaged(pageable)
+                .map(activity -> {
+                    ActivityResponseDto dto = activityMapper.toResponseDto(activity);
+                    enrichActivityWithStats(dto, activity);
+                    return dto;
+                });
     }
     
     public ActivityResponseDto getActivityById(Long id) {

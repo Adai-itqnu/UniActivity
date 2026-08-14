@@ -10,6 +10,8 @@ import com.example.uniactivity.exception.NotFoundException;
 import com.example.uniactivity.repository.ActivityRegistrationRepository;
 import com.example.uniactivity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -67,6 +69,13 @@ public class ManagerScopeAuthorizationService {
         Activity activity = requireActivity(manager, activityId);
         return registrationRepository
                 .findByActivityAndStudent_StudentClassOrderByRegisteredAtAsc(activity, managedClass);
+    }
+
+    public Page<ActivityRegistration> registrationsForActivityPaged(User manager, Long activityId, Pageable pageable) {
+        StudentClass managedClass = requireManagedClass(manager);
+        Activity activity = requireActivity(manager, activityId);
+        return registrationRepository
+                .findByActivityAndStudent_StudentClassOrderByRegisteredAtAsc(activity, managedClass, pageable);
     }
 
     private void requireSameClass(StudentClass managedClass, User student) {

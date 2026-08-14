@@ -11,7 +11,7 @@ Dự án **UniActivity** có cấu trúc tổ chức tốt với:
 - ✅ Java 21 (LTS)
 - ✅ Kiến trúc phân tầng rõ ràng (Controller → Service → Repository)
 - ✅ Security implementation tốt với JWT + Session hybrid
-- ✅ Proper authorization checks với AuthorizationService
+- ✅ Proper authorization checks với AuthorizationServiced
 
 **Tuy nhiên**, có một số vấn đề quan trọng cần được tối ưu để cải thiện performance, maintainability và security.
 

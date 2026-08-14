@@ -21,6 +21,8 @@ function timeAgo(d) {
 
 export default function UserList() {
     const [items, setItems] = useState([])
+    const [totalElements, setTotalElements] = useState(0)
+    const [totalPages, setTotalPages] = useState(0)
     const [classes, setClasses] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -29,12 +31,12 @@ export default function UserList() {
     const [showFilter, setShowFilter] = useState(false)
     const filterRef = useRef(null)
 
-    const [currentPage, setCurrentPage] = useState(1)
-    const ITEMS_PER_PAGE = 50
+    const [currentPage, setCurrentPage] = useState(0)
+    const ITEMS_PER_PAGE = 20
 
-    // Reset page to 1 when filters change
+    // Reset page when filters change
     useEffect(() => {
-        setCurrentPage(1)
+        setCurrentPage(0)
     }, [search, filterRole])
 
     // Modal
@@ -60,29 +62,27 @@ export default function UserList() {
         return () => document.removeEventListener('mousedown', h)
     }, [])
 
-    const fetchData = async () => {
+    const fetchData = async (page = currentPage) => {
         setLoading(true)
         try {
+            const params = new URLSearchParams({ page: String(page), size: String(ITEMS_PER_PAGE) })
+            if (search.trim()) params.set('keyword', search.trim())
+            if (filterRole !== 'ALL') params.set('role', filterRole)
             const [uRes, cRes] = await Promise.all([
-                fetch(API, { credentials: 'include' }),
+                fetch(`${API}?${params}`, { credentials: 'include' }),
                 fetch('/admin/classes/api', { credentials: 'include' }),
             ])
             if (!uRes.ok) throw new Error('Fetch failed')
-            setItems(await uRes.json())
+            const data = await uRes.json()
+            setItems(data.content)
+            setTotalElements(data.totalElements)
+            setTotalPages(data.totalPages)
+            setCurrentPage(data.number)
             if (cRes.ok) setClasses(await cRes.json())
         } catch (e) { setError(e.message) }
         setLoading(false)
     }
-    useEffect(() => { fetchData() }, [])
-
-    const filtered = items.filter(u => {
-        const ms = !search || u.fullName?.toLowerCase().includes(search.toLowerCase()) || u.username?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
-        const mf = filterRole === 'ALL' || u.role === filterRole
-        return ms && mf
-    })
-
-    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
-    const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+    useEffect(() => { fetchData(currentPage) }, [currentPage, search, filterRole])
 
     const openCreate = () => {
         setModalMode('create'); setEditing(null)
@@ -107,7 +107,7 @@ export default function UserList() {
             if (modalMode === 'edit' && !body.password) delete body.password
             const res = await fetch(url, { method: modalMode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) })
             if (!res.ok) { const d = await res.json().catch(() => null); throw new Error(d?.message || d?.error || 'Thao tác thất bại') }
-            setModalOpen(false); fetchData()
+            setModalOpen(false); fetchData(currentPage)
         } catch (err) { setFormError(err.message) } finally { setFormLoading(false) }
     }
 
@@ -115,7 +115,7 @@ export default function UserList() {
         try {
             const res = await fetch(`${API}/${id}/toggle-status`, { method: 'POST', credentials: 'include' })
             if (!res.ok) throw new Error('Thay đổi trạng thái thất bại')
-            fetchData()
+            fetchData(currentPage)
         } catch (err) { alert(err.message) }
     }
 
@@ -135,7 +135,7 @@ export default function UserList() {
         try {
             const res = await fetch(`${API}/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' })
             if (!res.ok) throw new Error('Xóa thất bại')
-            setDeleteTarget(null); fetchData()
+            setDeleteTarget(null); fetchData(currentPage)
         } catch (err) { alert(err.message) } finally { setDeleteLoading(false) }
     }
 
@@ -148,7 +148,7 @@ export default function UserList() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Quản lý Người dùng</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tổng cộng {items.length} người dùng.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tổng cộng {totalElements} người dùng.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="relative" ref={filterRef}>
@@ -187,7 +187,7 @@ export default function UserList() {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                 {[
-                    { label: 'Tổng người dùng', value: items.length, icon: 'groups', iconBg: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' },
+                    { label: 'Tổng người dùng', value: totalElements, icon: 'groups', iconBg: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' },
                     { label: 'Quản trị viên', value: items.filter(u => u.role === 'ADMIN').length, icon: 'admin_panel_settings', iconBg: 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400' },
                     { label: 'Quản lý', value: items.filter(u => u.role === 'MANAGER').length, icon: 'manage_accounts', iconBg: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' },
                     { label: 'Sinh viên', value: items.filter(u => u.role === 'STUDENT').length, icon: 'school', iconBg: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' },
@@ -216,7 +216,7 @@ export default function UserList() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                            {paginated.length > 0 ? paginated.map(u => {
+                            {items.length > 0 ? items.map(u => {
                                 const rc = roleConfig[u.role] || roleConfig.STUDENT
                                 const sc = statusConfig[u.status] || statusConfig.ACTIVE
                                 return (
@@ -265,14 +265,14 @@ export default function UserList() {
                 {/* Pagination Controls */}
                 <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/30">
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Hiển thị <span className="font-semibold text-gray-700 dark:text-gray-300">{filtered.length > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}</span> đến <span className="font-semibold text-gray-700 dark:text-gray-300">{Math.min(filtered.length, currentPage * ITEMS_PER_PAGE)}</span> trong <span className="font-semibold text-gray-700 dark:text-gray-300">{filtered.length}</span> người dùng
+                        Hiển thị <span className="font-semibold text-gray-700 dark:text-gray-300">{totalElements > 0 ? currentPage * ITEMS_PER_PAGE + 1 : 0}</span> đến <span className="font-semibold text-gray-700 dark:text-gray-300">{Math.min(totalElements, (currentPage + 1) * ITEMS_PER_PAGE)}</span> trong <span className="font-semibold text-gray-700 dark:text-gray-300">{totalElements}</span> người dùng
                     </p>
                     {totalPages > 1 && (
                         <div className="inline-flex items-center gap-1">
                             <button
                                 type="button"
-                                disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(1)}
+                                disabled={currentPage === 0}
+                                onClick={() => setCurrentPage(0)}
                                 className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
                                 title="Trang đầu"
                             >
@@ -280,20 +280,20 @@ export default function UserList() {
                             </button>
                             <button
                                 type="button"
-                                disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 0}
+                                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
                                 className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
                                 title="Trang trước"
                             >
                                 <span className="material-symbols-outlined text-sm">chevron_left</span>
                             </button>
                             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 px-3">
-                                Trang {currentPage} / {totalPages}
+                                Trang {currentPage + 1} / {totalPages}
                             </span>
                             <button
                                 type="button"
-                                disabled={currentPage === totalPages}
-                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage >= totalPages - 1}
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
                                 className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
                                 title="Trang sau"
                             >
@@ -301,8 +301,8 @@ export default function UserList() {
                             </button>
                             <button
                                 type="button"
-                                disabled={currentPage === totalPages}
-                                onClick={() => setCurrentPage(totalPages)}
+                                disabled={currentPage >= totalPages - 1}
+                                onClick={() => setCurrentPage(totalPages - 1)}
                                 className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 disabled:hover:text-gray-500 transition-colors flex items-center justify-center"
                                 title="Trang cuối"
                             >

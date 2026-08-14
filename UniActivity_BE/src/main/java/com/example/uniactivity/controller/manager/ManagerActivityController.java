@@ -16,6 +16,8 @@ import com.example.uniactivity.service.ManagerScopeAuthorizationService;
 import com.example.uniactivity.service.EvidenceReviewService;
 import com.example.uniactivity.service.ManagerRegistrationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -173,14 +175,17 @@ public class ManagerActivityController {
 
     @GetMapping("/api/activities/{activityId}/registrations")
     @ResponseBody
-    public List<Map<String, Object>> getActivityRegistrations(
+    public Page<Map<String, Object>> getActivityRegistrations(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long activityId) {
+            @PathVariable Long activityId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         User currentUser = userDetails.getUser();
-        List<ActivityRegistration> registrations =
-                managerScopeAuthorizationService.registrationsForActivity(currentUser, activityId);
+        Page<ActivityRegistration> registrations =
+                managerScopeAuthorizationService.registrationsForActivityPaged(
+                        currentUser, activityId, PageRequest.of(page, Math.min(size, 100)));
         
-        return registrations.stream().map(reg -> {
+        return registrations.map(reg -> {
             Map<String, Object> data = new HashMap<>();
             data.put("id", reg.getId());
             data.put("studentId", reg.getStudent().getId());
@@ -201,7 +206,7 @@ public class ManagerActivityController {
                 data.put("scoreOption", so);
             }
             return data;
-        }).toList();
+        });
     }
 
     @PostMapping("/api/registrations/{registrationId}/checkin")

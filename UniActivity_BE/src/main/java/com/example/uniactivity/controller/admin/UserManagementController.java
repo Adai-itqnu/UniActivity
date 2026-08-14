@@ -10,6 +10,7 @@ import com.example.uniactivity.service.UserManagementService;
 import com.example.uniactivity.exception.ValidationException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -42,8 +43,12 @@ public class UserManagementController {
 
     @GetMapping("/api")
     @ResponseBody
-    public List<UserResponseDto> getAllUsers() {
-        return userManagementService.getAllUsers();
+    public Page<UserResponseDto> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String role) {
+        return userManagementService.getUsersPaged(page, Math.min(size, 100), keyword, role);
     }
 
     @GetMapping("/api/{id}")

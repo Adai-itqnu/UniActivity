@@ -5,6 +5,8 @@ import com.example.uniactivity.entity.ActivityRegistration;
 import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.RegistrationStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -34,6 +36,9 @@ public interface ActivityRegistrationRepository extends JpaRepository<ActivityRe
 
     List<ActivityRegistration> findByActivityAndStudent_StudentClassOrderByRegisteredAtAsc(
             Activity activity, StudentClass studentClass);
+
+    Page<ActivityRegistration> findByActivityAndStudent_StudentClassOrderByRegisteredAtAsc(
+            Activity activity, StudentClass studentClass, Pageable pageable);
     
     long countByActivity(Activity activity);
     
@@ -78,4 +83,18 @@ public interface ActivityRegistrationRepository extends JpaRepository<ActivityRe
            "WHERE ar.activity = :activity " +
            "ORDER BY ar.registeredAt ASC")
     List<ActivityRegistration> findByActivityWithDetailsOrderByRegisteredAtAsc(@Param("activity") Activity activity);
+
+    /**
+     * Paginated: find registrations by activity with eager loading
+     */
+    @Query(value = "SELECT DISTINCT ar FROM ActivityRegistration ar " +
+           "JOIN FETCH ar.student s " +
+           "LEFT JOIN FETCH s.studentClass " +
+           "JOIN FETCH ar.activity a " +
+           "LEFT JOIN FETCH ar.activitySlot slot " +
+           "LEFT JOIN FETCH ar.scoreOption " +
+           "WHERE ar.activity = :activity " +
+           "ORDER BY ar.registeredAt ASC",
+           countQuery = "SELECT COUNT(ar) FROM ActivityRegistration ar WHERE ar.activity = :activity")
+    Page<ActivityRegistration> findByActivityWithDetailsPaged(@Param("activity") Activity activity, Pageable pageable);
 }

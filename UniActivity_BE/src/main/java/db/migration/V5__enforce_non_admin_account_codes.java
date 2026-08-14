@@ -142,6 +142,7 @@ public class V5__enforce_non_admin_account_codes extends BaseJavaMigration {
 
         String clause = checkClause
                 .toLowerCase(Locale.ROOT)
+                .replace("\\", "")
                 .replaceAll("_[a-z0-9]+(?=')", "")
                 .replace("`", "")
                 .replace("\"", "")

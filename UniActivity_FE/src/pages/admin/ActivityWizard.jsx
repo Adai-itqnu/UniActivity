@@ -90,10 +90,10 @@ export default function ActivityWizard({ activity, onClose, onSaved }) {
             fetch(`${API}/${activity.id}/score-options`, { credentials: 'include' })
                 .then(r => r.json()).then(d => setScores(d.map(s => ({ ...s, _existing: true })))).catch(() => { })
         }
-    }, [activity.bannerUrl, activity.checkinRadius, activity.description, activity.endTime,
-        activity.id, activity.latitude, activity.location, activity.longitude, activity.name,
-        activity.registrationDeadline, activity.scope, activity.semesterId, activity.startTime,
-        activity.status, isEdit])
+    }, [activity?.bannerUrl, activity?.checkinRadius, activity?.description, activity?.endTime,
+        activity?.id, activity?.latitude, activity?.location, activity?.longitude, activity?.name,
+        activity?.registrationDeadline, activity?.scope, activity?.semesterId, activity?.startTime,
+        activity?.status, isEdit])
 
     const handleBannerUpload = async (e) => {
         const file = e.target.files[0]; if (!file) return

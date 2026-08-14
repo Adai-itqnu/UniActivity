@@ -21,6 +21,10 @@ function formatDT(s) {
 
 export default function ActivityList() {
     const [items, setItems] = useState([])
+    const [totalElements, setTotalElements] = useState(0)
+    const [totalPages, setTotalPages] = useState(0)
+    const [currentPage, setCurrentPage] = useState(0)
+    const PAGE_SIZE = 12
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [urlSearchParams] = useSearchParams()
@@ -44,16 +48,20 @@ export default function ActivityList() {
         return () => document.removeEventListener('mousedown', h)
     }, [])
 
-    const fetchData = async () => {
+    const fetchData = async (page = currentPage) => {
         setLoading(true)
         try {
-            const aRes = await fetch(API, { credentials: 'include' })
+            const aRes = await fetch(`${API}?page=${page}&size=${PAGE_SIZE}`, { credentials: 'include' })
             if (!aRes.ok) throw new Error('Fetch failed')
-            setItems(await aRes.json())
+            const data = await aRes.json()
+            setItems(data.content)
+            setTotalElements(data.totalElements)
+            setTotalPages(data.totalPages)
+            setCurrentPage(data.number)
         } catch (e) { setError(e.message) }
         setLoading(false)
     }
-    useEffect(() => { fetchData() }, [])
+    useEffect(() => { fetchData(0) }, [])
 
     const filtered = items.filter(a => {
         const ms = !search || a.name?.toLowerCase().includes(search.toLowerCase()) || a.location?.toLowerCase().includes(search.toLowerCase())
@@ -71,7 +79,7 @@ export default function ActivityList() {
         try {
             const res = await fetch(`${API}/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' })
             if (!res.ok) throw new Error('Xóa thất bại')
-            setDeleteTarget(null); fetchData()
+            setDeleteTarget(null); fetchData(currentPage)
         } catch (err) { alert(err.message) } finally { setDeleteLoading(false) }
     }
 
@@ -84,7 +92,7 @@ export default function ActivityList() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Quản lý Hoạt động</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tổng cộng {items.length} hoạt động.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tổng cộng {totalElements} hoạt động.</p>
                 </div>
                 <div className="flex items-center gap-3">
                     {/* View toggle */}
@@ -128,7 +136,7 @@ export default function ActivityList() {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
                 {[
-                    { label: 'Tổng hoạt động', value: items.length, icon: 'event', iconBg: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' },
+                    { label: 'Tổng hoạt động', value: totalElements, icon: 'event', iconBg: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' },
                     { label: 'Đang mở', value: items.filter(a => a.status === 'OPEN').length, icon: 'event_available', iconBg: 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400' },
                     { label: 'Bản nháp', value: items.filter(a => a.status === 'DRAFT').length, icon: 'edit_note', iconBg: 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400' },
                     { label: 'Đã kết thúc', value: items.filter(a => a.status === 'FINISHED').length, icon: 'check_circle', iconBg: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' },
@@ -261,12 +269,23 @@ export default function ActivityList() {
                             </tbody>
                         </table>
                     </div>
-                    <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800"><p className="text-xs text-gray-400">Hiển thị {filtered.length} / {items.length}</p></div>
+                    <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800"><p className="text-xs text-gray-400">Hiển thị {filtered.length} / {totalElements}</p></div>
+                </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                    <button disabled={currentPage === 0} onClick={() => fetchData(0)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">first_page</span></button>
+                    <button disabled={currentPage === 0} onClick={() => fetchData(currentPage - 1)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">chevron_left</span></button>
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 px-3">Trang {currentPage + 1} / {totalPages}</span>
+                    <button disabled={currentPage >= totalPages - 1} onClick={() => fetchData(currentPage + 1)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">chevron_right</span></button>
+                    <button disabled={currentPage >= totalPages - 1} onClick={() => fetchData(totalPages - 1)} className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 hover:text-primary disabled:opacity-40 transition-colors"><span className="material-symbols-outlined text-sm">last_page</span></button>
                 </div>
             )}
 
             {/* ═══ Activity Wizard ═══ */}
-            {wizardOpen && <ActivityWizard activity={wizardActivity} onClose={() => setWizardOpen(false)} onSaved={() => { setWizardOpen(false); fetchData() }} />}
+            {wizardOpen && <ActivityWizard activity={wizardActivity} onClose={() => setWizardOpen(false)} onSaved={() => { setWizardOpen(false); fetchData(currentPage) }} />}
 
             {/* Delete Modal */}
             {deleteTarget && (

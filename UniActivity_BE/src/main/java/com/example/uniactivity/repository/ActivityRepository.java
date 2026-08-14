@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -61,4 +64,14 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
            "WHERE a.status = :status " +
            "ORDER BY a.createdAt DESC")
     List<Activity> findByStatusWithDetailsOrderByCreatedAtDesc(@Param("status") ActivityStatus status);
+
+    /**
+     * Paginated: find all activities with eager loading
+     */
+    @Query(value = "SELECT DISTINCT a FROM Activity a " +
+           "LEFT JOIN FETCH a.semester " +
+           "LEFT JOIN FETCH a.createdBy " +
+           "ORDER BY a.createdAt DESC",
+           countQuery = "SELECT COUNT(a) FROM Activity a")
+    Page<Activity> findAllWithDetailsPaged(Pageable pageable);
 }
