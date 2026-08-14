@@ -1,6 +1,7 @@
 package com.example.uniactivity.service;
 
 import com.example.uniactivity.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -13,6 +14,7 @@ public class AccountCodeGenerator {
     private final UserRepository userRepository;
     private final SecureRandom random;
 
+    @Autowired
     public AccountCodeGenerator(UserRepository userRepository) {
         this(userRepository, new SecureRandom());
     }
