@@ -97,7 +97,7 @@ export default function AuthPage({ defaultTab = 'login' }) {
                     window.location.href = '/'
                 }
             } else {
-                setLoginError(data.error || 'Tên đăng nhập hoặc mật khẩu không đúng.')
+                setLoginError(data.error || 'Email, mã tài khoản hoặc mật khẩu không đúng.')
             }
         } catch {
             setLoginError('Có lỗi xảy ra. Vui lòng thử lại.')
@@ -139,7 +139,7 @@ export default function AuthPage({ defaultTab = 'login' }) {
             const data = await response.json()
             if (response.ok) {
                 const generatedUsername = data.username || ''
-                setRegisterSuccess(`Đăng ký thành công! Mã sinh viên của bạn là: ${generatedUsername}. Hãy ghi nhớ mã này để đăng nhập.`)
+                setRegisterSuccess(`Đăng ký thành công! Mã tài khoản của bạn là: ${generatedUsername}. Hãy ghi nhớ mã này để đăng nhập.`)
                 setActiveTab('login')
                 setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '', termsAccepted: false })
             } else {
@@ -290,13 +290,13 @@ export default function AuthPage({ defaultTab = 'login' }) {
 
                                     <form className="space-y-4" onSubmit={handleLogin}>
                                         <div className="space-y-1.5">
-                                            <label className={labelCls} htmlFor="login-email">Tên đăng nhập</label>
+                                            <label className={labelCls} htmlFor="login-email">Email hoặc mã tài khoản</label>
                                             <div className="relative group">
                                                 <span className={`absolute left-3 top-3 ${isDark ? 'text-slate-500' : 'text-slate-400'} group-focus-within:text-indigo-500 transition-colors`}>
                                                     <span className="material-symbols-outlined text-[20px]">person</span>
                                                 </span>
                                                 <input className={inputCls(true)} id="login-email" type="text"
-                                                    placeholder="Nhập mã sinh viên hoặc email"
+                                                    placeholder="Nhập email hoặc mã tài khoản"
                                                     value={loginForm.username}
                                                     onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
                                                     required autoFocus

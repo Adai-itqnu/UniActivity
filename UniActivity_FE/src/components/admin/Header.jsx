@@ -193,7 +193,7 @@ export default function Header({ onMenuToggle }) {
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{user.fullName}</p>
                             <p className="text-[11px] text-gray-400 flex items-center gap-1.5 mt-0.5">
-                              @{user.username}
+                              {user.role === 'ADMIN' ? 'Username' : 'Mã tài khoản'}: {user.username}
                               <span className="text-gray-300">·</span>
                               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${rc.bg}`}>{rc.label}</span>
                             </p>

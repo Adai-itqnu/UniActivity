@@ -179,7 +179,7 @@ export default function StudentHeader({ onMenuToggle }) {
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{u.fullName}</p>
-                                                        <p className="text-xs text-gray-400">@{u.username}</p>
+                                                        <p className="text-xs text-gray-400">Mã tài khoản: {u.username}</p>
                                                     </div>
                                                 </button>
                                             ))}

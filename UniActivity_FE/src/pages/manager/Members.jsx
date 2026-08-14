@@ -106,7 +106,7 @@ export default function Members() {
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
                         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                            placeholder="Tìm theo tên hoặc MSSV..."
+                            placeholder="Tìm theo tên hoặc mã tài khoản..."
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition" />
                     </div>
                     <button onClick={handleSearch}
@@ -133,7 +133,7 @@ export default function Members() {
                                     <tr className="bg-gray-50 dark:bg-gray-800/50">
                                         <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">#</th>
                                         <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thành viên</th>
-                                        <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">MSSV</th>
+                                        <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mã tài khoản</th>
                                         <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email</th>
                                         <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">SĐT</th>
                                         <th className="text-center px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Vai trò</th>

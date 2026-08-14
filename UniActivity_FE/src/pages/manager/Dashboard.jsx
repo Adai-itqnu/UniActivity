@@ -276,7 +276,7 @@ function RecentMembersSection({ members = [] }) {
                         )}
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{m.fullName}</p>
-                            <p className="text-xs text-gray-400">{m.username}</p>
+                            <p className="text-xs text-gray-400">Mã tài khoản: {m.username}</p>
                         </div>
                         <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full ${m.role === 'MANAGER' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
                             {m.role === 'MANAGER' ? 'Quản lý' : 'SV'}

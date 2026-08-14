@@ -71,6 +71,8 @@ CREATE TABLE users (
     token_version BIGINT NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (class_id) REFERENCES classes(id),
+    CONSTRAINT chk_users_non_admin_account_code
+        CHECK (role = 'ADMIN' OR username REGEXP '^[0-9]{8}$'),
     INDEX idx_users_class_id (class_id),
     INDEX idx_users_role (role)
 );
@@ -386,10 +388,10 @@ INSERT INTO users (username, password_hash, full_name, email, phone, role, class
 ('admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Quản trị viên', 'admin@uni.edu.vn', '0123456789', 'ADMIN', NULL, 'ACTIVE', 'LOCAL'),
 
 -- MANAGERS (Lớp trưởng/Bí thư)
-('manager1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Nguyễn Văn Quản', 'manager1@uni.edu.vn', '0987654321', 'MANAGER', 1, 'ACTIVE', 'LOCAL'),
-('manager2', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Trần Thị Quản', 'manager2@uni.edu.vn', '0987654322', 'MANAGER', 2, 'ACTIVE', 'LOCAL'),
+('20000001', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Nguyễn Văn Quản', 'manager1@uni.edu.vn', '0987654321', 'MANAGER', 1, 'ACTIVE', 'LOCAL'),
+('20000002', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Trần Thị Quản', 'manager2@uni.edu.vn', '0987654322', 'MANAGER', 2, 'ACTIVE', 'LOCAL'),
 
 -- STUDENTS (Sinh viên)
-('student1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Nguyễn Văn An', 'student1@uni.edu.vn', '0912345678', 'STUDENT', 1, 'ACTIVE', 'LOCAL'),
-('student2', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Lê Thị Bình', 'student2@uni.edu.vn', '0912345679', 'STUDENT', 1, 'ACTIVE', 'LOCAL'),
-('student3', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Trần Văn Cường', 'student3@uni.edu.vn', '0912345680', 'STUDENT', 2, 'ACTIVE', 'LOCAL');
+('10000001', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Nguyễn Văn An', 'student1@uni.edu.vn', '0912345678', 'STUDENT', 1, 'ACTIVE', 'LOCAL'),
+('10000002', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Lê Thị Bình', 'student2@uni.edu.vn', '0912345679', 'STUDENT', 1, 'ACTIVE', 'LOCAL'),
+('10000003', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3hO7Yh2dVZKb7VVR6qKu', 'Trần Văn Cường', 'student3@uni.edu.vn', '0912345680', 'STUDENT', 2, 'ACTIVE', 'LOCAL');

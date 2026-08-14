@@ -250,7 +250,7 @@ export default function JoinRequests() {
                                 <tr className="bg-gray-50 dark:bg-gray-800/50">
                                     <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">#</th>
                                     <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sinh viên</th>
-                                    <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Username</th>
+                                    <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mã tài khoản</th>
                                     <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Email</th>
                                     <th className="text-left px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thời gian</th>
                                     <th className="text-center px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Thao tác</th>

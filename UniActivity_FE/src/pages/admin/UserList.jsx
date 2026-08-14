@@ -97,7 +97,8 @@ export default function UserList() {
 
     const handleSubmit = async (e) => {
         e.preventDefault(); setFormError('')
-        if (!formData.username.trim() || !formData.email.trim() || !formData.fullName.trim()) { setFormError('Username, email và họ tên không được để trống.'); return }
+        if (!formData.email.trim() || !formData.fullName.trim()) { setFormError('Email và họ tên không được để trống.'); return }
+        if (modalMode === 'create' && formData.role === 'ADMIN' && !formData.username.trim()) { setFormError('Username ADMIN không được để trống.'); return }
         if (modalMode === 'create' && !formData.password) { setFormError('Mật khẩu không được để trống khi tạo mới.'); return }
         setFormLoading(true)
         try {
@@ -178,7 +179,7 @@ export default function UserList() {
             <div className="max-w-md">
                 <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
-                    <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm kiếm theo tên, username, email..."
+                    <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm theo tên, mã tài khoản hoặc email..."
                         className="w-full h-10 pl-10 pr-4 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-colors" />
                 </div>
             </div>
@@ -227,7 +228,7 @@ export default function UserList() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="font-medium text-gray-800 dark:text-white truncate">{u.fullName}</p>
-                                                    <p className="text-xs text-gray-400">@{u.username}</p>
+                                                    <p className="text-xs text-gray-400">{u.role === 'ADMIN' ? 'Username' : 'Mã tài khoản'}: {u.username}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -323,11 +324,25 @@ export default function UserList() {
                         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                             {formError && <div className="bg-red-500/10 border border-red-500/30 text-red-500 px-4 py-3 rounded-lg text-sm flex items-center gap-2"><span className="material-symbols-outlined text-lg">error</span>{formError}</div>}
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Username *</label>
-                                    <input type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder="username" required
-                                        className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors" />
-                                </div>
+                                {modalMode === 'create' && formData.role === 'ADMIN' ? (
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Username ADMIN *</label>
+                                        <input type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} placeholder="admin" required
+                                            className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors" />
+                                    </div>
+                                ) : modalMode === 'edit' ? (
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{formData.role === 'ADMIN' ? 'Username ADMIN' : 'Mã tài khoản'}</label>
+                                        <input type="text" value={formData.username} readOnly
+                                            className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                        {formData.role !== 'ADMIN' && !/^\d{8}$/.test(formData.username) && <p className="text-[11px] text-amber-600 dark:text-amber-400">Mã 8 số mới sẽ được cấp khi lưu.</p>}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Mã tài khoản</label>
+                                        <div className="min-h-10 px-3 py-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 text-xs text-gray-600 dark:text-gray-300">Hệ thống tự cấp mã 8 số sau khi tạo.</div>
+                                    </div>
+                                )}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Họ tên *</label>
                                     <input type="text" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} placeholder="Nguyễn Văn A" required

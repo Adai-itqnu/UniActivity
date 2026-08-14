@@ -48,7 +48,9 @@ public class JwtAuthController {
         String password = loginRequest.get("password");
 
         if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Vui lòng nhập tên đăng nhập và mật khẩu."));
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Vui lòng nhập email hoặc mã tài khoản và mật khẩu."
+            ));
         }
 
         try {
@@ -91,11 +93,13 @@ public class JwtAuthController {
             return ResponseEntity.ok(response);
 
         } catch (BadCredentialsException ex) {
-            return ResponseEntity.status(401).body(Map.of("error", "Tên đăng nhập hoặc mật khẩu không đúng."));
+            return ResponseEntity.status(401).body(Map.of(
+                    "error", "Email, mã tài khoản hoặc mật khẩu không đúng."
+            ));
         } catch (AuthenticationException ex) {
             log.error("Authentication failed for user {}: {}", username, ex.getMessage());
             return ResponseEntity.status(401)
-                    .body(Map.of("error", "Tên đăng nhập hoặc mật khẩu không đúng."));
+                    .body(Map.of("error", "Email, mã tài khoản hoặc mật khẩu không đúng."));
         }
     }
 

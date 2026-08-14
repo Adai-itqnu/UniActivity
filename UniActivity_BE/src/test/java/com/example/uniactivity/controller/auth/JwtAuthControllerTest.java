@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 
 import java.util.Map;
@@ -128,6 +129,32 @@ class JwtAuthControllerTest {
         ResponseEntity<?> response = controller.exchangeOAuthCode(Map.of("code", "invalid-code"));
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    @Test
+    void loginErrorsDescribeEmailOrAccountCode() {
+        ResponseEntity<?> missing = controller.login(Map.of());
+        assertEquals(HttpStatus.BAD_REQUEST, missing.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> missingBody = (Map<String, Object>) missing.getBody();
+        assertEquals(
+                "Vui lòng nhập email hoặc mã tài khoản và mật khẩu.",
+                missingBody.get("error")
+        );
+
+        when(authenticationManager.authenticate(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new BadCredentialsException("invalid"));
+        ResponseEntity<?> invalid = controller.login(Map.of(
+                "username", "12345678",
+                "password", "wrong-password"
+        ));
+        assertEquals(HttpStatus.UNAUTHORIZED, invalid.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> invalidBody = (Map<String, Object>) invalid.getBody();
+        assertEquals(
+                "Email, mã tài khoản hoặc mật khẩu không đúng.",
+                invalidBody.get("error")
+        );
     }
 
     private void stubValidRefreshToken(User user) {

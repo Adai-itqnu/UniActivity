@@ -330,7 +330,7 @@ export default function Profile() {
 
                     {/* Info Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <InfoField icon="badge" label="Tên đăng nhập" value={profile.username} />
+                        <InfoField icon="badge" label="Mã tài khoản" value={profile.username} />
                         <div className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                             <div className="size-9 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center shrink-0 border border-gray-200 dark:border-gray-600">
                                 <span className="material-symbols-outlined text-gray-500 dark:text-gray-400 text-lg">mail</span>
@@ -479,7 +479,7 @@ export default function Profile() {
                         {/* Read-only fields notice */}
                         <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-xl text-xs text-blue-600 dark:text-blue-400 flex items-start gap-2">
                             <span className="material-symbols-outlined text-sm mt-0.5">info</span>
-                            <span>Tên đăng nhập và Email không thể thay đổi. Liên hệ Quản trị viên nếu cần cập nhật.</span>
+                            <span>Mã tài khoản và Email không thể thay đổi. Liên hệ Quản trị viên nếu cần cập nhật.</span>
                         </div>
 
                         {/* Actions */}

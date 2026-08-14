@@ -114,7 +114,7 @@ export default function UserProfileModal({ user, apiBase, onClose }) {
                 {/* ─── Name + Role ─── */}
                 <div style={{ textAlign: 'center', padding: '0 clamp(16px, 3vw, 24px) clamp(6px, 1vw, 10px)' }}>
                     <h3 className="text-gray-900 dark:text-white" style={{ fontSize: 'clamp(15px, 2.8vw, 20px)', fontWeight: 700, margin: 0 }}>{u.fullName}</h3>
-                    <p className="text-gray-400" style={{ fontSize: 'clamp(11px, 1.8vw, 14px)', marginTop: '2px' }}>@{u.username}</p>
+                    <p className="text-gray-400" style={{ fontSize: 'clamp(11px, 1.8vw, 14px)', marginTop: '2px' }}>{u.role === 'ADMIN' ? 'Username' : 'Mã tài khoản'}: {u.username}</p>
                     <span
                         className={`inline-flex items-center gap-1 font-bold ${rc.bg}`}
                         style={{ marginTop: 'clamp(6px, 1vw, 10px)', padding: 'clamp(3px, 0.5vw, 5px) clamp(10px, 1.5vw, 14px)', borderRadius: '100px', fontSize: 'clamp(10px, 1.5vw, 12px)' }}
