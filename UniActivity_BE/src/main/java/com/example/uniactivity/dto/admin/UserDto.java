@@ -8,7 +8,6 @@ import lombok.Data;
 public class UserDto {
     private Long id;
     
-    @NotBlank(message = "Username không được để trống")
     private String username;
     
     @NotBlank(message = "Email không được để trống")

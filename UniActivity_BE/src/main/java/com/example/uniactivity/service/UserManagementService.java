@@ -7,6 +7,7 @@ import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.enums.UserStatus;
 import com.example.uniactivity.exception.DuplicateException;
 import com.example.uniactivity.exception.NotFoundException;
+import com.example.uniactivity.exception.ValidationException;
 import com.example.uniactivity.mapper.UserMapper;
 import com.example.uniactivity.repository.StudentClassRepository;
 import com.example.uniactivity.repository.UserRepository;
@@ -25,6 +26,7 @@ public class UserManagementService {
     private final StudentClassRepository studentClassRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final AccountCodeGenerator accountCodeGenerator;
 
     public List<UserResponseDto> getAllUsers() {
         return userRepository.findAll().stream()
@@ -56,9 +58,11 @@ public class UserManagementService {
 
     @Transactional
     public UserResponseDto createUser(UserDto dto) {
-        validateUnique(dto, null);
+        Role requestedRole = Role.valueOf(dto.getRole());
+        validateUnique(dto, null, requestedRole);
         
         User entity = userMapper.toEntity(dto);
+        applyUsernamePolicy(entity, requestedRole, true);
         
         if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
             entity.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
@@ -73,9 +77,11 @@ public class UserManagementService {
     @Transactional
     public UserResponseDto updateUser(Long id, UserDto dto) {
         User entity = findById(id);
-        validateUnique(dto, entity);
+        Role requestedRole = Role.valueOf(dto.getRole());
+        validateUnique(dto, entity, requestedRole);
         
         userMapper.updateEntity(dto, entity);
+        applyUsernamePolicy(entity, requestedRole, false);
         setStudentClass(entity, dto.getClassId());
         
         return userMapper.toResponseDto(userRepository.save(entity));
@@ -105,11 +111,16 @@ public class UserManagementService {
                 .orElseThrow(() -> new NotFoundException("Người dùng", id));
     }
     
-    private void validateUnique(UserDto dto, User existing) {
+    private void validateUnique(UserDto dto, User existing, Role requestedRole) {
         if (existing == null) {
             // Create mode
-            if (userRepository.existsByUsername(dto.getUsername())) {
-                throw new DuplicateException("Username", dto.getUsername());
+            if (requestedRole == Role.ADMIN) {
+                if (dto.getUsername() == null || dto.getUsername().isBlank()) {
+                    throw new ValidationException("Username ADMIN không được để trống");
+                }
+                if (userRepository.existsByUsername(dto.getUsername())) {
+                    throw new DuplicateException("Username", dto.getUsername());
+                }
             }
             if (userRepository.existsByEmail(dto.getEmail())) {
                 throw new DuplicateException("Email", dto.getEmail());
@@ -118,6 +129,19 @@ public class UserManagementService {
             // Update mode
             if (!existing.getEmail().equals(dto.getEmail()) && userRepository.existsByEmail(dto.getEmail())) {
                 throw new DuplicateException("Email", dto.getEmail());
+            }
+        }
+    }
+
+    private void applyUsernamePolicy(User entity, Role role, boolean create) {
+        if (role == Role.ADMIN) {
+            return;
+        }
+
+        if (create || !accountCodeGenerator.isValidCode(entity.getUsername())) {
+            entity.setUsername(accountCodeGenerator.generateUniqueCode());
+            if (!create) {
+                entity.setTokenVersion(entity.getTokenVersion() + 1);
             }
         }
     }
