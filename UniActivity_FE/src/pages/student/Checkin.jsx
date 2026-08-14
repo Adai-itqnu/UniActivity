@@ -23,6 +23,9 @@ export default function Checkin() {
 
     /* ---------- STATE ---------- */
     const [mode, setMode] = useState(paramActivityId ? 'url' : 'loading') // 'loading' | 'scanner' | 'url' | 'checkin' | 'evidence' | 'done' | 'blocked'
+    const [scannerTab, setScannerTab] = useState('qr') // 'qr' | 'code'
+    const [manualCode, setManualCode] = useState('')
+    const [selectedActivityIdForCode, setSelectedActivityIdForCode] = useState('')
     const [activityId, setActivityId] = useState(paramActivityId || null)
     const [classId, setClassId] = useState(paramClassId || null)
     const [qrToken, setQrToken] = useState(searchParams.get('token') || null) // Dynamic QR token
@@ -76,6 +79,9 @@ export default function Checkin() {
                 }
 
                 setRegisteredActivities(canCheckin)
+                if (canCheckin.length > 0 && !selectedActivityIdForCode) {
+                    setSelectedActivityIdForCode(String(canCheckin[0].activity?.id || ''))
+                }
                 setMode('scanner')
             } catch (e) {
                 setBlockReason({
@@ -149,8 +155,30 @@ export default function Checkin() {
         }
     }
 
+    const handleManualCodeSubmit = (e) => {
+        e.preventDefault()
+        const cleanCode = manualCode.trim()
+        if (!cleanCode || !/^\d{6}$/.test(cleanCode)) {
+            setResult({ type: 'error', message: 'Vui lòng nhập đủ 6 chữ số mã check-in' })
+            return
+        }
+        if (!selectedActivityIdForCode) {
+            setResult({ type: 'error', message: 'Vui lòng chọn hoạt động cần check-in' })
+            return
+        }
+        setActivityId(selectedActivityIdForCode)
+        const userClassId = currentUser?.studentClass?.id ? String(currentUser.studentClass.id) : null
+        setClassId(userClassId)
+        setQrToken(cleanCode)
+        handleCheckin(selectedActivityIdForCode, userClassId, cleanCode)
+    }
+
     /* ---------- CHECKIN ---------- */
-    const handleCheckin = async () => {
+    const handleCheckin = async (overrideActId = null, overrideClassId = null, overrideToken = null) => {
+        const targetActId = overrideActId || activityId
+        const targetClassId = overrideClassId || classId || (currentUser?.studentClass?.id ? String(currentUser.studentClass.id) : null)
+        const targetToken = overrideToken || qrToken
+
         setCheckinLoading(true)
         try {
             // 1. Lấy vị trí GPS trước khi check-in
@@ -176,10 +204,10 @@ export default function Checkin() {
             }
 
             // 2. Build URL với classId + dynamic token + GPS
-            let url = `${apiPrefix}/checkin/${activityId}`
+            let url = `${apiPrefix}/checkin/${targetActId}`
             const params = new URLSearchParams()
-            if (classId) params.set('classId', classId)
-            if (qrToken) params.set('token', qrToken)
+            if (targetClassId) params.set('classId', targetClassId)
+            if (targetToken) params.set('token', targetToken)
             if (gpsLat != null) params.set('lat', gpsLat)
             if (gpsLng != null) params.set('lng', gpsLng)
             if (gpsAccuracy != null) params.set('accuracy', gpsAccuracy)
@@ -190,7 +218,7 @@ export default function Checkin() {
             if (!res.ok) {
                 // Handle specific error types
                 if (data.expired) {
-                    setResult({ type: 'error', message: data.message || 'Mã QR đã hết hạn. Vui lòng quét lại mã QR mới.' })
+                    setResult({ type: 'error', message: data.message || 'Mã QR hoặc mã check-in đã hết hạn. Vui lòng thử mã mới.' })
                 } else if (data.gpsRequired) {
                     setResult({ type: 'error', message: '📍 ' + (data.message || 'Hoạt động này yêu cầu GPS. Vui lòng cấp quyền vị trí.') })
                 } else if (data.gpsInaccurate) {
@@ -204,7 +232,8 @@ export default function Checkin() {
             }
             setResult({ type: 'success', message: data.message })
             setCheckinState('already')
-            loadScoreOptions()
+            setMode('checkin')
+            loadScoreOptions(targetActId)
         } catch (e) {
             setResult({ type: 'error', message: e.message })
         } finally {
@@ -213,11 +242,14 @@ export default function Checkin() {
     }
 
     /* ---------- LOAD SCORE OPTIONS ---------- */
-    const loadScoreOptions = async () => {
+    const loadScoreOptions = async (actId = null) => {
+        const targetId = actId || activityId
         try {
-            const res = await fetch(`${apiPrefix}/activities/${activityId}/score-options`, { credentials: 'include' })
+            const res = await fetch(`${apiPrefix}/activities/${targetId}/score-options`, { credentials: 'include' })
             if (res.ok) setScoreOptions(await res.json())
-        } catch { setScoreOptions([]) }
+        } catch {
+            setScoreOptions([])
+        }
     }
 
     /* ---------- FILE PREVIEW ---------- */
@@ -320,9 +352,35 @@ export default function Checkin() {
             {/* ===== SCANNER MODE ===== */}
             {mode === 'scanner' && (
                 <>
+                    {/* Tabs: Quét QR / Nhập mã 6 số */}
+                    <div className="flex rounded-2xl bg-gray-100 dark:bg-gray-800 p-1 mb-4">
+                        <button
+                            onClick={() => setScannerTab('qr')}
+                            className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                                scannerTab === 'qr'
+                                    ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                            }`}
+                        >
+                            <span className="material-symbols-outlined text-lg">qr_code_scanner</span>
+                            Quét camera QR
+                        </button>
+                        <button
+                            onClick={() => setScannerTab('code')}
+                            className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                                scannerTab === 'code'
+                                    ? 'bg-white dark:bg-gray-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                            }`}
+                        >
+                            <span className="material-symbols-outlined text-lg">pin</span>
+                            Nhập mã 6 số
+                        </button>
+                    </div>
+
                     {/* Registered activities hint */}
-                    {registeredActivities.length > 0 && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4">
+                    {registeredActivities.length > 0 && scannerTab === 'qr' && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 mb-4">
                             <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1.5">
                                 <span className="material-symbols-outlined text-sm">info</span>
                                 Bạn có {registeredActivities.length} hoạt động chờ check-in
@@ -340,7 +398,71 @@ export default function Checkin() {
                             </div>
                         </div>
                     )}
-                    <QrScannerCard onScanned={handleScanned} />
+
+                    {scannerTab === 'qr' ? (
+                        <QrScannerCard onScanned={handleScanned} />
+                    ) : (
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+                            <div className="text-center mb-6">
+                                <div className="size-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
+                                    <span className="material-symbols-outlined text-2xl">pin</span>
+                                </div>
+                                <h3 className="text-base font-bold text-gray-900 dark:text-white">Nhập mã check-in 6 chữ số</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Nhập mã hiển thị ngay bên dưới mã QR của ban tổ chức (mã đổi mỗi 1 phút).
+                                </p>
+                            </div>
+
+                            <form onSubmit={handleManualCodeSubmit} className="space-y-4 max-w-sm mx-auto">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                                        Hoạt động
+                                    </label>
+                                    <select
+                                        value={selectedActivityIdForCode}
+                                        onChange={e => setSelectedActivityIdForCode(e.target.value)}
+                                        className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                                        required
+                                    >
+                                        {registeredActivities.map(r => (
+                                            <option key={r.id} value={r.activity?.id}>
+                                                {r.activity?.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                                        Mã check-in (6 số)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        value={manualCode}
+                                        onChange={e => setManualCode(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="123456"
+                                        className="w-full text-center text-2xl font-mono font-bold tracking-widest px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
+                                        required
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={manualCode.length !== 6 || checkinLoading}
+                                    className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {checkinLoading ? (
+                                        <><div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" /> Đang xác thực...</>
+                                    ) : (
+                                        <><span className="material-symbols-outlined text-lg">verified</span> Xác thực & Check-in</>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
+                    )}
+
                     {result && <Toast result={result} />}
                 </>
             )}

@@ -568,10 +568,23 @@ function QrCodeModal({ activityId, activityName, onClose }) {
                     {qrData && !loading && (
                         <>
                             {/* QR with refresh animation */}
-                            <div className={`p-3 bg-white rounded-2xl border-2 border-dashed transition-all duration-500 ${
+                            <div className={`p-3 bg-white rounded-2xl border-2 border-dashed transition-all duration-500 flex flex-col items-center ${
                                 refreshing ? 'border-emerald-500 shadow-lg shadow-emerald-500/20 scale-[1.02]' : 'border-emerald-300 dark:border-emerald-700'
                             }`}>
                                 <canvas ref={canvasRef} className="w-64 h-64 object-contain" />
+                                
+                                {qrData?.checkinCode && (
+                                    <div className="w-full mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 text-center">
+                                        <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Mã check-in thủ công</p>
+                                        <div className="mt-1 flex items-center justify-center gap-1.5 font-mono text-2xl font-black text-gray-800 tracking-widest bg-gray-50 px-4 py-1.5 rounded-xl border border-gray-200">
+                                            {qrData.checkinCode.split('').map((digit, idx) => (
+                                                <span key={idx} className="w-7 h-9 flex items-center justify-center bg-white rounded border border-gray-300 shadow-xs">
+                                                    {digit}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Countdown timer */}

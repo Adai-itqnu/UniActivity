@@ -110,6 +110,7 @@ public class SecurityConfig {
                     "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/oauth2/exchange",
                     "/api/auth/send-verification-email", "/api/auth/verify-email",
                     "/api/auth/forgot-password", "/api/auth/verify-reset-otp", "/api/auth/reset-password",
+                    "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                     "/oauth2/**", "/error", "/terms"
                 ).permitAll()
                 .requestMatchers("/api/auth/logout-jwt", "/api/auth/me").authenticated()

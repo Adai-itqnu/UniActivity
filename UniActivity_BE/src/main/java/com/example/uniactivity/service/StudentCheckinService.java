@@ -31,20 +31,23 @@ public class StudentCheckinService {
         if (student == null || student.getStudentClass() == null) {
             throw new ValidationException("Bạn phải tham gia lớp trước khi check-in");
         }
-        if (classId == null) {
-            throw new ValidationException("Thiếu thông tin lớp từ mã QR");
-        }
+        Long targetClassId = classId != null ? classId : student.getStudentClass().getId();
         if (token == null || token.isBlank()) {
-            throw new ValidationException("Thiếu mã QR check-in");
+            throw new ValidationException("Thiếu mã QR hoặc mã check-in");
         }
-        if (!classId.equals(student.getStudentClass().getId())) {
-            throw new ValidationException("Mã QR này không dành cho lớp của bạn");
+        if (!targetClassId.equals(student.getStudentClass().getId())) {
+            throw new ValidationException("Mã check-in này không dành cho lớp của bạn");
         }
 
         Activity activity = activityService.findActivityById(activityId);
         validateActivityWindow(activity);
-        if (!qrTokenService.validateToken(token, activityId, classId)) {
-            throw new ValidationException("Mã QR không hợp lệ hoặc đã hết hạn");
+
+        boolean isValidToken = token.matches("^\\d{6}$")
+                ? qrTokenService.validateCheckinCode(token, activityId, targetClassId)
+                : qrTokenService.validateToken(token, activityId, targetClassId);
+
+        if (!isValidToken) {
+            throw new ValidationException("Mã QR hoặc mã check-in không hợp lệ hoặc đã hết hạn");
         }
         validateLocation(activity, latitude, longitude, accuracy);
 

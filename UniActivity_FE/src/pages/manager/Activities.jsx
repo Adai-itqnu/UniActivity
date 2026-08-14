@@ -449,10 +449,22 @@ function QRModal({ data, onClose }) {
                             <p className="text-sm text-red-500">{error}</p>
                         </div>
                     ) : (
-                        <div className={`p-2 bg-white rounded-xl transition-all duration-500 ${
+                        <div className={`p-2 bg-white rounded-xl transition-all duration-500 flex flex-col items-center ${
                             refreshing ? 'ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/20 scale-[1.02]' : ''
                         }`}>
                             <canvas ref={canvasRef} className="w-56 h-56 object-contain" />
+                            {qrData?.checkinCode && (
+                                <div className="w-full mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 text-center">
+                                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Mã check-in thủ công</p>
+                                    <div className="mt-1 flex items-center justify-center gap-1 font-mono text-xl font-black text-gray-800 tracking-widest bg-gray-50 px-3 py-1 rounded-lg border border-gray-200">
+                                        {qrData.checkinCode.split('').map((digit, idx) => (
+                                            <span key={idx} className="w-6 h-8 flex items-center justify-center bg-white rounded border border-gray-300 shadow-xs">
+                                                {digit}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

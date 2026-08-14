@@ -107,6 +107,30 @@ public class DynamicQrTokenService {
         return INTERVAL_SECONDS;
     }
 
+    /**
+     * Tạo mã số check-in 6 chữ số, đồng bộ với QR token (cùng timeWindow).
+     * Sinh viên có thể nhập mã này thay vì quét QR.
+     */
+    public String generateCheckinCode(Long activityId, Long classId) {
+        long currentWindow = getCurrentWindow();
+        return deriveCode(activityId, classId, currentWindow);
+    }
+
+    /**
+     * Validate mã số check-in. Chấp nhận window hiện tại ± tolerance.
+     */
+    public boolean validateCheckinCode(String code, Long activityId, Long classId) {
+        if (code == null || !code.matches("^\\d{6}$")) return false;
+        long currentWindow = getCurrentWindow();
+        for (int offset = -TOLERANCE_WINDOWS; offset <= 0; offset++) {
+            if (code.equals(deriveCode(activityId, classId, currentWindow + offset))) {
+                return true;
+            }
+        }
+        log.warn("Invalid checkin code for activity {} class {}", activityId, classId);
+        return false;
+    }
+
     // ===================== PRIVATE =====================
 
     private long getCurrentWindow() {
@@ -128,6 +152,30 @@ public class DynamicQrTokenService {
             return Base64.getUrlEncoder().withoutPadding().encodeToString(hmacBytes);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new RuntimeException("Failed to compute HMAC for QR token", e);
+        }
+    }
+
+    /**
+     * Chuyển HMAC thành mã số 6 chữ số (000000 - 999999) từ timeWindow
+     */
+    private String deriveCode(Long activityId, Long classId, long timeWindow) {
+        try {
+            String data = "CODE:" + activityId + ":" + classId + ":" + timeWindow;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec keySpec = new SecretKeySpec(
+                    secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(keySpec);
+            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            // Trích xuất 4 byte để tạo số nguyên dương
+            int offset = hash[hash.length - 1] & 0xf;
+            int binary = ((hash[offset] & 0x7f) << 24)
+                    | ((hash[offset + 1] & 0xff) << 16)
+                    | ((hash[offset + 2] & 0xff) << 8)
+                    | (hash[offset + 3] & 0xff);
+            int otp = binary % 1000000;
+            return String.format("%06d", otp);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException("Failed to compute checkin code", e);
         }
     }
 }

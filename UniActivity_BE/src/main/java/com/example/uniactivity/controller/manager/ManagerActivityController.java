@@ -144,6 +144,7 @@ public class ManagerActivityController {
         try {
             Long classId = currentUser.getStudentClass().getId();
             String token = dynamicQrTokenService.generateToken(activityId, classId);
+            String checkinCode = dynamicQrTokenService.generateCheckinCode(activityId, classId);
 
             // Build check-in URL
             String baseUrl = request.getScheme() + "://" + request.getServerName();
@@ -157,6 +158,7 @@ public class ManagerActivityController {
 
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("token", token);
+            response.put("checkinCode", checkinCode);
             response.put("activityId", activityId);
             response.put("classId", classId);
             response.put("checkinUrl", checkinUrl);
