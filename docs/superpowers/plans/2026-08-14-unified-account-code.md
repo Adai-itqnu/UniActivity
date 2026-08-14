@@ -27,7 +27,8 @@
 - `UniActivity_BE/src/main/java/com/example/uniactivity/security/CustomOAuth2UserService.java`: Google account creation and legacy self-healing.
 - `UniActivity_BE/src/main/java/com/example/uniactivity/service/UserManagementService.java`: admin-created users and role transitions.
 - `UniActivity_BE/src/main/java/com/example/uniactivity/dto/admin/UserDto.java`: permits an omitted username for generated-code roles.
-- `UniActivity_BE/src/main/java/db/migration/V4__normalize_non_admin_account_codes.java`: existing-data repair and database constraint.
+- `UniActivity_BE/src/main/java/db/migration/V4__normalize_non_admin_account_codes.java`: existing-data repair.
+- `UniActivity_BE/src/main/java/db/migration/V5__enforce_non_admin_account_codes.java`: MySQL version preflight and database constraint.
 - `UniActivity_FE/src/pages/AuthPage.jsx`, `UniActivity_FE/src/pages/admin/UserList.jsx`, `UniActivity_FE/src/pages/student/Profile.jsx`: user-facing copy and conditional admin form behavior.
 - `UniActivity_FE/src/components/{admin,manager,student}/*Header.jsx`, `UniActivity_FE/src/components/common/UserProfileModal.jsx`, and member/class pages: replace account-code labels and remove username-style `@` decoration.
 
@@ -242,11 +243,13 @@ git commit -m "feat: enforce role-aware account codes in admin flows"
 
 **Files:**
 - Create: `UniActivity_BE/src/main/java/db/migration/V4__normalize_non_admin_account_codes.java`
+- Create: `UniActivity_BE/src/main/java/db/migration/V5__enforce_non_admin_account_codes.java`
 - Create: `UniActivity_BE/src/test/java/db/migration/V4__normalize_non_admin_account_codesTest.java`
+- Create: `UniActivity_BE/src/test/java/db/migration/V5__enforce_non_admin_account_codesTest.java`
 
 **Interfaces:**
 - Consumes: JDBC `users(id, username, role, token_version)`.
-- Produces: repaired non-admin usernames and `chk_users_non_admin_account_code`.
+- Produces: V4 repairs non-admin usernames; V5 preflights MySQL 8.0.16+ and installs `chk_users_non_admin_account_code`.
 
 - [ ] **Step 1: Write failing H2 migration tests**
 
@@ -260,18 +263,18 @@ Expected: FAIL because V4 does not exist.
 
 - [ ] **Step 3: Implement the Java migration**
 
-Extend `BaseJavaMigration`. Load every existing username into a set, select invalid STUDENT/MANAGER rows, generate unused codes, update both `username` and `token_version`, verify no invalid non-admin rows remain, and add this MySQL constraint when absent:
+Extend `BaseJavaMigration`. V4 loads every existing username into a set, selects invalid STUDENT/MANAGER rows, generates unused codes, updates both `username` and `token_version`, and verifies no invalid non-admin rows remain. V5 is separate because MySQL DDL causes implicit commits: it preflights MySQL 8.0.16+, verifies normalized data, then adds this constraint when absent:
 
 ```sql
 CONSTRAINT chk_users_non_admin_account_code
 CHECK (role = 'ADMIN' OR username REGEXP '^[0-9]{8}$')
 ```
 
-Use prepared statements for row updates and the information schema to avoid adding a duplicate constraint.
+Use prepared statements for row updates and the information schema to avoid adding a duplicate constraint and to verify it is enforced.
 
 - [ ] **Step 4: Run migration and backend tests**
 
-Run: `cd UniActivity_BE && mvn -Dtest=V4__normalize_non_admin_account_codesTest test`
+Run: `cd UniActivity_BE && mvn -Dtest=V4__normalize_non_admin_account_codesTest,V5__enforce_non_admin_account_codesTest test`
 
 Expected: PASS.
 
@@ -282,7 +285,7 @@ Expected: BUILD SUCCESS with no test failures.
 - [ ] **Step 5: Commit migration**
 
 ```bash
-git add UniActivity_BE/src/main/java/db/migration/V4__normalize_non_admin_account_codes.java UniActivity_BE/src/test/java/db/migration/V4__normalize_non_admin_account_codesTest.java
+git add UniActivity_BE/src/main/java/db/migration/V4__normalize_non_admin_account_codes.java UniActivity_BE/src/main/java/db/migration/V5__enforce_non_admin_account_codes.java UniActivity_BE/src/test/java/db/migration/V4__normalize_non_admin_account_codesTest.java UniActivity_BE/src/test/java/db/migration/V5__enforce_non_admin_account_codesTest.java
 git commit -m "feat: migrate non-admin users to account codes"
 ```
 
@@ -345,8 +348,8 @@ git commit -m "feat: present unified account codes in the UI"
 
 ## Release Procedure
 
-- Back up the production database and rehearse V4 against a restored copy.
-- Confirm Flyway reports V2, V3, and V4 successful before accepting traffic.
+- Back up the production database and rehearse V4/V5 against a restored copy.
+- Confirm MySQL is at least 8.0.16 and Flyway reports V2, V3, V4, and V5 successful before accepting traffic.
 - Sample ADMIN rows to confirm usernames are unchanged.
 - Confirm all STUDENT/MANAGER usernames match eight digits and are unique.
 - Confirm a legacy JWT no longer works for a migrated user and email login still works.

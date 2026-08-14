@@ -45,11 +45,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         } catch (Exception ex) {
             // Bắt tất cả lỗi khác (DB constraint, etc.) và chuyển thành OAuth2AuthenticationException
             log.error("Lỗi xử lý đăng nhập Google: {}", ex.getMessage(), ex);
-            throw new OAuth2AuthenticationException(
-                    new OAuth2Error("processing_error", "Lỗi xử lý tài khoản Google: " + ex.getMessage(), null),
-                    ex
-            );
+            throw toProcessingException(ex);
         }
+    }
+
+    OAuth2AuthenticationException toProcessingException(Exception cause) {
+        return new OAuth2AuthenticationException(
+                new OAuth2Error(
+                        "processing_error",
+                        "Không thể hoàn tất đăng nhập Google. Vui lòng thử lại.",
+                        null
+                ),
+                cause
+        );
     }
 
     /**

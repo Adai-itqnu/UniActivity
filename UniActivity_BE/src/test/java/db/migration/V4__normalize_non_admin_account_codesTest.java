@@ -13,7 +13,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -50,7 +49,7 @@ class V4__normalize_non_admin_account_codesTest {
     }
 
     @Test
-    void migratesOnlyInvalidNonAdminsAndAddsRoleAwareConstraint() throws Exception {
+    void migratesOnlyInvalidNonAdminsWithoutInstallingConstraint() throws Exception {
         SecureRandom random = mock(SecureRandom.class);
         when(random.nextInt(90_000_000)).thenReturn(5, 6, 5, 6, 7);
         Context context = mock(Context.class);
@@ -64,17 +63,10 @@ class V4__normalize_non_admin_account_codesTest {
         assertUser(4, "10000005", 2);
         assertEquals(4, distinctUsernameCount());
 
-        SQLException invalidManager = assertThrows(SQLException.class, () -> {
-            try (Statement statement = connection.createStatement()) {
-                statement.execute("INSERT INTO users VALUES (5, 'legacy-manager', 'MANAGER', 0)");
-            }
-        });
-        assertTrue(invalidManager.getMessage().contains("CHK_USERS_NON_ADMIN_ACCOUNT_CODE"));
-
         try (Statement statement = connection.createStatement()) {
-            statement.execute("INSERT INTO users VALUES (6, 'another-admin', 'ADMIN', 0)");
+            statement.execute("INSERT INTO users VALUES (5, 'legacy-manager', 'MANAGER', 0)");
         }
-        assertUser(6, "another-admin", 0);
+        assertUser(5, "legacy-manager", 0);
     }
 
     private void assertUser(long id, String username, long tokenVersion) throws SQLException {

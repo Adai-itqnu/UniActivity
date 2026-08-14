@@ -71,9 +71,11 @@ Thêm Java Flyway migration V4 để xử lý dữ liệu hiện hữu bằng JD
 3. Cấp mã duy nhất cho username dạng `google_...`, username chữ hoặc định dạng khác.
 4. Tăng `token_version` cho từng user bị đổi để thu hồi token chứa định danh cũ.
 5. Không thay đổi username của `ADMIN`.
-6. Thêm database check constraint để `STUDENT`/`MANAGER` phải có username 8 chữ số, trong khi `ADMIN` được phép dùng username riêng.
+6. V5 kiểm tra MySQL 8.0.16+, xác nhận V4 đã chuẩn hóa toàn bộ dữ liệu rồi mới thêm database check constraint để `STUDENT`/`MANAGER` phải có username 8 chữ số, trong khi `ADMIN` được phép dùng username riêng.
 
-Migration phải được chạy thử trên bản sao database production và có backup trước lần deploy đầu tiên. Nếu không thể cấp mã hoặc vi phạm unique/check constraint, migration phải thất bại thay vì bỏ qua dữ liệu.
+V4 và V5 được tách riêng vì MySQL implicit commit khi chạy DDL. Nhờ đó bước chuẩn hóa dữ liệu không bị trộn với `ALTER TABLE`, và V5 có thể dừng trước DDL nếu server chưa thực thi `CHECK` constraint.
+
+Migration phải được chạy thử trên bản sao database production và có backup trước lần deploy đầu tiên. Nếu không thể cấp mã hoặc vi phạm unique/check constraint, migration phải thất bại thay vì bỏ qua dữ liệu. Quy trình triển khai và phục hồi nằm trong `docs/account-code-migration-runbook.md`.
 
 ## Xử lý lỗi và cạnh tranh
 

@@ -1,12 +1,15 @@
 package com.example.uniactivity.controller.auth;
 
 import com.example.uniactivity.dto.auth.UserRegistrationDto;
+import com.example.uniactivity.exception.DuplicateException;
 import com.example.uniactivity.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,6 +21,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 public class RegistrationApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(RegistrationApiController.class);
+    private static final String GENERIC_REGISTRATION_ERROR =
+            "Không thể tạo tài khoản. Vui lòng thử lại.";
 
     @Autowired
     private UserService userService;
@@ -50,8 +57,12 @@ public class RegistrationApiController {
             response.put("message", "Đăng ký thành công!");
             response.put("username", user.getUsername());
             return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
+        } catch (DuplicateException | IllegalStateException e) {
             response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        } catch (RuntimeException e) {
+            log.error("Không thể tạo tài khoản cho email {}", dto.getEmail(), e);
+            response.put("error", GENERIC_REGISTRATION_ERROR);
             return ResponseEntity.badRequest().body(response);
         }
     }

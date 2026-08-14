@@ -12,14 +12,12 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 public class V4__normalize_non_admin_account_codes extends BaseJavaMigration {
 
     private static final Pattern ACCOUNT_CODE = Pattern.compile("^[0-9]{8}$");
-    private static final String CONSTRAINT_NAME = "chk_users_non_admin_account_code";
     private static final int MAX_CODE_ATTEMPTS = 1_000;
 
     private final SecureRandom random;
@@ -37,7 +35,6 @@ public class V4__normalize_non_admin_account_codes extends BaseJavaMigration {
         Connection connection = context.getConnection();
         normalizeUsers(connection);
         verifyInvariant(connection);
-        addConstraintIfMissing(connection);
     }
 
     int normalizeUsers(Connection connection) throws SQLException {
@@ -96,41 +93,6 @@ public class V4__normalize_non_admin_account_codes extends BaseJavaMigration {
                             "User " + rows.getLong("id") + " vẫn có mã tài khoản không hợp lệ"
                     );
                 }
-            }
-        }
-    }
-
-    private void addConstraintIfMissing(Connection connection) throws SQLException {
-        if (constraintExists(connection)) {
-            return;
-        }
-        try (Statement statement = connection.createStatement()) {
-            statement.execute("""
-                    ALTER TABLE users
-                    ADD CONSTRAINT chk_users_non_admin_account_code
-                    CHECK (role = 'ADMIN' OR username REGEXP '^[0-9]{8}$')
-                    """);
-        }
-    }
-
-    private boolean constraintExists(Connection connection) throws SQLException {
-        String product = connection.getMetaData().getDatabaseProductName();
-        String schema = product.toUpperCase(Locale.ROOT).contains("H2")
-                ? connection.getSchema()
-                : connection.getCatalog();
-
-        try (PreparedStatement query = connection.prepareStatement("""
-                SELECT COUNT(*)
-                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-                WHERE UPPER(CONSTRAINT_NAME) = UPPER(?)
-                  AND UPPER(TABLE_NAME) = 'USERS'
-                  AND UPPER(CONSTRAINT_SCHEMA) = UPPER(?)
-                """)) {
-            query.setString(1, CONSTRAINT_NAME);
-            query.setString(2, schema);
-            try (ResultSet rows = query.executeQuery()) {
-                rows.next();
-                return rows.getLong(1) > 0;
             }
         }
     }

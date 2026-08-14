@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
@@ -121,6 +122,18 @@ class CustomOAuth2UserServiceTest {
         assertEquals(UserStatus.ACTIVE, result.getUser().getStatus());
         assertEquals(4L, result.getUser().getTokenVersion());
         verifyNoInteractions(accountCodeGenerator);
+    }
+
+    @Test
+    void processingFailureDoesNotExposeDatabaseDetailsToOAuthClient() {
+        OAuth2AuthenticationException exception = service.toProcessingException(
+                new DataIntegrityViolationException("Duplicate entry '12345678' for key users.username")
+        );
+
+        assertEquals(
+                "Không thể hoàn tất đăng nhập Google. Vui lòng thử lại.",
+                exception.getError().getDescription()
+        );
     }
 
     private OAuth2User oauthUser(String email, boolean emailVerified, String subject) {

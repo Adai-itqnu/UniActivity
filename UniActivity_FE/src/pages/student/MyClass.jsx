@@ -87,7 +87,7 @@ export default function MyClass() {
                             type="text"
                             value={searchInput}
                             onChange={e => setSearchInput(e.target.value)}
-                            placeholder="Nhập tên hoặc mã sinh viên..."
+                            placeholder="Nhập tên hoặc mã tài khoản..."
                             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 text-sm"
                         />
                     </div>

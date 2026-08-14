@@ -10,7 +10,7 @@ public class UserRegistrationDto {
     @NotBlank(message = "Họ và tên không được để trống")
     private String fullName;
 
-    // Username (mã sinh viên) — tự sinh bởi hệ thống, không cần nhập
+    // Mã tài khoản — tự sinh bởi hệ thống, không cần nhập
     private String username;
 
     @NotBlank(message = "Email không được để trống")

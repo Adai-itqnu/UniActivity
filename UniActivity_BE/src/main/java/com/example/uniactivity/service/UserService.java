@@ -4,6 +4,7 @@ import com.example.uniactivity.dto.auth.UserRegistrationDto;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.Role;
 import com.example.uniactivity.enums.UserStatus;
+import com.example.uniactivity.exception.DuplicateException;
 import com.example.uniactivity.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,10 +26,10 @@ public class UserService {
     @Transactional
     public User registerUser(UserRegistrationDto registrationDto) {
         if (userRepository.existsByEmail(registrationDto.getEmail())) {
-            throw new RuntimeException("Email đã tồn tại");
+            throw new DuplicateException("Email", registrationDto.getEmail());
         }
 
-        // Tự sinh mã sinh viên 8 chữ số ngẫu nhiên, đảm bảo không trùng
+        // Tự sinh mã tài khoản 8 chữ số ngẫu nhiên, đảm bảo không trùng
         String username = accountCodeGenerator.generateUniqueCode();
 
         User user = new User();

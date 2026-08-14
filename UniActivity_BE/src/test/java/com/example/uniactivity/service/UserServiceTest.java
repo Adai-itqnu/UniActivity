@@ -3,6 +3,7 @@ package com.example.uniactivity.service;
 import com.example.uniactivity.dto.auth.UserRegistrationDto;
 import com.example.uniactivity.entity.User;
 import com.example.uniactivity.enums.Role;
+import com.example.uniactivity.exception.DuplicateException;
 import com.example.uniactivity.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -54,5 +56,19 @@ class UserServiceTest {
         assertEquals(Role.STUDENT, savedUser.getValue().getRole());
         assertEquals("12345678", savedUser.getValue().getUsername());
         assertEquals(0L, savedUser.getValue().getTokenVersion());
+    }
+
+    @Test
+    void duplicateEmailUsesTypedPublicException() {
+        UserRegistrationDto dto = new UserRegistrationDto();
+        dto.setEmail("duplicate@example.edu.vn");
+        when(userRepository.existsByEmail(dto.getEmail())).thenReturn(true);
+
+        DuplicateException exception = assertThrows(
+                DuplicateException.class,
+                () -> userService.registerUser(dto)
+        );
+
+        assertEquals("Email đã tồn tại: duplicate@example.edu.vn", exception.getMessage());
     }
 }

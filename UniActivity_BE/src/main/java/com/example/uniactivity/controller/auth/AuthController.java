@@ -1,6 +1,7 @@
 package com.example.uniactivity.controller.auth;
 
 import com.example.uniactivity.dto.auth.UserRegistrationDto;
+import com.example.uniactivity.exception.DuplicateException;
 import com.example.uniactivity.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,9 +11,15 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Controller
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+    private static final String GENERIC_REGISTRATION_ERROR =
+            "Không thể tạo tài khoản. Vui lòng thử lại.";
 
     @Autowired
     private UserService userService;
@@ -47,8 +54,12 @@ public class AuthController {
 
         try {
             userService.registerUser(registrationDto);
-        } catch (RuntimeException e) {
+        } catch (DuplicateException | IllegalStateException e) {
             model.addAttribute("error", e.getMessage());
+            return "auth/register";
+        } catch (RuntimeException e) {
+            log.error("Không thể tạo tài khoản cho email {}", registrationDto.getEmail(), e);
+            model.addAttribute("error", GENERIC_REGISTRATION_ERROR);
             return "auth/register";
         }
 
