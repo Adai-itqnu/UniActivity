@@ -22,14 +22,18 @@ FROM users
 WHERE role IN ('STUDENT', 'MANAGER')
   AND username NOT REGEXP '^[0-9]{8}$';
 
-SELECT constraint_name, enforced
-FROM information_schema.table_constraints
-WHERE constraint_schema = DATABASE()
-  AND table_name = 'users'
-  AND constraint_name = 'chk_users_non_admin_account_code';
+SELECT tc.constraint_name, tc.constraint_type, tc.enforced, cc.check_clause
+FROM information_schema.table_constraints tc
+JOIN information_schema.check_constraints cc
+  ON cc.constraint_schema = tc.constraint_schema
+ AND cc.constraint_name = tc.constraint_name
+WHERE tc.constraint_schema = DATABASE()
+  AND tc.table_name = 'users'
+  AND tc.constraint_name = 'chk_users_non_admin_account_code'
+  AND tc.constraint_type = 'CHECK';
 ```
 
-Query thứ nhất phải trả 0 dòng; query thứ hai phải trả một dòng với `enforced = YES`.
+Query thứ nhất phải trả 0 dòng; query thứ hai phải trả đúng một `CHECK`, có `enforced = YES`, và `check_clause` phải tương đương `role = 'ADMIN' OR username REGEXP '^[0-9]{8}$'`.
 
 ## Phục hồi khi migration lỗi
 

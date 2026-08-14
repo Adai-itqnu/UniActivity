@@ -49,6 +49,19 @@ class AuthControllerTest {
         verify(model).addAttribute("error", "Không thể tạo tài khoản. Vui lòng thử lại.");
     }
 
+    @Test
+    void unrelatedIllegalStateExceptionIsSanitized() {
+        UserRegistrationDto dto = validDto();
+        when(userService.registerUser(dto)).thenThrow(
+                new IllegalStateException("Bean factory configuration at /internal/path")
+        );
+
+        String view = controller.registerUserAccount(dto, bindingResult, model);
+
+        assertEquals("auth/register", view);
+        verify(model).addAttribute("error", "Không thể tạo tài khoản. Vui lòng thử lại.");
+    }
+
     private UserRegistrationDto validDto() {
         UserRegistrationDto dto = new UserRegistrationDto();
         dto.setFullName("Student");

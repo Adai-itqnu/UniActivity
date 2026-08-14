@@ -64,6 +64,21 @@ class RegistrationApiControllerTest {
         assertEquals("Email đã tồn tại: student@example.edu.vn", body(response).get("error"));
     }
 
+    @Test
+    void unrelatedIllegalStateExceptionIsSanitized() {
+        UserRegistrationDto dto = validDto();
+        when(userService.registerUser(dto)).thenThrow(
+                new IllegalStateException("Bean factory configuration at /internal/path")
+        );
+
+        ResponseEntity<?> response = controller.registerUser(dto, bindingResult);
+
+        assertEquals(
+                "Không thể tạo tài khoản. Vui lòng thử lại.",
+                body(response).get("error")
+        );
+    }
+
     private UserRegistrationDto validDto() {
         UserRegistrationDto dto = new UserRegistrationDto();
         dto.setFullName("Student");

@@ -1,6 +1,7 @@
 package com.example.uniactivity.controller.auth;
 
 import com.example.uniactivity.dto.auth.UserRegistrationDto;
+import com.example.uniactivity.exception.AccountCodeGenerationException;
 import com.example.uniactivity.exception.DuplicateException;
 import com.example.uniactivity.service.UserService;
 import jakarta.validation.Valid;
@@ -54,7 +55,7 @@ public class AuthController {
 
         try {
             userService.registerUser(registrationDto);
-        } catch (DuplicateException | IllegalStateException e) {
+        } catch (DuplicateException | AccountCodeGenerationException e) {
             model.addAttribute("error", e.getMessage());
             return "auth/register";
         } catch (RuntimeException e) {

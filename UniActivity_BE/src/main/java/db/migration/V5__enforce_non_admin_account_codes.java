@@ -24,7 +24,12 @@ public class V5__enforce_non_admin_account_codes extends BaseJavaMigration {
         validateDatabaseSupport(connection);
         verifyNormalizedData(connection);
 
-        if (!constraintExists(connection)) {
+        ConstraintDefinition constraint = findNamedConstraint(connection);
+        if (constraint != null && !isExpectedConstraint(constraint)) {
+            throw new SQLException("Constraint " + CONSTRAINT_NAME + " không đúng định nghĩa bắt buộc");
+        }
+
+        if (constraint == null) {
             try (Statement statement = connection.createStatement()) {
                 statement.execute("""
                         ALTER TABLE users
@@ -34,8 +39,9 @@ public class V5__enforce_non_admin_account_codes extends BaseJavaMigration {
             }
         }
 
-        if (!constraintExists(connection) || !constraintIsEnforced(connection)) {
-            throw new SQLException("Constraint mã tài khoản không tồn tại hoặc chưa được thực thi");
+        ConstraintDefinition installed = findNamedConstraint(connection);
+        if (!isExpectedConstraint(installed) || !constraintIsEnforced(connection)) {
+            throw new SQLException("Constraint mã tài khoản không đúng định nghĩa hoặc chưa được thực thi");
         }
     }
 
@@ -93,24 +99,59 @@ public class V5__enforce_non_admin_account_codes extends BaseJavaMigration {
         }
     }
 
-    private boolean constraintExists(Connection connection) throws SQLException {
+    private ConstraintDefinition findNamedConstraint(Connection connection) throws SQLException {
         String product = connection.getMetaData().getDatabaseProductName();
         String schema = isH2(product) ? connection.getSchema() : connection.getCatalog();
 
         try (PreparedStatement query = connection.prepareStatement("""
-                SELECT COUNT(*)
-                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-                WHERE UPPER(CONSTRAINT_NAME) = UPPER(?)
-                  AND UPPER(TABLE_NAME) = 'USERS'
-                  AND UPPER(CONSTRAINT_SCHEMA) = UPPER(?)
+                SELECT tc.CONSTRAINT_TYPE, cc.CHECK_CLAUSE
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
+                  ON UPPER(cc.CONSTRAINT_NAME) = UPPER(tc.CONSTRAINT_NAME)
+                 AND UPPER(cc.CONSTRAINT_SCHEMA) = UPPER(tc.CONSTRAINT_SCHEMA)
+                WHERE UPPER(tc.CONSTRAINT_NAME) = UPPER(?)
+                  AND UPPER(tc.TABLE_NAME) = 'USERS'
+                  AND UPPER(tc.CONSTRAINT_SCHEMA) = UPPER(?)
                 """)) {
             query.setString(1, CONSTRAINT_NAME);
             query.setString(2, schema);
             try (ResultSet rows = query.executeQuery()) {
-                rows.next();
-                return rows.getLong(1) > 0;
+                if (!rows.next()) {
+                    return null;
+                }
+                return new ConstraintDefinition(
+                        rows.getString("CONSTRAINT_TYPE"),
+                        rows.getString("CHECK_CLAUSE")
+                );
             }
         }
+    }
+
+    private boolean isExpectedConstraint(ConstraintDefinition constraint) {
+        if (constraint == null || !"CHECK".equalsIgnoreCase(constraint.type())) {
+            return false;
+        }
+
+        return isExpectedCheckClause(constraint.checkClause());
+    }
+
+    static boolean isExpectedCheckClause(String checkClause) {
+        if (checkClause == null) {
+            return false;
+        }
+
+        String clause = checkClause
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("_[a-z0-9]+(?=')", "")
+                .replace("`", "")
+                .replace("\"", "")
+                .replace("'", "")
+                .replaceAll("\\s+", "")
+                .replace("(", "")
+                .replace(")", "");
+
+        return "role=adminorusernameregexp^[0-9]{8}$".equals(clause)
+                || "role=adminorregexp_likeusername,^[0-9]{8}$".equals(clause);
     }
 
     private boolean constraintIsEnforced(Connection connection) throws SQLException {
@@ -125,6 +166,7 @@ public class V5__enforce_non_admin_account_codes extends BaseJavaMigration {
                 WHERE UPPER(CONSTRAINT_NAME) = UPPER(?)
                   AND UPPER(TABLE_NAME) = 'USERS'
                   AND UPPER(CONSTRAINT_SCHEMA) = UPPER(?)
+                  AND UPPER(CONSTRAINT_TYPE) = 'CHECK'
                 """)) {
             query.setString(1, CONSTRAINT_NAME);
             query.setString(2, connection.getCatalog());
@@ -140,5 +182,8 @@ public class V5__enforce_non_admin_account_codes extends BaseJavaMigration {
 
     private boolean isNonAdmin(String role) {
         return "STUDENT".equals(role) || "MANAGER".equals(role);
+    }
+
+    private record ConstraintDefinition(String type, String checkClause) {
     }
 }

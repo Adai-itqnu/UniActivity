@@ -1,6 +1,7 @@
 package com.example.uniactivity.controller.auth;
 
 import com.example.uniactivity.dto.auth.UserRegistrationDto;
+import com.example.uniactivity.exception.AccountCodeGenerationException;
 import com.example.uniactivity.exception.DuplicateException;
 import com.example.uniactivity.service.UserService;
 import jakarta.validation.Valid;
@@ -57,7 +58,7 @@ public class RegistrationApiController {
             response.put("message", "Đăng ký thành công!");
             response.put("username", user.getUsername());
             return ResponseEntity.ok(response);
-        } catch (DuplicateException | IllegalStateException e) {
+        } catch (DuplicateException | AccountCodeGenerationException e) {
             response.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(response);
         } catch (RuntimeException e) {

@@ -84,12 +84,61 @@ class V5__enforce_non_admin_account_codesTest {
     }
 
     @Test
+    void rejectsSameNamedConstraintThatIsNotACheck() throws Exception {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    ALTER TABLE users
+                    ADD CONSTRAINT chk_users_non_admin_account_code UNIQUE(token_version)
+                    """);
+        }
+        Context context = mock(Context.class);
+        when(context.getConnection()).thenReturn(connection);
+
+        SQLException exception = assertThrows(
+                SQLException.class,
+                () -> new V5__enforce_non_admin_account_codes().migrate(context)
+        );
+
+        assertTrue(exception.getMessage().contains("không đúng định nghĩa"));
+    }
+
+    @Test
+    void rejectsSameNamedCheckWithWrongPredicate() throws Exception {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    ALTER TABLE users
+                    ADD CONSTRAINT chk_users_non_admin_account_code
+                    CHECK (role = 'ADMIN' OR LENGTH(username) > 0)
+                    """);
+        }
+        Context context = mock(Context.class);
+        when(context.getConnection()).thenReturn(connection);
+
+        SQLException exception = assertThrows(
+                SQLException.class,
+                () -> new V5__enforce_non_admin_account_codes().migrate(context)
+        );
+
+        assertTrue(exception.getMessage().contains("không đúng định nghĩa"));
+    }
+
+    @Test
     void recognizesOnlyMysqlVersionsThatEnforceCheckConstraints() {
         assertFalse(V5__enforce_non_admin_account_codes.isSupportedMysqlVersion("8.0.15"));
         assertTrue(V5__enforce_non_admin_account_codes.isSupportedMysqlVersion("8.0.16"));
         assertTrue(V5__enforce_non_admin_account_codes.isSupportedMysqlVersion("8.4.1-commercial"));
         assertTrue(V5__enforce_non_admin_account_codes.isSupportedMysqlVersion("9.0.0"));
         assertFalse(V5__enforce_non_admin_account_codes.isSupportedMysqlVersion("invalid"));
+    }
+
+    @Test
+    void recognizesMysqlRenderedCheckClauseAndRejectsWrongPredicate() {
+        assertTrue(V5__enforce_non_admin_account_codes.isExpectedCheckClause(
+                "((`role` = _utf8mb4'ADMIN') or regexp_like(`username`,_utf8mb4'^[0-9]{8}$'))"
+        ));
+        assertFalse(V5__enforce_non_admin_account_codes.isExpectedCheckClause(
+                "((`role` = _utf8mb4'ADMIN') or char_length(`username`) > 0)"
+        ));
     }
 
     @Test

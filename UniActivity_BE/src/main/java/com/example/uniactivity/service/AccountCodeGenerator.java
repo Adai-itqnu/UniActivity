@@ -1,5 +1,6 @@
 package com.example.uniactivity.service;
 
+import com.example.uniactivity.exception.AccountCodeGenerationException;
 import com.example.uniactivity.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,7 @@ public class AccountCodeGenerator {
                 return code;
             }
         }
-        throw new IllegalStateException("Không thể tạo mã tài khoản. Vui lòng thử lại.");
+        throw new AccountCodeGenerationException();
     }
 
     public boolean isValidCode(String value) {

@@ -1,5 +1,6 @@
 package com.example.uniactivity.service;
 
+import com.example.uniactivity.exception.AccountCodeGenerationException;
 import com.example.uniactivity.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,8 +52,8 @@ class AccountCodeGeneratorTest {
         when(userRepository.existsByUsername("10000007")).thenReturn(true);
         AccountCodeGenerator generator = new AccountCodeGenerator(userRepository, random);
 
-        IllegalStateException error = assertThrows(
-                IllegalStateException.class,
+        AccountCodeGenerationException error = assertThrows(
+                AccountCodeGenerationException.class,
                 generator::generateUniqueCode
         );
 
