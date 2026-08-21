@@ -13,6 +13,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -80,7 +82,12 @@ class V6__normalize_class_join_codesTest {
         assertThrows(SQLException.class, () -> insertClass(4, existing));
         assertThrows(SQLException.class, () -> insertClass(5, null));
         assertThrows(SQLException.class, () -> insertClass(6, "AAAAAA"));
-        assertThrows(SQLException.class, () -> insertClass(7, "ABC12I"));
+        String[] disallowed = {"a2B3C4", "ABC12I", "ABC12L", "ABC12O", "ABC120", "ABC121"};
+        for (int index = 0; index < disallowed.length; index++) {
+            long id = 7L + index;
+            String invalidCode = disallowed[index];
+            assertThrows(SQLException.class, () -> insertClass(id, invalidCode));
+        }
     }
 
     @Test
@@ -93,6 +100,55 @@ class V6__normalize_class_join_codesTest {
 
         assertEquals(1, uniqueIndexesCoveringJoinCode());
         assertEquals(1, checkConstraintsNamed("chk_classes_join_code_format"));
+    }
+
+    @Test
+    void avoidsLegacyCollisionsUsingTheActiveUniqueIndexComparisonSemantics() throws Exception {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE classes");
+            statement.execute("""
+                    CREATE TABLE classes (
+                        id BIGINT PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        join_code VARCHAR_IGNORECASE(255)
+                    )
+                    """);
+            statement.execute("INSERT INTO classes VALUES (1, 'Case insensitive', 'a2b3c4')");
+            statement.execute("CREATE UNIQUE INDEX legacy_join_code_unique ON classes(join_code)");
+        }
+        SecureRandom random = mock(SecureRandom.class);
+        when(random.nextInt(anyInt())).thenReturn(
+                0, 23, 1, 24, 2, 25,
+                3, 26, 4, 27, 5, 28
+        );
+
+        migrateWithRandom(random);
+
+        assertEquals("D5E6F7", codesById().get(1L));
+    }
+
+    @Test
+    void rejectsMysqlUniquePrefixIndexBeforeGeneratingReplacements() throws Exception {
+        Connection mysql = mock(Connection.class);
+        DatabaseMetaData metadata = mock(DatabaseMetaData.class);
+        PreparedStatement query = mock(PreparedStatement.class);
+        ResultSet indexes = mock(ResultSet.class);
+        when(mysql.getMetaData()).thenReturn(metadata);
+        when(metadata.getDatabaseProductName()).thenReturn("MySQL");
+        when(mysql.getCatalog()).thenReturn("uniactivity");
+        when(mysql.prepareStatement(anyString())).thenReturn(query);
+        when(query.executeQuery()).thenReturn(indexes);
+        when(indexes.next()).thenReturn(true);
+        when(indexes.getString("INDEX_NAME")).thenReturn("legacy_join_code_prefix");
+
+        SQLException exception = assertThrows(
+                SQLException.class,
+                () -> new V6__normalize_class_join_codes(mock(SecureRandom.class))
+                        .validateUpdateIndexSafety(mysql)
+        );
+
+        assertTrue(exception.getMessage().contains("legacy_join_code_prefix"));
+        assertTrue(exception.getMessage().contains("prefix"));
     }
 
     @Test
@@ -149,6 +205,31 @@ class V6__normalize_class_join_codesTest {
     }
 
     @Test
+    void rejectsConflictingFixedNameEvenAfterFindingAnEquivalentConstraint() throws Exception {
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("UPDATE classes SET join_code = 'A2B3C4' WHERE id = 1");
+            statement.execute("UPDATE classes SET join_code = 'D5E6F7' WHERE id = 2");
+            statement.execute("UPDATE classes SET join_code = 'G8H2J3' WHERE id = 3");
+            statement.execute("""
+                    ALTER TABLE classes
+                    ADD CONSTRAINT aaa_equivalent_join_code_format
+                    CHECK (REGEXP_LIKE(join_code, '^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$')
+                      AND REGEXP_LIKE(join_code, '[ABCDEFGHJKMNPQRSTUVWXYZ]')
+                      AND REGEXP_LIKE(join_code, '[23456789]'))
+                    """);
+            statement.execute("""
+                    ALTER TABLE classes
+                    ADD CONSTRAINT chk_classes_join_code_format CHECK (LENGTH(join_code) > 0)
+                    """);
+        }
+
+        SQLException exception = assertThrows(SQLException.class, this::migrateWithDeterministicRandom);
+
+        assertTrue(exception.getMessage().contains("chk_classes_join_code_format"));
+        assertTrue(exception.getMessage().contains("không đúng định nghĩa"));
+    }
+
+    @Test
     void recognizesOnlyMysqlVersionsThatEnforceCheckConstraints() {
         assertFalse(V6__normalize_class_join_codes.isSupportedMysqlVersion("8.0.15"));
         assertTrue(V6__normalize_class_join_codes.isSupportedMysqlVersion("8.0.16"));
@@ -174,6 +255,57 @@ class V6__normalize_class_join_codesTest {
                   and regexp_like(`join_code`,_utf8mb4'[ABCDEFGHJKMNPQRSTUVWXYZ]'))
                   and regexp_like(`join_code`,_utf8mb4'[23456789]'))
                 """));
+        assertFalse(V6__normalize_class_join_codes.isExpectedCheckClause("""
+                ((regexp_like(`join_code`,_utf8mb4'(?-i)^[abcdefghjkmnpqrstuvwxyz23456789]{6}$')
+                  and regexp_like(`join_code`,_utf8mb4'(?-i)[abcdefghjkmnpqrstuvwxyz]'))
+                  and regexp_like(`join_code`,_utf8mb4'(?-i)[23456789]'))
+                """));
+    }
+
+    @Test
+    void preservesRegexLiteralCaseWhenRecognizingH2CheckClauses() {
+        assertTrue(V6__normalize_class_join_codes.isExpectedH2CheckClause("""
+                ((REGEXP_LIKE("JOIN_CODE", '^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$')
+                  AND REGEXP_LIKE("JOIN_CODE", '[ABCDEFGHJKMNPQRSTUVWXYZ]'))
+                  AND REGEXP_LIKE("JOIN_CODE", '[23456789]'))
+                """));
+        assertFalse(V6__normalize_class_join_codes.isExpectedH2CheckClause("""
+                ((REGEXP_LIKE("JOIN_CODE", '^[abcdefghjkmnpqrstuvwxyz23456789]{6}$')
+                  AND REGEXP_LIKE("JOIN_CODE", '[abcdefghjkmnpqrstuvwxyz]'))
+                  AND REGEXP_LIKE("JOIN_CODE", '[23456789]'))
+                """));
+    }
+
+    @Test
+    void reusesMysqlEquivalentCheckOnlyWhenItIsEnforced() {
+        String expectedClause = """
+                ((regexp_like(`join_code`,_utf8mb4'(?-i)^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$')
+                  and regexp_like(`join_code`,_utf8mb4'(?-i)[ABCDEFGHJKMNPQRSTUVWXYZ]'))
+                  and regexp_like(`join_code`,_utf8mb4'(?-i)[23456789]'))
+                """;
+
+        assertFalse(V6__normalize_class_join_codes.isReusableMysqlCheckConstraint(
+                expectedClause, "NO"
+        ));
+        assertTrue(V6__normalize_class_join_codes.isReusableMysqlCheckConstraint(
+                expectedClause, "YES"
+        ));
+    }
+
+    @Test
+    void acceptsOnlyPhysicalVarcharSixNotNullColumnDefinition() {
+        assertTrue(V6__normalize_class_join_codes.isExpectedJoinCodeColumn(
+                DatabaseMetaData.columnNoNulls, 6, Types.VARCHAR, "VARCHAR"
+        ));
+        assertTrue(V6__normalize_class_join_codes.isExpectedJoinCodeColumn(
+                DatabaseMetaData.columnNoNulls, 6, Types.VARCHAR, "CHARACTER VARYING"
+        ));
+        assertFalse(V6__normalize_class_join_codes.isExpectedJoinCodeColumn(
+                DatabaseMetaData.columnNoNulls, 6, Types.CHAR, "CHARACTER"
+        ));
+        assertFalse(V6__normalize_class_join_codes.isExpectedJoinCodeColumn(
+                DatabaseMetaData.columnNullable, 6, Types.VARCHAR, "VARCHAR"
+        ));
     }
 
     @Test
@@ -205,9 +337,12 @@ class V6__normalize_class_join_codesTest {
             int bound = invocation.getArgument(0);
             return Math.floorMod(sequence.getAndIncrement(), bound);
         });
+        migrateWithRandom(random);
+    }
+
+    private void migrateWithRandom(SecureRandom random) throws Exception {
         Context context = mock(Context.class);
         when(context.getConnection()).thenReturn(connection);
-
         new V6__normalize_class_join_codes(random).migrate(context);
     }
 

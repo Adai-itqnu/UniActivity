@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,6 +60,7 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
     }
 
     private Map<Long, String> generateReplacements(Connection connection) throws SQLException {
+        validateUpdateIndexSafety(connection);
         List<Long> classIds = new ArrayList<>();
         try (Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("SELECT id FROM classes FOR UPDATE")) {
@@ -79,24 +81,107 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
         }
 
         Map<Long, String> replacements = new LinkedHashMap<>();
-        for (long classId : classIds) {
-            replacements.put(classId, generateUnusedCode(reservedCodes));
+        if (hasUniqueIndexContainingJoinCode(connection)) {
+            try (PreparedStatement collisionQuery = connection.prepareStatement(
+                    "SELECT 1 FROM classes WHERE join_code = ? LIMIT 1"
+            )) {
+                for (long classId : classIds) {
+                    replacements.put(classId, generateUnusedCode(reservedCodes, collisionQuery));
+                }
+            }
+        } else {
+            for (long classId : classIds) {
+                replacements.put(classId, generateUnusedCode(reservedCodes, null));
+            }
         }
         return replacements;
     }
 
-    private String generateUnusedCode(Set<String> reservedCodes) throws SQLException {
+    private String generateUnusedCode(
+            Set<String> reservedCodes,
+            PreparedStatement collisionQuery
+    ) throws SQLException {
         for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
             StringBuilder candidate = new StringBuilder(CODE_LENGTH);
             for (int position = 0; position < CODE_LENGTH; position++) {
                 candidate.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
             }
             String code = candidate.toString();
-            if (isNormalizedCode(code) && reservedCodes.add(code)) {
+            if (isNormalizedCode(code)
+                    && !reservedCodes.contains(code)
+                    && !collidesWithStoredCode(collisionQuery, code)) {
+                reservedCodes.add(code);
                 return code;
             }
         }
         throw new SQLException("Không thể cấp mã lớp duy nhất khi migration");
+    }
+
+    private boolean collidesWithStoredCode(
+            PreparedStatement collisionQuery,
+            String candidate
+    ) throws SQLException {
+        if (collisionQuery == null) {
+            return false;
+        }
+        collisionQuery.setString(1, candidate);
+        try (ResultSet rows = collisionQuery.executeQuery()) {
+            return rows.next();
+        }
+    }
+
+    void validateUpdateIndexSafety(Connection connection) throws SQLException {
+        if (isH2(connection)) {
+            return;
+        }
+        try (PreparedStatement query = connection.prepareStatement("""
+                SELECT INDEX_NAME, SUB_PART
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE UPPER(TABLE_SCHEMA) = UPPER(?)
+                  AND UPPER(TABLE_NAME) = 'CLASSES'
+                  AND NON_UNIQUE = 0
+                  AND UPPER(COLUMN_NAME) = 'JOIN_CODE'
+                  AND SUB_PART IS NOT NULL
+                """)) {
+            query.setString(1, connection.getCatalog());
+            try (ResultSet rows = query.executeQuery()) {
+                if (rows.next()) {
+                    throw new SQLException(
+                            "Unique index " + rows.getString("INDEX_NAME")
+                                    + " dùng prefix join_code; không thể xoay mã an toàn"
+                    );
+                }
+            }
+        }
+    }
+
+    private boolean hasUniqueIndexContainingJoinCode(Connection connection) throws SQLException {
+        if (!isH2(connection)) {
+            try (PreparedStatement query = connection.prepareStatement("""
+                    SELECT 1
+                    FROM INFORMATION_SCHEMA.STATISTICS
+                    WHERE UPPER(TABLE_SCHEMA) = UPPER(?)
+                      AND UPPER(TABLE_NAME) = 'CLASSES'
+                      AND NON_UNIQUE = 0
+                      AND UPPER(COLUMN_NAME) = 'JOIN_CODE'
+                    """)) {
+                query.setString(1, connection.getCatalog());
+                try (ResultSet rows = query.executeQuery()) {
+                    return rows.next();
+                }
+            }
+        }
+        TableReference table = findClassesTable(connection);
+        try (ResultSet indexes = connection.getMetaData().getIndexInfo(
+                table.catalog(), table.schema(), table.name(), true, false
+        )) {
+            while (indexes.next()) {
+                if ("join_code".equalsIgnoreCase(indexes.getString("COLUMN_NAME"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void updateAllRows(Connection connection, Map<Long, String> replacements) throws SQLException {
@@ -166,15 +251,8 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
 
     private void installFormatConstraint(Connection connection) throws SQLException {
         validateDatabaseSupport(connection);
-        List<CheckConstraint> constraints = findCheckConstraints(connection);
-        for (CheckConstraint constraint : constraints) {
-            if (CHECK_NAME.equalsIgnoreCase(constraint.name())
-                    && !isExpectedCheckClause(connection, constraint.checkClause())) {
-                throw new SQLException("Constraint " + CHECK_NAME + " không đúng định nghĩa bắt buộc");
-            }
-            if (isExpectedCheckClause(connection, constraint.checkClause())) {
-                return;
-            }
+        if (findReusableFormatConstraint(connection) != null) {
+            return;
         }
 
         String sql = isH2(connection)
@@ -244,16 +322,35 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
             throw new SQLException("Cột classes.join_code chưa có unique constraint");
         }
 
-        CheckConstraint expected = null;
-        for (CheckConstraint constraint : findCheckConstraints(connection)) {
-            if (isExpectedCheckClause(connection, constraint.checkClause())) {
-                expected = constraint;
-                break;
-            }
-        }
-        if (expected == null || !constraintIsEnforced(connection, expected.name())) {
+        if (findReusableFormatConstraint(connection) == null) {
             throw new SQLException("Constraint mã lớp không đúng định nghĩa hoặc chưa được thực thi");
         }
+    }
+
+    private CheckConstraint findReusableFormatConstraint(Connection connection) throws SQLException {
+        CheckConstraint reusable = null;
+        for (CheckConstraint constraint : findCheckConstraints(connection)) {
+            boolean expected = isExpectedCheckClause(connection, constraint.checkClause());
+            boolean enforced = isH2(connection)
+                    ? expected
+                    : isReusableMysqlCheckConstraint(
+                            constraint.checkClause(), constraint.enforced()
+                    );
+            if (CHECK_NAME.equalsIgnoreCase(constraint.name())) {
+                if (!expected) {
+                    throw new SQLException(
+                            "Constraint " + CHECK_NAME + " không đúng định nghĩa bắt buộc"
+                    );
+                }
+                if (!enforced) {
+                    throw new SQLException("Constraint " + CHECK_NAME + " chưa được thực thi");
+                }
+            }
+            if (expected && enforced && reusable == null) {
+                reusable = constraint;
+            }
+        }
+        return reusable;
     }
 
     private boolean hasExpectedColumnDefinition(Connection connection) throws SQLException {
@@ -263,12 +360,33 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
         )) {
             while (columns.next()) {
                 if ("join_code".equalsIgnoreCase(columns.getString("COLUMN_NAME"))) {
-                    return columns.getInt("NULLABLE") == DatabaseMetaData.columnNoNulls
-                            && columns.getInt("COLUMN_SIZE") == CODE_LENGTH;
+                    return isExpectedJoinCodeColumn(
+                            columns.getInt("NULLABLE"),
+                            columns.getInt("COLUMN_SIZE"),
+                            columns.getInt("DATA_TYPE"),
+                            columns.getString("TYPE_NAME")
+                    );
                 }
             }
         }
         throw new SQLException("Không tìm thấy cột classes.join_code");
+    }
+
+    static boolean isExpectedJoinCodeColumn(
+            int nullable,
+            int size,
+            int dataType,
+            String typeName
+    ) {
+        if (typeName == null) {
+            return false;
+        }
+        String normalizedType = typeName.toUpperCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+        return nullable == DatabaseMetaData.columnNoNulls
+                && size == CODE_LENGTH
+                && dataType == Types.VARCHAR
+                && ("VARCHAR".equals(normalizedType)
+                || "CHARACTER VARYING".equals(normalizedType));
     }
 
     private boolean hasUniqueIndexOnJoinCode(Connection connection) throws SQLException {
@@ -362,8 +480,9 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
     private List<CheckConstraint> findCheckConstraints(Connection connection) throws SQLException {
         String schema = informationSchemaName(connection);
         List<CheckConstraint> constraints = new ArrayList<>();
-        try (PreparedStatement query = connection.prepareStatement("""
-                SELECT tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE
+        String enforcedExpression = isH2(connection) ? "'YES'" : "tc.ENFORCED";
+        String sql = """
+                SELECT tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE, %s AS ENFORCED
                 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
                 LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
                   ON UPPER(cc.CONSTRAINT_NAME) = UPPER(tc.CONSTRAINT_NAME)
@@ -371,38 +490,20 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
                 WHERE UPPER(tc.TABLE_NAME) = 'CLASSES'
                   AND UPPER(tc.CONSTRAINT_SCHEMA) = UPPER(?)
                   AND UPPER(tc.CONSTRAINT_TYPE) = 'CHECK'
-                """)) {
+                """.formatted(enforcedExpression);
+        try (PreparedStatement query = connection.prepareStatement(sql)) {
             query.setString(1, schema);
             try (ResultSet rows = query.executeQuery()) {
                 while (rows.next()) {
                     constraints.add(new CheckConstraint(
                             rows.getString("CONSTRAINT_NAME"),
-                            rows.getString("CHECK_CLAUSE")
+                            rows.getString("CHECK_CLAUSE"),
+                            rows.getString("ENFORCED")
                     ));
                 }
             }
         }
         return constraints;
-    }
-
-    private boolean constraintIsEnforced(Connection connection, String constraintName) throws SQLException {
-        if (isH2(connection)) {
-            return true;
-        }
-        try (PreparedStatement query = connection.prepareStatement("""
-                SELECT ENFORCED
-                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-                WHERE UPPER(CONSTRAINT_NAME) = UPPER(?)
-                  AND UPPER(TABLE_NAME) = 'CLASSES'
-                  AND UPPER(CONSTRAINT_SCHEMA) = UPPER(?)
-                  AND UPPER(CONSTRAINT_TYPE) = 'CHECK'
-                """)) {
-            query.setString(1, constraintName);
-            query.setString(2, informationSchemaName(connection));
-            try (ResultSet rows = query.executeQuery()) {
-                return rows.next() && "YES".equalsIgnoreCase(rows.getString("ENFORCED"));
-            }
-        }
     }
 
     static boolean isExpectedCheckClause(String checkClause) {
@@ -411,10 +512,10 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
             return false;
         }
 
-        String alphabetPattern = "^[abcdefghjkmnpqrstuvwxyz23456789]{6}$";
-        String lettersPattern = "[abcdefghjkmnpqrstuvwxyz]";
+        String alphabetPattern = "^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$";
+        String lettersPattern = "[ABCDEFGHJKMNPQRSTUVWXYZ]";
         String digitsPattern = "[23456789]";
-        String inlineCaseFlag = "?-i";
+        String inlineCaseFlag = "(?-i)";
         String mysqlRegexpOperator = "join_coderegexp" + inlineCaseFlag + alphabetPattern
                 + "andjoin_coderegexp" + inlineCaseFlag + lettersPattern
                 + "andjoin_coderegexp" + inlineCaseFlag + digitsPattern;
@@ -429,16 +530,24 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
                 || mysqlExplicitCase.equals(normalized);
     }
 
+    static boolean isReusableMysqlCheckConstraint(String checkClause, String enforced) {
+        return isExpectedCheckClause(checkClause) && "YES".equalsIgnoreCase(enforced);
+    }
+
     private boolean isExpectedCheckClause(Connection connection, String checkClause) throws SQLException {
         if (!isH2(connection)) {
             return isExpectedCheckClause(checkClause);
         }
+        return isExpectedH2CheckClause(checkClause);
+    }
+
+    static boolean isExpectedH2CheckClause(String checkClause) {
         String normalized = normalizeCheckClause(checkClause);
         if (normalized == null) {
             return false;
         }
-        String alphabetPattern = "^[abcdefghjkmnpqrstuvwxyz23456789]{6}$";
-        String lettersPattern = "[abcdefghjkmnpqrstuvwxyz]";
+        String alphabetPattern = "^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$";
+        String lettersPattern = "[ABCDEFGHJKMNPQRSTUVWXYZ]";
         String digitsPattern = "[23456789]";
         return ("regexp_likejoin_code," + alphabetPattern
                 + "andregexp_likejoin_code," + lettersPattern
@@ -449,16 +558,47 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
         if (checkClause == null) {
             return null;
         }
-        return checkClause
-                .toLowerCase(Locale.ROOT)
-                .replace("\\", "")
-                .replaceAll("_[a-z0-9]+(?=')", "")
-                .replace("`", "")
-                .replace("\"", "")
-                .replace("'", "")
-                .replaceAll("\\s+", "")
-                .replace("(", "")
-                .replace(")", "");
+        StringBuilder normalized = new StringBuilder(checkClause.length());
+        boolean inLiteral = false;
+        for (int index = 0; index < checkClause.length(); index++) {
+            char character = checkClause.charAt(index);
+            if (inLiteral) {
+                if (character == '\'') {
+                    if (index + 1 < checkClause.length() && checkClause.charAt(index + 1) == '\'') {
+                        normalized.append('\'');
+                        index++;
+                    } else {
+                        inLiteral = false;
+                    }
+                } else {
+                    normalized.append(character);
+                }
+                continue;
+            }
+
+            if (character == '\'') {
+                removeCharsetIntroducer(normalized);
+                inLiteral = true;
+            } else if (character != '`'
+                    && character != '"'
+                    && character != '('
+                    && character != ')'
+                    && !Character.isWhitespace(character)) {
+                normalized.append(Character.toLowerCase(character));
+            }
+        }
+        return inLiteral ? null : normalized.toString();
+    }
+
+    private static void removeCharsetIntroducer(StringBuilder normalized) {
+        int end = normalized.length();
+        int start = end;
+        while (start > 0 && Character.isLetterOrDigit(normalized.charAt(start - 1))) {
+            start--;
+        }
+        if (start > 0 && normalized.charAt(start - 1) == '_') {
+            normalized.delete(start - 1, end);
+        }
     }
 
     private String informationSchemaName(Connection connection) throws SQLException {
@@ -476,6 +616,6 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
     private record TableReference(String catalog, String schema, String name) {
     }
 
-    private record CheckConstraint(String name, String checkClause) {
+    private record CheckConstraint(String name, String checkClause, String enforced) {
     }
 }
