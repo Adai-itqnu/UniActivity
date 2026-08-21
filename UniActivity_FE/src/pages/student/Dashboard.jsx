@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useOutletContext, NavLink } from 'react-router-dom'
 import { Html5Qrcode } from 'html5-qrcode'
+import { isCompleteUserCode, normalizeUserCode } from '../../utils/userCode.js'
 
 /* ==========================================
    CONSTANTS
@@ -201,8 +202,9 @@ function NoClassSection({ hasPendingRequest, pendingClassName }) {
 
     const handleJoin = async (e) => {
         if (e) e.preventDefault()
-        const code = typeof e === 'string' ? e : joinCode.trim()
-        if (!code) return
+        const code = normalizeUserCode(typeof e === 'string' ? e : joinCode)
+        if (!isCompleteUserCode(code)) return
+        setJoinCode(code)
         setSubmitting(true)
         setMessage(null)
         try {
@@ -225,7 +227,12 @@ function NoClassSection({ hasPendingRequest, pendingClassName }) {
 
     const handleScanned = async (code) => {
         setShowScanner(false)
-        setJoinCode(code)
+        const normalizedCode = normalizeUserCode(code)
+        setJoinCode(normalizedCode)
+        if (!isCompleteUserCode(normalizedCode)) {
+            setMessage({ type: 'error', text: 'Mã lớp phải gồm đủ 6 ký tự chữ và số' })
+            return
+        }
         setSubmitting(true)
         setMessage(null)
         try {
@@ -233,7 +240,7 @@ function NoClassSection({ hasPendingRequest, pendingClassName }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ joinCode: code }),
+                body: JSON.stringify({ joinCode: normalizedCode }),
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message || 'Không thể gửi yêu cầu')
@@ -281,15 +288,18 @@ function NoClassSection({ hasPendingRequest, pendingClassName }) {
                                     <input
                                         type="text"
                                         value={joinCode}
-                                        onChange={(e) => setJoinCode(e.target.value)}
-                                        placeholder="Nhập mã lớp (VD: ABC123)"
+                                        onChange={(e) => setJoinCode(normalizeUserCode(e.target.value))}
+                                        inputMode="text"
+                                        autoCapitalize="characters"
+                                        maxLength={6}
+                                        placeholder="Nhập mã lớp (VD: A7K9P2)"
                                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"
                                         disabled={submitting}
                                     />
                                 </div>
                                 <button
                                     type="submit"
-                                    disabled={submitting}
+                                    disabled={submitting || !isCompleteUserCode(joinCode)}
                                     className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
                                 >
                                     {submitting ? 'Đang gửi...' : 'Tham gia'}

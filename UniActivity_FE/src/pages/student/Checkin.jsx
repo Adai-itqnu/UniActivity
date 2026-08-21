@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams, NavLink, useOutletContext } from 'react-router-dom'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
+import { isCompleteUserCode, normalizeUserCode } from '../../utils/userCode.js'
 
 /* ===========================================
    CHECKIN PAGE — 2 chế độ:
@@ -157,9 +158,9 @@ export default function Checkin() {
 
     const handleManualCodeSubmit = (e) => {
         e.preventDefault()
-        const cleanCode = manualCode.trim()
-        if (!cleanCode || !/^\d{6}$/.test(cleanCode)) {
-            setResult({ type: 'error', message: 'Vui lòng nhập đủ 6 chữ số mã check-in' })
+        const cleanCode = normalizeUserCode(manualCode)
+        if (!isCompleteUserCode(cleanCode)) {
+            setResult({ type: 'error', message: 'Vui lòng nhập đủ 6 ký tự chữ và số của mã check-in' })
             return
         }
         if (!selectedActivityIdForCode) {
@@ -352,7 +353,7 @@ export default function Checkin() {
             {/* ===== SCANNER MODE ===== */}
             {mode === 'scanner' && (
                 <>
-                    {/* Tabs: Quét QR / Nhập mã 6 số */}
+                    {/* Tabs: Quét QR / Nhập mã 6 ký tự */}
                     <div className="flex rounded-2xl bg-gray-100 dark:bg-gray-800 p-1 mb-4">
                         <button
                             onClick={() => setScannerTab('qr')}
@@ -374,7 +375,7 @@ export default function Checkin() {
                             }`}
                         >
                             <span className="material-symbols-outlined text-lg">pin</span>
-                            Nhập mã 6 số
+                            Nhập mã 6 ký tự
                         </button>
                     </div>
 
@@ -407,7 +408,7 @@ export default function Checkin() {
                                 <div className="size-12 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
                                     <span className="material-symbols-outlined text-2xl">pin</span>
                                 </div>
-                                <h3 className="text-base font-bold text-gray-900 dark:text-white">Nhập mã check-in 6 chữ số</h3>
+                                <h3 className="text-base font-bold text-gray-900 dark:text-white">Nhập mã check-in 6 ký tự</h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     Nhập mã hiển thị ngay bên dưới mã QR của ban tổ chức (mã đổi mỗi 1 phút).
                                 </p>
@@ -434,15 +435,16 @@ export default function Checkin() {
 
                                 <div>
                                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                                        Mã check-in (6 số)
+                                        Mã check-in (6 ký tự)
                                     </label>
                                     <input
                                         type="text"
-                                        inputMode="numeric"
+                                        inputMode="text"
+                                        autoCapitalize="characters"
                                         maxLength={6}
                                         value={manualCode}
-                                        onChange={e => setManualCode(e.target.value.replace(/\D/g, ''))}
-                                        placeholder="123456"
+                                        onChange={e => setManualCode(normalizeUserCode(e.target.value))}
+                                        placeholder="A7K9P2"
                                         className="w-full text-center text-2xl font-mono font-bold tracking-widest px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
                                         required
                                     />
@@ -450,7 +452,7 @@ export default function Checkin() {
 
                                 <button
                                     type="submit"
-                                    disabled={manualCode.length !== 6 || checkinLoading}
+                                    disabled={!isCompleteUserCode(manualCode) || checkinLoading}
                                     className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {checkinLoading ? (
