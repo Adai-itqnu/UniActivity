@@ -23,6 +23,7 @@ public class StudentCheckinService {
     private final ActivityService activityService;
     private final ActivityRegistrationRepository registrationRepository;
     private final DynamicQrTokenService qrTokenService;
+    private final UnifiedCodePolicy codePolicy;
 
     @Transactional
     public ActivityRegistration checkIn(
@@ -42,8 +43,9 @@ public class StudentCheckinService {
         Activity activity = activityService.findActivityById(activityId);
         validateActivityWindow(activity);
 
-        boolean isValidToken = token.matches("^\\d{6}$")
-                ? qrTokenService.validateCheckinCode(token, activityId, targetClassId)
+        String normalizedToken = codePolicy.normalize(token);
+        boolean isValidToken = codePolicy.isValid(normalizedToken)
+                ? qrTokenService.validateCheckinCode(normalizedToken, activityId, targetClassId)
                 : qrTokenService.validateToken(token, activityId, targetClassId);
 
         if (!isValidToken) {

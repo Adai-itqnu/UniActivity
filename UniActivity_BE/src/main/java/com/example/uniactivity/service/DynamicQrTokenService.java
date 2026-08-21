@@ -1,8 +1,8 @@
 package com.example.uniactivity.service;
 
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -12,25 +12,39 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.util.Base64;
+import java.util.Objects;
 
 /**
  * Service tạo và validate Dynamic QR Token cho check-in hoạt động.
  * 
  * Cơ chế chống gửi QR từ xa:
  * - Token = HMAC-SHA256(activityId:classId:timeWindow, secret)
- * - timeWindow = timestamp / INTERVAL_SECONDS (mặc định 30s)
- * - QR đổi liên tục mỗi 30 giây → screenshot sẽ hết hạn nhanh
+ * - timeWindow = timestamp / INTERVAL_SECONDS (mặc định 60s)
+ * - QR đổi liên tục mỗi 60 giây → screenshot sẽ hết hạn nhanh
  * - Server chấp nhận cả window hiện tại VÀ window trước đó (tolerance 1)
  *   để tránh edge case sinh viên quét đúng lúc QR đổi.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class DynamicQrTokenService {
 
+    private final UnifiedCodePolicy codePolicy;
+    private final Clock clock;
+
     @Value("${app.qr.secret}")
     private String secretKey;
+
+    @Autowired
+    public DynamicQrTokenService(UnifiedCodePolicy codePolicy) {
+        this(codePolicy, Clock.systemUTC());
+    }
+
+    DynamicQrTokenService(UnifiedCodePolicy codePolicy, Clock clock) {
+        this.codePolicy = Objects.requireNonNull(codePolicy);
+        this.clock = Objects.requireNonNull(clock);
+    }
 
     @PostConstruct
     public void init() {
@@ -71,7 +85,7 @@ public class DynamicQrTokenService {
      * Lấy số giây còn lại trước khi token hết hạn.
      */
     public int getSecondsRemaining() {
-        long now = System.currentTimeMillis() / 1000;
+        long now = clock.millis() / 1000;
         long windowEnd = (getCurrentWindow() + 1) * INTERVAL_SECONDS;
         return (int) Math.max(0, windowEnd - now);
     }
@@ -108,22 +122,27 @@ public class DynamicQrTokenService {
     }
 
     /**
-     * Tạo mã số check-in 6 chữ số, đồng bộ với QR token (cùng timeWindow).
+     * Tạo mã check-in 6 ký tự chữ-số, đồng bộ với QR token (cùng timeWindow).
      * Sinh viên có thể nhập mã này thay vì quét QR.
      */
     public String generateCheckinCode(Long activityId, Long classId) {
-        long currentWindow = getCurrentWindow();
-        return deriveCode(activityId, classId, currentWindow);
+        return codePolicy.deriveCode(computeHmacBytes(
+                "CODE:" + activityId + ":" + classId + ":" + getCurrentWindow()));
     }
 
     /**
-     * Validate mã số check-in. Chấp nhận window hiện tại ± tolerance.
+     * Validate mã check-in. Chấp nhận window hiện tại ± tolerance.
      */
     public boolean validateCheckinCode(String code, Long activityId, Long classId) {
-        if (code == null || !code.matches("^\\d{6}$")) return false;
+        String normalized = codePolicy.normalize(code);
+        if (!codePolicy.isValid(normalized)) return false;
         long currentWindow = getCurrentWindow();
         for (int offset = -TOLERANCE_WINDOWS; offset <= 0; offset++) {
-            if (code.equals(deriveCode(activityId, classId, currentWindow + offset))) {
+            String expected = codePolicy.deriveCode(computeHmacBytes(
+                    "CODE:" + activityId + ":" + classId + ":" + (currentWindow + offset)));
+            if (MessageDigest.isEqual(
+                    normalized.getBytes(StandardCharsets.US_ASCII),
+                    expected.getBytes(StandardCharsets.US_ASCII))) {
                 return true;
             }
         }
@@ -134,48 +153,27 @@ public class DynamicQrTokenService {
     // ===================== PRIVATE =====================
 
     private long getCurrentWindow() {
-        return System.currentTimeMillis() / 1000 / INTERVAL_SECONDS;
+        return clock.millis() / 1000 / INTERVAL_SECONDS;
     }
 
     /**
      * HMAC-SHA256 để tạo token không thể giả mạo.
      */
     private String computeHmac(Long activityId, Long classId, long timeWindow) {
-        try {
-            String data = activityId + ":" + classId + ":" + timeWindow;
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec keySpec = new SecretKeySpec(
-                    secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(keySpec);
-            byte[] hmacBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            // URL-safe Base64, no padding → compact cho QR
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hmacBytes);
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException("Failed to compute HMAC for QR token", e);
-        }
+        byte[] hmacBytes = computeHmacBytes(activityId + ":" + classId + ":" + timeWindow);
+        // URL-safe Base64, no padding → compact cho QR
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(hmacBytes);
     }
 
-    /**
-     * Chuyển HMAC thành mã số 6 chữ số (000000 - 999999) từ timeWindow
-     */
-    private String deriveCode(Long activityId, Long classId, long timeWindow) {
+    private byte[] computeHmacBytes(String data) {
         try {
-            String data = "CODE:" + activityId + ":" + classId + ":" + timeWindow;
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec keySpec = new SecretKeySpec(
                     secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             mac.init(keySpec);
-            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            // Trích xuất 4 byte để tạo số nguyên dương
-            int offset = hash[hash.length - 1] & 0xf;
-            int binary = ((hash[offset] & 0x7f) << 24)
-                    | ((hash[offset + 1] & 0xff) << 16)
-                    | ((hash[offset + 2] & 0xff) << 8)
-                    | (hash[offset + 3] & 0xff);
-            int otp = binary % 1000000;
-            return String.format("%06d", otp);
-        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException("Failed to compute checkin code", e);
+            return mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException | InvalidKeyException exception) {
+            throw new IllegalStateException("Failed to compute HMAC for QR token", exception);
         }
     }
 }

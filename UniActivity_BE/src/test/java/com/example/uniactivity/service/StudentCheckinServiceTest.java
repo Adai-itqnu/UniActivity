@@ -19,6 +19,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +29,7 @@ class StudentCheckinServiceTest {
     @Mock ActivityService activityService;
     @Mock ActivityRegistrationRepository registrationRepository;
     @Mock DynamicQrTokenService qrTokenService;
+    @Mock UnifiedCodePolicy codePolicy;
 
     private StudentCheckinService service;
     private User student;
@@ -37,7 +39,7 @@ class StudentCheckinServiceTest {
     @BeforeEach
     void setUp() {
         service = new StudentCheckinService(
-                activityService, registrationRepository, qrTokenService);
+                activityService, registrationRepository, qrTokenService, codePolicy);
         StudentClass studentClass = new StudentClass();
         studentClass.setId(10L);
         student = new User();
@@ -66,6 +68,37 @@ class StudentCheckinServiceTest {
 
         assertEquals(RegistrationStatus.ATTENDED, result.getStatus());
         verify(qrTokenService).validateToken("token", 20L, 10L);
+    }
+
+    @Test void routesValidAlphanumericCheckinCodesToCheckinValidation() {
+        when(activityService.findActivityById(20L)).thenReturn(activity);
+        when(codePolicy.normalize("a7k9p2")).thenReturn("A7K9P2");
+        when(codePolicy.isValid("A7K9P2")).thenReturn(true);
+        when(qrTokenService.validateCheckinCode("A7K9P2", 20L, 10L)).thenReturn(true);
+        when(registrationRepository.findByActivityAndStudentForUpdate(activity, student))
+                .thenReturn(Optional.of(registration));
+        when(registrationRepository.save(registration)).thenReturn(registration);
+
+        service.checkIn(student, 20L, 10L, "a7k9p2", null, null, null);
+
+        verify(qrTokenService).validateCheckinCode("A7K9P2", 20L, 10L);
+        verify(qrTokenService, never()).validateToken("a7k9p2", 20L, 10L);
+    }
+
+    @Test void routesLongQrTokensToTokenValidation() {
+        String token = "long-signed-qr-token";
+        when(activityService.findActivityById(20L)).thenReturn(activity);
+        when(codePolicy.normalize(token)).thenReturn(token);
+        when(codePolicy.isValid(token)).thenReturn(false);
+        when(qrTokenService.validateToken(token, 20L, 10L)).thenReturn(true);
+        when(registrationRepository.findByActivityAndStudentForUpdate(activity, student))
+                .thenReturn(Optional.of(registration));
+        when(registrationRepository.save(registration)).thenReturn(registration);
+
+        service.checkIn(student, 20L, 10L, token, null, null, null);
+
+        verify(qrTokenService).validateToken(token, 20L, 10L);
+        verify(qrTokenService, never()).validateCheckinCode(token, 20L, 10L);
     }
 
     @Test void rejectsMissingToken() {
