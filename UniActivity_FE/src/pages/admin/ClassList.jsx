@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createClassJoinQrDataUrl } from '../../utils/classJoinQr'
 
 const API = '/admin/classes/api'
 
@@ -234,21 +235,7 @@ export default function ClassList() {
             </div>
 
             {/* QR Code Modal */}
-            {qrTarget && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setQrTarget(null)}>
-                    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-gray-200 dark:border-gray-700 p-6 text-center" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">QR Code - {qrTarget.name}</h3>
-                        <p className="text-sm text-gray-500 mb-4">Mã tham gia: <strong>{qrTarget.joinCode}</strong></p>
-                        <img src={`${API}/${qrTarget.id}/qrcode`} alt="QR Code" className="w-48 h-48 mx-auto border rounded-lg" />
-                        <div className="flex justify-center gap-3 mt-4">
-                            <a href={`${API}/${qrTarget.id}/qrcode/download`} download className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors">
-                                <span className="material-symbols-outlined text-lg">download</span>Tải về
-                            </a>
-                            <button onClick={() => setQrTarget(null)} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Đóng</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {qrTarget && <ClassQrModal target={qrTarget} onClose={() => setQrTarget(null)} />}
 
             {/* Create/Edit Modal */}
             {modalOpen && (
@@ -317,6 +304,60 @@ export default function ClassList() {
                     </div>
                 </div>
             )}
+        </div>
+    )
+}
+
+export function ClassQrModal({ target, onClose }) {
+    const [qrState, setQrState] = useState({ dataUrl: null, error: '' })
+
+    useEffect(() => {
+        let active = true
+
+        createClassJoinQrDataUrl(target.joinCode)
+            .then(dataUrl => {
+                if (active) setQrState({ dataUrl, error: '' })
+            })
+            .catch(() => {
+                if (active) setQrState({ dataUrl: null, error: 'Không thể tạo mã QR. Vui lòng thử lại.' })
+            })
+
+        return () => { active = false }
+    }, [target.joinCode])
+
+    const safeFileCode = String(target.code || target.id).replace(/[^a-zA-Z0-9_-]/g, '_')
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden border border-gray-200 dark:border-gray-700 p-6 text-center" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">QR Code - {target.name}</h3>
+                <p className="text-sm text-gray-500 mb-4">Mã tham gia: <strong>{target.joinCode}</strong></p>
+
+                {qrState.error ? (
+                    <div role="alert" className="w-48 h-48 mx-auto border rounded-lg flex items-center justify-center p-4 text-sm text-red-500">
+                        {qrState.error}
+                    </div>
+                ) : qrState.dataUrl ? (
+                    <img src={qrState.dataUrl} alt={`QR tham gia lớp ${target.name}`} className="w-48 h-48 mx-auto border rounded-lg" />
+                ) : (
+                    <div role="status" className="w-48 h-48 mx-auto border rounded-lg flex items-center justify-center text-sm text-gray-500">
+                        Đang tạo mã QR…
+                    </div>
+                )}
+
+                <div className="flex justify-center gap-3 mt-4">
+                    {qrState.dataUrl ? (
+                        <a href={qrState.dataUrl} download={`QR_${safeFileCode}.png`} className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark transition-colors">
+                            <span className="material-symbols-outlined text-lg">download</span>Tải về
+                        </a>
+                    ) : (
+                        <button disabled className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium opacity-50 cursor-not-allowed">
+                            <span className="material-symbols-outlined text-lg">download</span>Tải về
+                        </button>
+                    )}
+                    <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Đóng</button>
+                </div>
+            </div>
         </div>
     )
 }

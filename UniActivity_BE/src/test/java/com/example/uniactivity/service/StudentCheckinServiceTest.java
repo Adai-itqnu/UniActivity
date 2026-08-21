@@ -57,9 +57,15 @@ class StudentCheckinServiceTest {
         registration.setStatus(RegistrationStatus.REGISTERED);
     }
 
-    @Test void rejectsMissingClassId() {
-        assertThrows(ValidationException.class,
-                () -> service.checkIn(student, 20L, null, "token", null, null, null));
+    @Test void usesStudentsClassWhenClassIdIsMissing() {
+        stubSuccessfulPreconditions();
+        when(registrationRepository.save(registration)).thenReturn(registration);
+
+        ActivityRegistration result =
+                service.checkIn(student, 20L, null, "token", null, null, null);
+
+        assertEquals(RegistrationStatus.ATTENDED, result.getStatus());
+        verify(qrTokenService).validateToken("token", 20L, 10L);
     }
 
     @Test void rejectsMissingToken() {

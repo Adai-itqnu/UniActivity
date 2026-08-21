@@ -8,6 +8,7 @@ import com.example.uniactivity.exception.ValidationException;
 import com.example.uniactivity.mapper.UserMapper;
 import com.example.uniactivity.repository.StudentClassRepository;
 import com.example.uniactivity.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,7 @@ class UserManagementServiceTest {
     @Mock private StudentClassRepository studentClassRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AccountCodeGenerator accountCodeGenerator;
+    @Mock private EntityManager entityManager;
 
     private UserManagementService service;
 
@@ -41,7 +43,8 @@ class UserManagementServiceTest {
                 studentClassRepository,
                 passwordEncoder,
                 new UserMapper(),
-                accountCodeGenerator
+                accountCodeGenerator,
+                entityManager
         );
     }
 
