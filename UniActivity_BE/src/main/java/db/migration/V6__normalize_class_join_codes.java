@@ -145,9 +145,10 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
             performH2Cutover(connection, preflight);
         } else {
             withMysqlClassesWriteLock(connection, () -> {
-                Preflight lockedPreflight = preflight(connection, false);
                 removeInterruptedShadow(connection);
                 addShadowColumn(connection);
+            }, () -> {
+                Preflight lockedPreflight = preflight(connection, false);
                 Map<Long, String> replacements = generateReplacements(connection);
                 updateShadowColumn(connection, replacements);
                 verifyPreparedData(connection);
@@ -160,13 +161,17 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
         verifyFinalState(connection);
     }
 
-    void withMysqlClassesWriteLock(Connection connection, MysqlLockedWork work)
-            throws SQLException {
+    void withMysqlClassesWriteLock(
+            Connection connection,
+            MysqlLockedWork stagingColumnDdl,
+            MysqlLockedWork protectedWork
+    ) throws SQLException {
+        stagingColumnDdl.execute();
         withMysqlWriteLock(
                 connection,
                 "LOCK TABLES classes WRITE, classes AS prepared WRITE, "
                         + "classes AS legacy WRITE, " + STATE_TABLE + " WRITE",
-                work
+                protectedWork
         );
     }
 

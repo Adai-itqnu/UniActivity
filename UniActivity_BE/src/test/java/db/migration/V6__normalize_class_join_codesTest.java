@@ -332,22 +332,48 @@ class V6__normalize_class_join_codesTest {
     }
 
     @Test
-    void mysqlPreparationAndCutoverRunInsideAnExplicitWriteLock() throws Exception {
+    void mysqlStagingDdlCompletesBeforeFreshLockProtectsPopulationVerificationAndCutover()
+            throws Exception {
         Connection mysql = mock(Connection.class);
         Statement statements = mock(Statement.class);
-        V6__normalize_class_join_codes.MysqlLockedWork work =
+        V6__normalize_class_join_codes.MysqlLockedWork stagingColumnDdl =
                 mock(V6__normalize_class_join_codes.MysqlLockedWork.class);
+        V6__normalize_class_join_codes.MysqlLockedWork populate =
+                mock(V6__normalize_class_join_codes.MysqlLockedWork.class);
+        V6__normalize_class_join_codes.MysqlLockedWork verifyPrepared =
+                mock(V6__normalize_class_join_codes.MysqlLockedWork.class);
+        V6__normalize_class_join_codes.MysqlLockedWork atomicCutover =
+                mock(V6__normalize_class_join_codes.MysqlLockedWork.class);
+        V6__normalize_class_join_codes.MysqlLockedWork protectedWork = () -> {
+            populate.execute();
+            verifyPrepared.execute();
+            atomicCutover.execute();
+        };
         when(mysql.getAutoCommit()).thenReturn(true);
         when(mysql.createStatement()).thenReturn(statements);
 
-        new V6__normalize_class_join_codes().withMysqlClassesWriteLock(mysql, work);
+        new V6__normalize_class_join_codes().withMysqlClassesWriteLock(
+                mysql,
+                stagingColumnDdl,
+                protectedWork
+        );
 
-        InOrder order = inOrder(mysql, statements, work);
+        InOrder order = inOrder(
+                stagingColumnDdl,
+                mysql,
+                statements,
+                populate,
+                verifyPrepared,
+                atomicCutover
+        );
+        order.verify(stagingColumnDdl).execute();
         order.verify(mysql).setAutoCommit(false);
         order.verify(statements).execute("""
                 LOCK TABLES classes WRITE, classes AS prepared WRITE, classes AS legacy WRITE, uniactivity_v6_class_join_code_state WRITE
                 """.strip());
-        order.verify(work).execute();
+        order.verify(populate).execute();
+        order.verify(verifyPrepared).execute();
+        order.verify(atomicCutover).execute();
         order.verify(mysql).commit();
         order.verify(statements).execute("UNLOCK TABLES");
         order.verify(mysql).setAutoCommit(true);
@@ -357,6 +383,8 @@ class V6__normalize_class_join_codesTest {
     void mysqlWriteLockIsReleasedAndPreparationRolledBackWhenWorkFails() throws Exception {
         Connection mysql = mock(Connection.class);
         Statement statements = mock(Statement.class);
+        V6__normalize_class_join_codes.MysqlLockedWork stagingColumnDdl =
+                mock(V6__normalize_class_join_codes.MysqlLockedWork.class);
         V6__normalize_class_join_codes.MysqlLockedWork work =
                 mock(V6__normalize_class_join_codes.MysqlLockedWork.class);
         when(mysql.getAutoCommit()).thenReturn(true);
@@ -366,11 +394,12 @@ class V6__normalize_class_join_codesTest {
         SQLException exception = assertThrows(
                 SQLException.class,
                 () -> new V6__normalize_class_join_codes()
-                        .withMysqlClassesWriteLock(mysql, work)
+                        .withMysqlClassesWriteLock(mysql, stagingColumnDdl, work)
         );
 
         assertEquals("simulated locked-phase failure", exception.getMessage());
-        InOrder order = inOrder(mysql, statements, work);
+        InOrder order = inOrder(stagingColumnDdl, mysql, statements, work);
+        order.verify(stagingColumnDdl).execute();
         order.verify(mysql).setAutoCommit(false);
         order.verify(statements).execute("""
                 LOCK TABLES classes WRITE, classes AS prepared WRITE, classes AS legacy WRITE, uniactivity_v6_class_join_code_state WRITE
