@@ -20,7 +20,6 @@ import org.springframework.http.ResponseEntity;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -44,7 +43,7 @@ class ManagerMemberControllerTest {
         StudentClassResponseDto responseWithCode = new StudentClassResponseDto();
         responseWithCode.setJoinCode("A7K9P2");
         when(managerScopeAuthorizationService.requireManagedClass(manager)).thenReturn(studentClass);
-        lenient().when(studentClassService.regenerateJoinCode(10L)).thenReturn(responseWithCode);
+        when(studentClassService.regenerateJoinCode(10L)).thenReturn(responseWithCode);
         CustomUserDetails userDetails = new CustomUserDetails(manager);
 
         ResponseEntity<?> response = controller.regenerateJoinCode(userDetails);

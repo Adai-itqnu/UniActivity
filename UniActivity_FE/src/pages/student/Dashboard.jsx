@@ -286,11 +286,16 @@ function NoClassSection({ hasPendingRequest, pendingClassName }) {
                                 <div className="relative flex-1">
                                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">key</span>
                                     <input
+                                        id="class-join-code"
+                                        name="joinCode"
+                                        aria-label="Mã tham gia lớp"
                                         type="text"
                                         value={joinCode}
                                         onChange={(e) => setJoinCode(normalizeUserCode(e.target.value))}
                                         inputMode="text"
                                         autoCapitalize="characters"
+                                        autoComplete="off"
+                                        spellCheck={false}
                                         maxLength={6}
                                         placeholder="Nhập mã lớp (VD: A7K9P2)"
                                         className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500"

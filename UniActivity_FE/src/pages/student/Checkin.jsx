@@ -434,13 +434,20 @@ export default function Checkin() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                                    <label
+                                        htmlFor="manual-checkin-code"
+                                        className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5"
+                                    >
                                         Mã check-in (6 ký tự)
                                     </label>
                                     <input
+                                        id="manual-checkin-code"
+                                        name="checkinCode"
                                         type="text"
                                         inputMode="text"
                                         autoCapitalize="characters"
+                                        autoComplete="off"
+                                        spellCheck={false}
                                         maxLength={6}
                                         value={manualCode}
                                         onChange={e => setManualCode(normalizeUserCode(e.target.value))}

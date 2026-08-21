@@ -17,9 +17,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,8 +45,8 @@ class StudentClassServiceTest {
         when(studentClassRepository.existsByCode(dto.getCode())).thenReturn(false);
         when(studentClassMapper.toEntity(dto)).thenReturn(entity);
         when(studentClassRepository.save(entity)).thenReturn(entity);
-        lenient().when(codePolicy.generateRandomCode()).thenReturn("B2C3D4", "A7K9P2");
-        lenient().when(studentClassRepository.existsByJoinCode(anyString()))
+        when(codePolicy.generateRandomCode()).thenReturn("B2C3D4", "A7K9P2");
+        when(studentClassRepository.existsByJoinCode(anyString()))
                 .thenAnswer(invocation -> "B2C3D4".equals(invocation.getArgument(0)));
 
         StudentClassResponseDto response = service.createClass(dto);
@@ -61,8 +63,8 @@ class StudentClassServiceTest {
         entity.setId(10L);
         when(studentClassRepository.findById(10L)).thenReturn(Optional.of(entity));
         when(studentClassRepository.save(entity)).thenReturn(entity);
-        lenient().when(codePolicy.generateRandomCode()).thenReturn("B2C3D4", "A7K9P2");
-        lenient().when(studentClassRepository.existsByJoinCode(anyString()))
+        when(codePolicy.generateRandomCode()).thenReturn("B2C3D4", "A7K9P2");
+        when(studentClassRepository.existsByJoinCode(anyString()))
                 .thenAnswer(invocation -> "B2C3D4".equals(invocation.getArgument(0)));
 
         StudentClassResponseDto response = service.regenerateJoinCode(10L);
@@ -71,6 +73,25 @@ class StudentClassServiceTest {
         assertEquals("A7K9P2", response.getJoinCode());
         verify(studentClassRepository).existsByJoinCode("B2C3D4");
         verify(studentClassRepository).existsByJoinCode("A7K9P2");
+    }
+
+    @Test
+    void regenerateJoinCodeStopsAfterOneThousandCollisionsWithoutSaving() {
+        StudentClass entity = new StudentClass();
+        entity.setId(10L);
+        when(studentClassRepository.findById(10L)).thenReturn(Optional.of(entity));
+        when(codePolicy.generateRandomCode()).thenReturn("A7K9P2");
+        when(studentClassRepository.existsByJoinCode("A7K9P2")).thenReturn(true);
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> service.regenerateJoinCode(10L)
+        );
+
+        assertEquals("Không thể tạo mã tham gia lớp duy nhất", exception.getMessage());
+        verify(codePolicy, times(1_000)).generateRandomCode();
+        verify(studentClassRepository, times(1_000)).existsByJoinCode("A7K9P2");
+        verify(studentClassRepository, never()).save(any());
     }
 
     private StudentClassDto classDto() {

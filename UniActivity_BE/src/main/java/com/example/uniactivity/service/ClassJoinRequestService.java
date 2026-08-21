@@ -44,7 +44,7 @@ public class ClassJoinRequestService {
         
         String normalizedCode = codePolicy.normalize(joinCode);
         if (!codePolicy.isValid(normalizedCode)) {
-            throw new NotFoundException("Mã tham gia không hợp lệ");
+            throw new NotFoundException("Mã tham gia phải gồm đúng 6 ký tự chữ và số");
         }
         StudentClass studentClass = studentClassRepository.findByJoinCode(normalizedCode)
                 .orElseThrow(() -> new NotFoundException("Mã tham gia không hợp lệ"));

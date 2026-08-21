@@ -14,11 +14,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,10 +39,10 @@ class ClassJoinRequestServiceTest {
         User student = new User();
         student.setId(1L);
         StudentClass studentClass = new StudentClass();
-        lenient().when(userRepository.findById(1L)).thenReturn(Optional.of(student));
-        lenient().when(codePolicy.normalize(" a7k9p2 ")).thenReturn("A7K9P2");
-        lenient().when(codePolicy.isValid("A7K9P2")).thenReturn(true);
-        lenient().when(studentClassRepository.findByJoinCode(anyString()))
+        when(userRepository.findById(1L)).thenReturn(Optional.of(student));
+        when(codePolicy.normalize(" a7k9p2 ")).thenReturn("A7K9P2");
+        when(codePolicy.isValid("A7K9P2")).thenReturn(true);
+        when(studentClassRepository.findByJoinCode(anyString()))
                 .thenReturn(Optional.of(studentClass));
         when(joinRequestRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -59,9 +59,12 @@ class ClassJoinRequestServiceTest {
         when(codePolicy.normalize("not-a-code")).thenReturn("NOT-A-CODE");
         when(codePolicy.isValid("NOT-A-CODE")).thenReturn(false);
 
-        assertThrows(NotFoundException.class,
-                () -> service.createJoinRequest(student, "not-a-code"));
+        NotFoundException exception = assertThrows(
+                NotFoundException.class,
+                () -> service.createJoinRequest(student, "not-a-code")
+        );
 
+        assertEquals("Mã tham gia phải gồm đúng 6 ký tự chữ và số", exception.getMessage());
         verify(codePolicy).normalize("not-a-code");
         verify(codePolicy).isValid("NOT-A-CODE");
         verify(studentClassRepository, never()).findByJoinCode(any());
