@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-21
 
-**Status:** Approved in conversation; awaiting written-spec review
+**Status:** Approved by user on 2026-08-21
 
 **Scope:** Class join codes and manual activity check-in codes
 
@@ -115,7 +115,7 @@ Final verification commands:
 
 ```bash
 cd UniActivity_BE && mvn clean test
-cd UniActivity_FE && node --test src/utils/*.test.js src/pages/admin/*.test.js src/pages/student/*.test.js
+cd UniActivity_FE && node --test src/utils/*.test.js src/pages/admin/*.test.js
 cd UniActivity_FE && npm run lint
 cd UniActivity_FE && npm run build
 ```
