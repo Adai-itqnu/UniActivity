@@ -644,6 +644,15 @@ class V6__normalize_class_join_codesTest {
     }
 
     @Test
+    void recognizesMysql84EscapedMetadataQuotes() {
+        assertTrue(V6__normalize_class_join_codes.isExpectedCheckClause("""
+                (regexp_like(`join_code`,_utf8mb4\\'(?-i)^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$\\')
+                  and regexp_like(`join_code`,_utf8mb4\\'(?-i)[ABCDEFGHJKMNPQRSTUVWXYZ]\\')
+                  and regexp_like(`join_code`,_utf8mb4\\'(?-i)[23456789]\\'))
+                """));
+    }
+
+    @Test
     void recognizesRawMysqlRegexpOperatorWithAndWithoutCharsetIntroducers() {
         assertTrue(V6__normalize_class_join_codes.isExpectedCheckClause("""
                 ((join_code REGEXP '(?-i)^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$'

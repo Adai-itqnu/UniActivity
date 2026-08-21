@@ -1425,13 +1425,18 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
         if (checkClause == null) {
             return null;
         }
-        StringBuilder normalized = new StringBuilder(checkClause.length());
+        // MySQL 8.4 serializes CHECK_CLAUSE string delimiters as \\' in
+        // INFORMATION_SCHEMA. Canonicalize that metadata representation before
+        // applying the same quote-aware parser used for earlier MySQL versions.
+        String serializedClause = checkClause.replace("\\'", "'");
+        StringBuilder normalized = new StringBuilder(serializedClause.length());
         boolean inLiteral = false;
-        for (int index = 0; index < checkClause.length(); index++) {
-            char character = checkClause.charAt(index);
+        for (int index = 0; index < serializedClause.length(); index++) {
+            char character = serializedClause.charAt(index);
             if (inLiteral) {
                 if (character == '\'') {
-                    if (index + 1 < checkClause.length() && checkClause.charAt(index + 1) == '\'') {
+                    if (index + 1 < serializedClause.length()
+                            && serializedClause.charAt(index + 1) == '\'') {
                         normalized.append('\'');
                         index++;
                     } else {
@@ -1444,7 +1449,7 @@ public class V6__normalize_class_join_codes extends BaseJavaMigration {
             }
 
             if (character == '\'') {
-                removeCharsetIntroducer(normalized, checkClause, index);
+                removeCharsetIntroducer(normalized, serializedClause, index);
                 inLiteral = true;
             } else if (character != '`'
                     && character != '"'
