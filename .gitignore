@@ -1,4 +1,5 @@
 .worktrees/
+.superpowers/
 .idea/
 **/target/
 **/karate-reports/
