@@ -3,12 +3,12 @@ package com.example.uniactivity.controller.manager;
 import com.example.uniactivity.entity.ClassJoinRequest;
 import com.example.uniactivity.entity.StudentClass;
 import com.example.uniactivity.entity.User;
-import com.example.uniactivity.repository.StudentClassRepository;
 import com.example.uniactivity.repository.UserRepository;
 import com.example.uniactivity.security.CustomUserDetails;
 import com.example.uniactivity.service.ClassJoinRequestService;
 import com.example.uniactivity.service.ManagerScopeAuthorizationService;
 import com.example.uniactivity.service.NotificationService;
+import com.example.uniactivity.service.StudentClassService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,9 +29,9 @@ public class ManagerMemberController {
 
     private final UserRepository userRepository;
     private final ClassJoinRequestService classJoinRequestService;
-    private final StudentClassRepository studentClassRepository;
     private final NotificationService notificationService;
     private final ManagerScopeAuthorizationService managerScopeAuthorizationService;
+    private final StudentClassService studentClassService;
 
     @GetMapping("/join-requests")
     public String joinRequests(@AuthenticationPrincipal CustomUserDetails userDetails, Model model) {
@@ -112,10 +112,7 @@ public class ManagerMemberController {
     public ResponseEntity<?> regenerateJoinCode(@AuthenticationPrincipal CustomUserDetails userDetails) {
         StudentClass studentClass = managerScopeAuthorizationService
                 .requireManagedClass(userDetails.getUser());
-        String newCode = java.util.UUID.randomUUID().toString()
-                .substring(0, 6).toUpperCase();
-        studentClass.setJoinCode(newCode);
-        studentClassRepository.save(studentClass);
+        String newCode = studentClassService.regenerateJoinCode(studentClass.getId()).getJoinCode();
         return ResponseEntity.ok(Map.of(
             "message", "Đã tạo mã tham gia mới",
             "joinCode", newCode

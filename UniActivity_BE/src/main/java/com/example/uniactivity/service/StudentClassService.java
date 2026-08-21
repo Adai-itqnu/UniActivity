@@ -14,16 +14,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
-
 @Service
 @RequiredArgsConstructor
 public class StudentClassService {
+
+    private static final int MAX_JOIN_CODE_ATTEMPTS = 1_000;
 
     private final StudentClassRepository studentClassRepository;
     private final FacultyRepository facultyRepository;
     private final AcademicYearRepository academicYearRepository;
     private final StudentClassMapper studentClassMapper;
+    private final UnifiedCodePolicy codePolicy;
 
     public List<StudentClassResponseDto> getAllClasses() {
         return studentClassRepository.findAll().stream()
@@ -91,10 +92,12 @@ public class StudentClassService {
     }
     
     private String generateJoinCode() {
-        String code;
-        do {
-            code = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        } while (studentClassRepository.existsByJoinCode(code));
-        return code;
+        for (int attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
+            String candidate = codePolicy.generateRandomCode();
+            if (!studentClassRepository.existsByJoinCode(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Không thể tạo mã tham gia lớp duy nhất");
     }
 }

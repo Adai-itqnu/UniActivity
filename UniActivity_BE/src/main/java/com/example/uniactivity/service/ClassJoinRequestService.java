@@ -31,6 +31,7 @@ public class ClassJoinRequestService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final SseEmitterService sseEmitterService;
+    private final UnifiedCodePolicy codePolicy;
 
     /**
      * Student creates a join request using class join code
@@ -41,8 +42,11 @@ public class ClassJoinRequestService {
         User freshStudent = userRepository.findById(student.getId())
                 .orElseThrow(() -> new NotFoundException("Người dùng", student.getId()));
         
-        // Find class by join code
-        StudentClass studentClass = studentClassRepository.findByJoinCode(joinCode)
+        String normalizedCode = codePolicy.normalize(joinCode);
+        if (!codePolicy.isValid(normalizedCode)) {
+            throw new NotFoundException("Mã tham gia không hợp lệ");
+        }
+        StudentClass studentClass = studentClassRepository.findByJoinCode(normalizedCode)
                 .orElseThrow(() -> new NotFoundException("Mã tham gia không hợp lệ"));
 
         // Check if student already has a class

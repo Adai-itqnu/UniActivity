@@ -25,6 +25,7 @@ public class StudentClass {
     @JoinColumn(name = "academic_year_id")
     private AcademicYear academicYear;
 
+    @Column(nullable = false, unique = true, length = 6)
     private String joinCode;
 
     @Column(columnDefinition = "TEXT")
